@@ -1,0 +1,45 @@
+---
+output: github_document
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  cache.path = "cache/README-",
+  out.width = "100%")
+```
+# survTMB
+
+TODO: Write intro to the package...
+
+## Example
+
+TODO: write description
+
+```{r fit_example, cache = 1}
+dat <- coxme::eortc
+
+library(survTMB)
+fit_model <- function(link){
+  adfun <- make_gsm_ADFun(
+    Surv(y, uncens) ~ trt, cluster = as.factor(center), 
+    Z = ~ trt,
+    df = 3L, data = dat, link = link, do_setup = "Laplace")
+  fit <- do.call(optim, adfun$laplace)
+  list(logLik = -fit$value, par = fit$par)
+}
+
+fit_model("PH"    )
+fit_model("PO"    )
+fit_model("probit")
+```
+
+```{r comp_time, cache = 1, dependson = "fit_example"}
+library(microbenchmark)
+microbenchmark(
+  PH     = fit_model("PH"    ), 
+  PO     = fit_model("PO"    ), 
+  probit = fit_model("probit"), times = 5)
+```
