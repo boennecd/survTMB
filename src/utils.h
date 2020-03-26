@@ -53,6 +53,21 @@ get_vcov_from_trian(vector<Type> const &theta){
   unsigned const dim = get_rng_dim(theta);
   return get_vcov_from_trian(&theta[0], dim);
 }
+
+/* unlike objective_function::parallel_region this does not increase the
+ * counter
+ */
+template<class Type>
+bool is_my_region(objective_function<Type> const &o){
+  if(o.current_parallel_region < 0 || o.selected_parallel_region < 0)
+    /* Serial mode */
+    return true;
+  if(o.selected_parallel_region == o.current_parallel_region &&
+     (!o.parallel_ignore_statements))
+    return true;
+  return false;
+}
+
 } // namespace survTMB
 
 #endif

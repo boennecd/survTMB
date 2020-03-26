@@ -9,6 +9,7 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   cache.path = "cache/README-",
   out.width = "100%")
+options(digits = 4)
 ```
 # survTMB
 
@@ -22,11 +23,12 @@ TODO: write description
 dat <- coxme::eortc
 
 library(survTMB)
-fit_model <- function(link){
+library(survival)
+fit_model <- function(link, n_threads = 2L){
   adfun <- make_gsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), 
-    Z = ~ trt,
-    df = 3L, data = dat, link = link, do_setup = "Laplace")
+    Z = ~ trt, df = 3L, data = dat, link = link, do_setup = "Laplace", 
+    n_threads = n_threads)
   fit <- do.call(optim, adfun$laplace)
   list(logLik = -fit$value, par = fit$par)
 }
@@ -39,7 +41,17 @@ fit_model("probit")
 ```{r comp_time, cache = 1, dependson = "fit_example"}
 library(microbenchmark)
 microbenchmark(
-  PH     = fit_model("PH"    ), 
-  PO     = fit_model("PO"    ), 
-  probit = fit_model("probit"), times = 5)
+   PH           = fit_model("PH"    , 1L),
+  `PH     (2L)` = fit_model("PH"    , 2L),
+  `PH     (4L)` = fit_model("PH"    , 4L),
+  
+   PO           = fit_model("PO"    , 1L),
+  `PO     (2L)` = fit_model("PO"    , 2L),
+  `PO     (4L)` = fit_model("PO"    , 4L), 
+  
+  
+   probit       = fit_model("probit", 1L),
+  `probit (2L)` = fit_model("probit", 2L),
+  `probit (4L)` = fit_model("probit", 4L),
+  times = 5)
 ```

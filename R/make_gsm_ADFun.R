@@ -69,8 +69,8 @@ Shat <- function(obj){
 make_gsm_ADFun <- function(
   formula, data, df, Z, cluster, do_setup = c("Laplace", "GVA", "SNVA"),
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
-  link = c("PH", "PO", "probit"),
-  theta = NULL, beta = NULL, opt_func = .opt_default){
+  link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
+  opt_func = .opt_default, n_threads = 1L){
   link <- link[1]
   param_type <- param_type[1]
   stopifnot(
@@ -80,7 +80,8 @@ make_gsm_ADFun <- function(
     all(do_setup %in% c(.laplace_char, .gva_char, .snva_char)),
     is.integer(n_nodes), length(n_nodes) == 1L, n_nodes > 0L,
     link %in% c("PH", "PO", "probit"),
-    param_type %in% c("DP", "CP_trans", "CP"))
+    param_type %in% c("DP", "CP_trans", "CP"),
+    is.integer(n_threads) && n_threads > 0L && length(n_threads) == 1L)
 
   #####
   # get the cluster variable
@@ -188,7 +189,7 @@ make_gsm_ADFun <- function(
   # setup ADFun object for the Laplace approximation
   data_ad_func <- list(
     tobs = tobs, event = event, X = X, XD = XD, Z = Z, grp = grp - 1L,
-    link = link, grp_size = grp_size)
+    link = link, grp_size = grp_size, n_threads = n_threads)
 
   # the user may have provided values
   theta <- if(!need_theta){

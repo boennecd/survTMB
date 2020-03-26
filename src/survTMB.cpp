@@ -7,6 +7,10 @@
 #include <future>
 #include <limits>
 
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 using namespace survTMB;
 
 /* Common arguments used in approximations.
@@ -24,6 +28,7 @@ using namespace survTMB;
  *   theta: covariance matrix parameters. See get_vcov_from_trian.
  */
 #define COMMON_ARGS                                            \
+  parallel_accumulator<Type> &result,                          \
   vector<Type> const &tobs, vector<Type> const &event,         \
   matrix<Type> const &X, matrix<Type> const &XD,               \
   matrix<Type> const &Z, vector<int> const &grp,               \
@@ -31,17 +36,60 @@ using namespace survTMB;
   vector<Type> const &theta, std::string const &link,          \
   vector<int> &grp_size
 #define COMMON_CALL                                            \
-  tobs, event, X, XD, Z, grp, eps, kappa, b, theta, link,      \
-  grp_size
+  result, tobs, event, X, XD, Z, grp, eps, kappa, b, theta,    \
+  link, grp_size
 
 namespace {
+
+template<class Type>
+Type laplace_PH_terms
+  (Type const &eta, Type const &etaD, Type const &event,
+   Type const &eps, Type const &eps_log, Type const &kappa){
+  Type const H = exp(eta),
+             h = etaD * H,
+        if_low = event * eps_log - H - h * h * kappa,
+        if_ok  = event * log(h)  - H;
+  return CppAD::CondExpGe(h, eps, if_ok, if_low);
+}
+
+template<class Type>
+Type laplace_PO_terms
+  (Type const &eta, Type const &etaD, Type const &event,
+   Type const &eps, Type const &eps_log, Type const &kappa){
+  Type const too_large(30.),
+                   one(1.);
+
+  Type const H = CppAD::CondExpGe(
+    eta, too_large, eta, log(one + exp(eta))),
+             h = etaD * exp(eta - H),
+        if_low = event * eps_log - H - h * h * kappa,
+        if_ok  = event * log(h)  - H;
+  return CppAD::CondExpGe(h, eps, if_ok, if_low);
+}
+
+template<class Type>
+Type laplace_probit_terms
+  (Type const &eta, Type const &etaD, Type const &event,
+   Type const &eps, Type const &eps_log, Type const &kappa){
+  Type const tiny(std::numeric_limits<double>::epsilon()),
+             zero(0.),
+              one(1.);
+
+  Type const H = -pnorm_log(-eta),
+             h = etaD * dnorm(-eta, zero, one) /
+               (pnorm(-eta) + tiny),
+        if_low = event * eps_log - H - h * h * kappa,
+        if_ok  = event * log(h)  - H;
+  return CppAD::CondExpGe(h, eps, if_ok, if_low);
+}
+
 /* Computes the log-likelihood for given random effects.
  *
  * Args:
  *   u: [random effect dim] x [# groups] matrix with random effects.
  */
 template<class Type>
-Type laplace(COMMON_ARGS, matrix<Type> const &u){
+void laplace(COMMON_ARGS, matrix<Type> const &u){
   /* checks */
   unsigned const rng_dim = survTMB::get_rng_dim(theta);
   {
@@ -54,66 +102,67 @@ Type laplace(COMMON_ARGS, matrix<Type> const &u){
 
   /* log-likelihood terms from conditional distribution of the observed
    * outcomes */
-  vector<Type> const eta = ([&](){
-    vector<Type> out = X * b;
-
-    unsigned i = 0;
-    for(unsigned g = 0; g < grp_size.size(); ++g){
-      auto const u_g = u.col(g);
-
-      /* TODO: does eigen have a something like the rows member function in
-       *       Armadillo. */
-      unsigned const end = grp_size[g] + i;
-      for(; i < end; ++i)
-        out[i] += Z.row(i) * u_g;
-    }
-
-    return out;
-  })();
-  vector<Type> const etaD    = XD * b;
-         Type  const eps_log = log(eps);
+  Type  const eps_log = log(eps);
+  auto const b_vec = b.matrix().col(0);
 
   /* compute terms from conditional density */
-  Type out(0);
-  if(link == "PH")
-    for(unsigned i = 0; i < grp.size(); ++i){
-      Type const H = exp(eta[i]),
-                 h = etaD[i] * H,
-            if_low = event[i] * eps_log - H - h * h * kappa,
-            if_ok  = event[i] * log(h)  - H;
-      out += CppAD::CondExpGe(h, eps, if_ok, if_low);
-    }
-  else if (link == "PO"){
-    Type const too_large(30.),
-                     one(1.);
-    for(unsigned i = 0; i < grp.size(); ++i){
-      Type const H = CppAD::CondExpGe(
-        eta[i], too_large, eta[i], log(one + exp(eta[i]))),
-                 h = etaD[i] * exp(eta[i] - H),
-            if_low = event[i] * eps_log - H - h * h * kappa,
-            if_ok  = event[i] * log(h)  - H;
-      out += CppAD::CondExpGe(h, eps, if_ok, if_low);
-    }
-  } else if(link == "probit"){
-    Type const tiny(std::numeric_limits<double>::epsilon()),
-               zero(0.),
-                one(1.);
-    for(unsigned i = 0; i < grp.size(); ++i){
-      Type const H = -pnorm_log(-eta[i]),
-                 h = etaD[i] * dnorm(-eta[i], zero, one) /
-                   (pnorm(-eta[i]) + tiny),
-            if_low = event[i] * eps_log - H - h * h * kappa,
-            if_ok  = event[i] * log(h)  - H;
-      out += CppAD::CondExpGe(h, eps, if_ok, if_low);
+  typedef Type (*loop_func)(
+      Type const&, Type const&, Type const&,
+      Type const&, Type const&, Type const&);
 
+  auto cond_dens_loop = [&](loop_func func){
+    unsigned i(0L);
+    for(unsigned g = 0; g < grp_size.size(); ++g){
+      unsigned const n_members = grp_size[g];
+      /* do we need to anything on this thread? */
+      if(!is_my_region(*result.obj)){
+        i += n_members;
+        result.obj->parallel_region();
+        continue;
+      }
+
+      /* compute linear predictor etc. */
+      auto const u_g = u.col(g);
+      unsigned const end_i(i + n_members);
+      vector<Type> const eta = ([&](){
+        vector<Type> out(n_members);
+        unsigned k(0L);
+        for(unsigned j = i; j < end_i; ++j, ++k){
+          out[k]  = (X.row(j) * b_vec)[0];
+          out[k] += Z.row(j) * u_g;
+        }
+
+        return out;
+      })();
+      vector<Type> const etaD = ([&](){
+        vector<Type> out(n_members);
+        unsigned k(0L);
+        for(unsigned j = i; j < end_i; ++j, ++k)
+          out[k] = (XD.row(j) * b_vec)[0];
+
+        return out;
+      })();
+
+      Type next_term(0.);
+      for(unsigned k = 0; k < n_members; ++k, ++i)
+        next_term += func(
+          eta[k], etaD[k], event[i], eps, eps_log, kappa);
+
+      result -= next_term;
     }
-  } else
+  };
+
+  if(link == "PH")
+    cond_dens_loop(laplace_PH_terms<Type>);
+  else if (link == "PO")
+    cond_dens_loop(laplace_PO_terms<Type>);
+  else if(link == "probit")
+    cond_dens_loop(laplace_probit_terms<Type>);
+  else
     error("'%s' not implemented", link.c_str());
 
   /* log-likelihood terms from random effect density */
-  out += mult_var_dens(theta, u);
-
-  return -out;
+  result -= mult_var_dens(theta, u);
 }
 } // namespace
 
@@ -131,6 +180,7 @@ Type objective_function<Type>::operator() ()
   DATA_IVECTOR(grp);
   DATA_STRING(link);
   DATA_IVECTOR(grp_size);
+  DATA_INTEGER(n_threads)
 
   /* They are marked as parameter such that the user can change them
    * later */
@@ -183,13 +233,20 @@ Type objective_function<Type>::operator() ()
     }
   }
 
+#ifdef _OPENMP
+  omp_set_num_threads(n_threads);
+#endif
+
+  parallel_accumulator<Type> result(this);
+
   /* perform approximations using method descibed at
    *   https://github.com/kaskr/adcomp/issues/233#issuecomment-306032192
    *
    * each branch may contain further parameters or data objects */
   if(app_type == "Laplace"){
     PARAMETER_MATRIX(u);
-    return laplace(COMMON_CALL, u);
+    laplace(COMMON_CALL, u);
+    return result;
 
   }
 
