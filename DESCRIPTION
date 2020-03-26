@@ -2,9 +2,11 @@ Package: survTMB
 Type: Package
 Title: What the Package Does (Title Case)
 Version: 0.1.0
-Authors@R: person("Benjamin", "Christoffersen", 
-                  email = "boennecd@gmail.com", 
-                  role = c("cre", "aut"))
+Authors@R: c(person("Benjamin", "Christoffersen", 
+                    email = "boennecd@gmail.com", 
+                    role = c("cre", "aut")), 
+             person("Mark", "Clements",  
+                    role = "cph"))
 Maintainer: Benjamin Christoffersen <boennecd@gmail.com>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
@@ -21,4 +23,6 @@ LinkingTo:
     TMB, 
     testthat
 Imports: 
-    TMB (>= 1.7.15)
+    TMB (>= 1.7.15), 
+    survival, 
+    rstpm2

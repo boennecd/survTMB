@@ -175,9 +175,12 @@ Type objective_function<Type>::operator() ()
     if(g_max + 1L != grp_size.size())
       error("invalid 'grp_size' (does not match with number of groups)");
 
-    for(int i = 1L; i < grp.size(); ++i)
+    for(int i = 1L; i < grp.size(); ++i){
       if(grp[i - 1L] > grp[i])
         error("'grp' is not sorted");
+      if(grp[i - 1L] - grp[i] < -1L)
+        error("too big gap in 'grp'");
+    }
   }
 
   /* perform approximations using method descibed at
