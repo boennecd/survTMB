@@ -2,10 +2,9 @@ Package: survTMB
 Type: Package
 Title: What the Package Does (Title Case)
 Version: 0.1.0
-Authors@R: c(
-  person("Benjamin", "Christoffersen", 
-         email = "boennecd@gmail.com", 
-         role = c("cre", "aut")))
+Authors@R: person("Benjamin", "Christoffersen", 
+                  email = "boennecd@gmail.com", 
+                  role = c("cre", "aut"))
 Maintainer: Benjamin Christoffersen <boennecd@gmail.com>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
@@ -13,14 +12,13 @@ License: GPL-2
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 3.6.0)
+SystemRequirements: C++11
 Suggests: 
     testthat
 RoxygenNote: 7.0.1
 LinkingTo: 
-    Rcpp,
     RcppEigen,
     TMB, 
     testthat
 Imports: 
-    Rcpp,
     TMB (>= 1.7.15)
