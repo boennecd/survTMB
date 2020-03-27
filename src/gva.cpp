@@ -7,14 +7,12 @@ using GaussHermite::GVA::mlogit_integral;
 using GaussHermite::GVA::probit_integral;
 
 namespace {
-#define GVA_COND_DENS_ARGS                                     \
-  Type const &eta_fix, Type const &etaD_fix,                   \
-  Type const &event, Type const &va_mean, Type const &va_sd,   \
-  Type const &va_var
 
-/* util class to compute the conditional density of the observed outcomes */
+/* util class and functions to compute the conditional density of the
+ * observed outcomes */
+
 template<class Type>
-class GVA_cond_dens {
+struct GVA_cond_dens_data {
   /* input dependend objects */
   Type const eps,
          eps_log = Type(log(eps)),
@@ -24,52 +22,59 @@ class GVA_cond_dens {
   /* potentially needed constants */
   Type const mlog_2_pi_half = Type(-log(2 * M_PI) / 2.),
                         two = Type(2.);
-public:
-  GVA_cond_dens
-  (Type const &eps, Type const &kappa,
-   GaussHermite::HermiteData<Type> const &GH_xw):
-  eps(eps), kappa(kappa), GH_xw(GH_xw) { }
 
-  /* computes the conditional density term for the PH (log-log) link
-   * function */
-  Type ph(GVA_COND_DENS_ARGS) const {
-    Type const eta = eta_fix  + va_mean,
-                 h = etaD_fix * exp(eta),
-                 H = exp(eta + va_var / two),
-            if_low = event * eps_log - H - h * h * kappa,
-            if_ok  = event * log(h)  - H;
+  GVA_cond_dens_data
+    (Type const &eps, Type const &kappa,
+     GaussHermite::HermiteData<Type> const &GH_xw):
+    eps(eps), kappa(kappa), GH_xw(GH_xw) { }
+};
 
-    return CppAD::CondExpGe(h, eps, if_ok, if_low);
-  }
+#define GVA_COND_DENS_ARGS                                     \
+  Type const &eta_fix, Type const &etaD_fix,                   \
+  Type const &event, Type const &va_mean, Type const &va_sd,   \
+  Type const &va_var, GVA_cond_dens_data<Type> const &d
 
-  /* computes the conditional density term for the PO (-logit) link
-   * function */
-  Type po(GVA_COND_DENS_ARGS) const {
-    Type const eta = eta_fix + va_mean,
-                 H = mlogit_integral(
-                   va_mean, va_sd, eta_fix, GH_xw),
-                 h = etaD_fix * exp(eta - H),
-            if_low = event * eps_log - H - h * h * kappa,
-            if_ok  = event * log(h)  - H;
-
-    return CppAD::CondExpGe(h, eps, if_ok, if_low);
-  }
-
-  /* computes the conditional density term for the probit (-probit) link
-   * function */
-  Type probit(GVA_COND_DENS_ARGS) const {
-    Type const H = probit_integral(
-      va_mean, va_sd, -eta_fix, GH_xw),
-            diff = eta_fix + va_mean,
-               h = etaD_fix * exp(
-                 mlog_2_pi_half - diff * diff / two -
-                   va_var / two + H),
-          if_low = event * eps_log - H - h * h * kappa,
+/* computes the conditional density term for the PH (log-log) link
+ * function */
+template<class Type>
+Type ph(GVA_COND_DENS_ARGS) {
+  Type const eta = eta_fix  + va_mean,
+               h = etaD_fix * exp(eta),
+               H = exp(eta + va_var / d.two),
+          if_low = event * d.eps_log - H - h * h * d.kappa,
           if_ok  = event * log(h)  - H;
 
-    return CppAD::CondExpGe(h, eps, if_ok, if_low);
-  }
-};
+  return CppAD::CondExpGe(h, d.eps, if_ok, if_low);
+}
+
+/* computes the conditional density term for the PO (-logit) link
+ * function */
+template<class Type>
+Type po(GVA_COND_DENS_ARGS) {
+  Type const eta = eta_fix + va_mean,
+               H = mlogit_integral(
+                 va_mean, va_sd, eta_fix, d.GH_xw),
+               h = etaD_fix * exp(eta - H),
+          if_low = event * d.eps_log - H - h * h * d.kappa,
+          if_ok  = event * log(h)  - H;
+
+  return CppAD::CondExpGe(h, d.eps, if_ok, if_low);
+}
+
+template<class Type>
+/* computes the conditional density term for the probit (-probit) link
+ * function */
+Type probit(GVA_COND_DENS_ARGS) {
+  Type const H = probit_integral(va_mean, va_sd, -eta_fix, d.GH_xw),
+          diff = eta_fix + va_mean,
+             h = etaD_fix * exp(
+               d.mlog_2_pi_half - diff * diff / d.two -
+                 va_var / d.two + H),
+        if_low = event * d.eps_log - H - h * h * d.kappa,
+        if_ok  = event * log(h)  - H;
+
+  return CppAD::CondExpGe(h, d.eps, if_ok, if_low);
+}
 
 #undef GVA_COND_DENS_ARGS
 
@@ -117,45 +122,64 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
                      etaD_fix = XD * b;
 
   /* handle terms from conditional density of observed outcomes */
-  GVA_cond_dens<Type> const cond_dens(eps, kappa, GH_xw);
+  GVA_cond_dens_data<Type> const dat(eps, kappa, GH_xw);
+  typedef Type (*dens_func)(Type const&, Type const&, Type const&,
+                            Type const&, Type const&, Type const&,
+                            GVA_cond_dens_data<Type> const&);
 
-#define ADD_COND_DENS(func)                                    \
-  {                                                            \
-    unsigned i = 0;                                            \
-    for(unsigned g = 0; g < grp_size.size(); ++g){             \
-      vecT const &va_mu = va_means[g];                         \
-      matrix<Type> const &va_var = va_vcovs[g];                \
-                                                               \
-      unsigned const end = grp_size[g] + i;                    \
-      for(; i < end; ++i){                                     \
-        vecT const z = Z.row(i);                               \
-        Type const err_mean = (z * va_mu).sum(),               \
-                   err_var  = (z * vecT(va_var * z)).sum(),    \
-                   err_sd   = sqrt(err_var);                   \
-                                                               \
-        result -= cond_dens.func(                              \
-          eta_fix[i], etaD_fix[i], event[i], err_mean,         \
-          err_sd, err_var);                                    \
-      }                                                        \
-    }                                                          \
-  }
+  auto main_loop = [&](dens_func func){
+    unsigned i = 0;
+    for(unsigned g = 0; g < grp_size.size(); ++g){
+      unsigned const n_members = grp_size[g];
+      /* is this our cluster? */
+      if(!is_my_region(*result.obj)){
+        i += n_members;
+        result.obj->parallel_region();
+        continue;
+      }
+
+      /* get VA parameters */
+      vecT const &va_mu          = va_means[g];
+      matrix<Type> const &va_var = va_vcovs[g];
+
+      /* compute conditional density terms from outcomes */
+      unsigned const end = n_members + i;
+      Type terms(0);
+      for(; i < end; ++i){
+        vecT const z = Z.row(i);
+        Type const err_mean = (z * va_mu).sum(),
+                   err_var  = (z * vecT(va_var * z)).sum(),
+                   err_sd   = sqrt(err_var);
+
+        terms += func(
+          eta_fix[i], etaD_fix[i], event[i], err_mean, err_sd, err_var,
+          dat);
+      }
+
+      result -= terms;
+    }
+  };
 
   if(link == "PH")
-    ADD_COND_DENS(ph)
+    main_loop(ph);
   else if (link == "PO")
-    ADD_COND_DENS(po)
+    main_loop(po);
   else if (link == "probit")
-    ADD_COND_DENS(probit)
+    main_loop(probit);
   else
     error("'%s' not implemented", link.c_str());
 
-#undef ADD_COND_DENS
+
+  if(!is_my_region(*result.obj))
+    /* only have to add one more term so just return */
+    return;
 
   /* handle terms from random effect log density and VA log density */
+  Type lb_term(0.);
   {
     matrix<Type> va_cov_sum(rng_dim, rng_dim);
     va_cov_sum.setZero();
-    Type lb_term(0.);
+
     for(unsigned g = 0; g < n_groups; ++g){
       lb_term += atomic::logdet(va_vcovs[g]) -
         (va_means[g] * vecT(vcov_inv * va_means[g])).sum();
@@ -164,12 +188,11 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
     }
     matrix<Type> const mat_prod = va_cov_sum * vcov_inv;
     lb_term -= mat_prod.trace();
-
-    result -= lb_term / Type(2.);
   }
 
   /* add final log determinant term and constants */
-  result -= Type(n_groups) * (-log_det_vcov + Type(rng_dim)) / Type(2.);
+  lb_term += Type(n_groups) * (-log_det_vcov + Type(rng_dim));
+  result -= lb_term / Type(2.);
 }
 
 } // namespace

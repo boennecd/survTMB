@@ -42,7 +42,7 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace"){
 }
 
 ######
-# w/ Laplace approximatio
+# w/ Laplace
 fit_model("PH"    )
 fit_model("PO"    )
 fit_model("probit")
@@ -66,10 +66,9 @@ for(mth in c("Laplace", "GVA")){
     `PH     (2L)` = fit_model("PH"    , 2L, mth),
     `PH     (4L)` = fit_model("PH"    , 4L, mth),
     
-    `PO         `  = fit_model("PO"    , 1L, mth),
+    `PO         ` = fit_model("PO"    , 1L, mth),
     `PO     (2L)` = fit_model("PO"    , 2L, mth),
     `PO     (4L)` = fit_model("PO"    , 4L, mth), 
-    
     
     `probit     ` = fit_model("probit", 1L, mth),
     `probit (2L)` = fit_model("probit", 2L, mth),
