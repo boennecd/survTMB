@@ -22,3 +22,9 @@
   vector<TYPE> const &theta, std::string const &link,          \
   vector<int> &grp_size
 #endif
+
+#ifndef COMMON_CALL
+#define COMMON_CALL                                              \
+  result, tobs, event, X, XD, Z, grp, eps, kappa, b, theta,      \
+  link, grp_size
+#endif

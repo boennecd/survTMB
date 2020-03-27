@@ -6,6 +6,8 @@ Authors@R: c(person("Benjamin", "Christoffersen",
                     email = "boennecd@gmail.com", 
                     role = c("cre", "aut")), 
              person("Mark", "Clements",  
+                    role = "cph"), 
+             person("Alexander", "Blocker", 
                     role = "cph"))
 Maintainer: Benjamin Christoffersen <boennecd@gmail.com>
 Description: More about what it does (maybe more than one line)

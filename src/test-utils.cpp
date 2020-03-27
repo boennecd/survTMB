@@ -1,4 +1,4 @@
-#include <testthat.h>
+#include "testthat-wrap.h"
 #include "utils.h"
 #include <limits>
 #include <vector>
@@ -20,19 +20,16 @@ context("Utils unit tests") {
     auto Sigma = get_vcov_from_trian(&theta[0L], 3L);
 
     std::vector<double> const ex { 4, 2, 1, 2, 2, .5, 1, .5, 1 };
-    constexpr double eps = std::sqrt(
-      std::numeric_limits<double>::epsilon());
 
     for(unsigned i = 0; i < ex.size(); ++i)
-      expect_true(std::abs((ex[i] - *(Sigma.data() + i)) / ex[i]) < eps);
+      expect_equal(ex[i], *(Sigma.data() + i));
   }
+
   test_that("get_vcov_from_trian (1D) gives the correct result") {
     double theta = -1;
     auto Sigma = get_vcov_from_trian(&theta, 1L);
 
     double ex = std::exp(2 * theta);
-    constexpr double eps = std::sqrt(
-      std::numeric_limits<double>::epsilon());
-    expect_true(std::abs((ex - *Sigma.data()) / ex) < eps);
+    expect_equal(ex, *Sigma.data());
   }
 }

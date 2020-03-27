@@ -1,4 +1,5 @@
 #include "laplace.h"
+#include "gva.h"
 #include "utils.h"
 
 #include <cmath>
@@ -12,15 +13,11 @@
 
 using namespace survTMB;
 
-#define COMMON_CALL                                            \
-  result, tobs, event, X, XD, Z, grp, eps, kappa, b, theta,    \
-  link, grp_size
-
 template<class Type>
 Type objective_function<Type>::operator() ()
 {
   /* common data objects and parameters */
-  DATA_STRING(app_type); // TODO: remove app_type
+  DATA_STRING(app_type);
   DATA_VECTOR(tobs);
 
   DATA_VECTOR(event);
@@ -96,6 +93,12 @@ Type objective_function<Type>::operator() ()
   if(app_type == "Laplace"){
     PARAMETER_MATRIX(u);
     laplace(COMMON_CALL, u);
+    return result;
+
+  } else if(app_type =="GVA"){
+    PARAMETER_VECTOR(theta_VA);
+    DATA_INTEGER(n_nodes);
+    GVA(COMMON_CALL, theta_VA, n_nodes);
     return result;
 
   }

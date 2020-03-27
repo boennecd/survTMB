@@ -266,7 +266,100 @@ make_gsm_ADFun <- function(
   } else
     laplace_out <- NULL
 
-  list(laplace = laplace_out, gva = NULL, snva = NULL, y = y,
+  #####
+  # setup ADFun object for the GVA
+  if(.gva_char %in% do_setup || .snva_char %in% do_setup){
+  # set the initial values
+  n_mu     <- n_rng
+  n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
+  n_p_grp  <- n_mu + n_Lambda
+  theta_VA <- rep(NA_real_, n_p_grp * n_grp)
+
+  # set means to zero
+  idx_mean <- sapply(1:n_grp - 1L, function(i) i * n_p_grp + 1:n_mu)
+  theta_VA[idx_mean] <- 0.
+  # set parameters for Lambda
+  idx_Lambda <- sapply(1:n_grp - 1L, function(i)
+    i * n_p_grp + n_mu + 1:n_Lambda)
+  theta_VA[idx_Lambda] <- params$theta
+  # set names
+  theta_VA_names <- c(paste0("mu", 1:n_rng), names(params$theta))
+  theta_VA_names <- c(outer(theta_VA_names, 1:n_grp, paste, sep = ":"))
+  names(theta_VA) <- theta_VA_names
+
+  get_gva_out <- function(theta_VA){
+    adfunc_VA <- local({
+      data_ad_func <- c(
+        list(app_type = .gva_char), data_ad_func,
+        list(n_nodes = n_nodes))
+      params$theta_VA <- theta_VA
+
+      MakeADFun(
+        data = data_ad_func, parameters = params, DLL = "survTMB",
+        silent = TRUE)
+    })
+
+    # we make a wrapper object to account for the eps and kappa and allow the
+    # user to change these
+    gva_out <- with(new.env(), {
+      eps <- adfunc_VA$par["eps"]
+      kappa <- adfunc_VA$par["kappa"]
+      fn <- adfunc_VA$fn
+      gr <- adfunc_VA$gr
+      he <- adfunc_VA$he
+      get_x <- function(x)
+        c(eps = eps, kappa = kappa, x)
+
+      out <- adfunc_VA[
+        !names(adfunc_VA) %in% c("par", "fn", "gr", "he")]
+
+      par <- adfunc_VA$par[-(1:2)]
+      names(par)[seq_along(inits$coef)] <- names(inits$coef)
+      idx_va <- (length(par) - length(theta_VA_names) + 1):length(par)
+      names(par)[idx_va] <-
+        theta_VA_names
+
+      c(list(
+        par = par,
+        fn = function(x, ...){ fn(get_x(x))                               },
+        gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
+        he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+        # function to set penalty parameters
+        update_pen = function(eps, kappa){
+          p_env <- parent.env(environment())
+          if(!missing(eps))
+            assign("eps"  , eps  , p_env)
+          if(!missing(kappa))
+            assign("kappa", kappa, p_env)
+          invisible(with(p_env, c(eps = eps, kappa = kappa)))
+        },
+        # function to get parameters
+        get_params = function(x)
+          x[-idx_va],
+        control = list(maxit = 1000L)
+      ), out)
+    })
+  }
+
+  # find initial VA params
+  func <- get_gva_out(theta_VA)
+  coefs_start <- c(params$b, params$theta)
+  do_drop <- seq_along(coefs_start)
+  get_x <- function(x)
+    c(coefs_start, x)
+
+  fn <- function(x)
+    func$fn(get_x(x))
+  gr <- function(x)
+    func$gr(get_x(x))[-do_drop]
+
+  opt_out <- opt_func(theta_VA, fn = fn, gr = gr)
+  gva_out <- get_gva_out(opt_out$par)
+
+  } else
+    gva_out <- NULL
+
+  list(laplace = laplace_out, gva = gva_out, snva = NULL, y = y,
        event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
          X = mt_X, Z = mt_Z, baseline = mt_b))
 }

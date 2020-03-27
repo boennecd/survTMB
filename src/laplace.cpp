@@ -128,7 +128,6 @@ void laplace(COMMON_ARGS(Type), matrix<Type> const &u){
 using ADd   = CppAD::AD<double>;
 using ADdd  = CppAD::AD<CppAD::AD<double> >;
 using ADddd = CppAD::AD<CppAD::AD<CppAD::AD<double> > >;
-using namespace survTMB;
 
 template void laplace<double>(
     COMMON_ARGS(double), matrix<double> const &u);
@@ -140,5 +139,3 @@ template void laplace<ADddd>(
     COMMON_ARGS(ADddd), matrix<ADddd> const &u);
 
 } // namespace survTMB
-
-

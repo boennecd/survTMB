@@ -1,4 +1,4 @@
-#include <testthat.h>
+#include "testthat-wrap.h"
 #include "pnorm_log.h"
 #include <vector>
 #include <limits>
@@ -15,8 +15,6 @@ context("pnorm_log unit tests") {
      numericDeriv(quote(pnorm(x, mu, sd, log.p = TRUE)), theta = "x")
      dput(exp(dnorm(x, mu, sd, 1) - pnorm(x, mu, sd, log.p = TRUE)))
      */
-    constexpr double eps = std::sqrt(
-      std::numeric_limits<double>::epsilon());
     vector<AD<double> > x(1);
     x[0] = 3;
     Independent(x);
@@ -30,11 +28,11 @@ context("pnorm_log unit tests") {
     vector<double> yy = func.Forward(0, xx);
     constexpr double const true_yy(-0.368946415288657),
                            true_dy(0.254580216918517);
-    expect_true(std::abs((true_yy - yy[0]) / true_yy) < eps);
+    expect_equal(true_yy, yy[0]);
 
     vector<double> w(1);
     w[0] = 1;
     vector<double> dy = func.Reverse(1, w);
-    expect_true(std::abs((true_dy - dy[0]) / true_dy) < eps);
+    expect_equal(true_dy, dy[0]);
   }
 }
