@@ -9,7 +9,7 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   cache.path = "cache/README-",
   out.width = "100%")
-options(digits = 5)
+options(digits = 4)
 ```
 # survTMB
 
@@ -18,6 +18,11 @@ TODO: Write intro to the package...
 ## Example
 
 TODO: write description
+
+```{r set_low_digits, echo = FALSE}
+.old_digits <- getOption("digits")
+options(digits = 10)
+```
 
 ```{r fit_example, cache = 1}
 dat <- coxme::eortc
@@ -66,6 +71,10 @@ fit_model("probit", method = "SNVA", param_type = "DP")
 fit_model("PH"    , method = "SNVA", param_type = "CP_trans")
 fit_model("PO"    , method = "SNVA", param_type = "CP_trans")
 fit_model("probit", method = "SNVA", param_type = "CP_trans")
+```
+
+```{r back_set_low_digits, echo = FALSE}
+options(digits = .old_digits)
 ```
 
 ```{r load_micro}
