@@ -26,6 +26,8 @@
 #include "gaus-hermite.h"
 #include <cmath>
 #include <math.h>
+#include <array>
+#include <memory>
 
 #include <Rconfig.h>
 #include <R_ext/BLAS.h>
@@ -36,6 +38,14 @@
 #define FCONE
 #endif
 #include <R_ext/Lapack.h>
+
+namespace {
+constexpr std::size_t const n_cache(1000L);
+
+std::array<std::unique_ptr<GaussHermite::HermiteData<double> >, n_cache>
+  cached_values;
+
+} // namespace
 
 namespace GaussHermite {
 using std::vector;
@@ -157,4 +167,31 @@ HermiteData<double> GaussHermiteData(unsigned const n) {
   return out;
 }
 
+HermiteData<double> const& GaussHermiteDataCached(unsigned const n){
+  if(n > n_cache or n == 0l)
+    throw std::invalid_argument(
+        "GaussHermiteDataCached: invalid n (too large or zero)");
+
+  unsigned const idx = n - 1L;
+  bool has_value = cached_values[idx].get();
+
+  if(has_value)
+    return *cached_values[idx];
+
+#ifdef _OPENMP
+#pragma omp critical
+{
+#endif
+  has_value = cached_values[idx].get();
+  if(!has_value){
+    std::unique_ptr<HermiteData<double> > new_ptr(
+      new HermiteData<double>(GaussHermiteData(n)));
+    std::swap(cached_values[idx], new_ptr);
+  }
+#ifdef _OPENMP
+}
+#endif
+
+  return *cached_values[idx];
+}
 } // namespace GaussHermite

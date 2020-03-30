@@ -20,27 +20,71 @@ context("gav-utils unit tests") {
      f <- integrand(x, mu, sigma, k, s) * exp((x - mu)^2 / 2 / sigma^2)
      sigma * sqrt(2) * drop(rule$w %*% f)
      }
-     wx <- gaussHermiteData(15L)
+     wx <- gaussHermiteData(20L)
      dput(mapply(psi,
      mu    = c(-1,   1,  0,  2),
      sigma = c(.01,  1, 10,  5),
      k     = c(  2, .5,  5,  6),
      s     = c(  1,  1, 1, 1),
      MoreArgs = list(rule = wx)))
+     dpsi <- function(mu, sigma, k){
+     func <- function(x)
+     psi(x[1], x[2], x[3], s = 1, rule = wx)
+     numDeriv::jacobian(func, c(mu, sigma, k), method.args = list(eps = 1e-10))
+     }
+     dput(mapply(dpsi,
+     mu    = c(-1,   1,  0,  2),
+     sigma = c(.01,  1, 10,  5),
+     k     = c(  2, .5,  5,  6)))
      */
-    constexpr unsigned const n_nodes(15L);
+    constexpr unsigned const n_nodes(20L);
     auto xw = GaussHermiteData(n_nodes);
     std::vector<double> x(n_nodes), w(n_nodes);
-    std::vector<double> const mu = { -1,   1,  0,  2 },
-                           sigma = { .01,  1, 10,  5 },
-                               k = {   2, .5,  5,  6 },
-                          ex_res = { 0.551456924101031, 0.969190193406026, 4.88998305310308, 4.53173698285082 };
+    std::vector<double> const
+      mu     = { -1,   1,  0,  2 },
+      sigma  = { .01,  1, 10,  5 },
+      k      = {   2, .5,  5,  6 },
+      ex_res = { 0.551456924101031, 0.969190193359827, 4.91705177807963, 4.53659454642133 },
+      derivs = { 0.42388497395228, 0.00244200473481651, 0.211942486987524,
+                 0.563103209889903, 0.203707020761764, 1.12620641974815, 0.53359761289107,
+                 0.394524085551894, 0.106706563689337, 0.762029011954127, 0.293155791137677,
+                 0.127004835341413 };
 
     for(unsigned i = 0; i < mu.size(); ++i){
       double const intval = mlogit_integral(
         mu[i], sigma[i], std::log(k[i]), xw);
 
       expect_equal(ex_res[i], intval);
+    }
+
+    /* check Jacobian */
+    using ADd = AD<double>;
+    vector<ADd > a(3), b(1);
+    HermiteData<ADd> xwAD(xw);
+    a[0] = ADd(mu[0]);
+    a[1] = ADd(sigma[0]);
+    a[2] = ADd(k[0]);
+
+    CppAD::Independent(a);
+    b[0] = mlogit_integral(a[0], a[1], log(a[2]), xwAD);
+    CppAD::ADFun<double> func(a, b);
+
+    auto d = derivs.cbegin();
+    vector<double> aa(3), weight(1);
+    weight[0] = 1.;
+    double const eps_deriv = std::pow(
+      std::numeric_limits<double>::epsilon(), 1./ 4.);
+    for(unsigned i = 0; i < mu.size(); ++i){
+      aa[0] = mu[i];
+      aa[1] = sigma[i];
+      aa[2] = k[i];
+
+      auto yy = func.Forward(0, aa);
+      expect_equal(ex_res[i], yy[0]);
+
+      auto dx = func.Reverse(1, weight);
+      for(unsigned j = 0; j < 3; ++j, ++d)
+        expect_equal_eps(*d, dx[j], eps_deriv);
     }
   }
 

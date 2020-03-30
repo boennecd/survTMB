@@ -26,6 +26,9 @@ struct HermiteData {
 
 HermiteData<double> GaussHermiteData(unsigned const);
 
+/* TODO: change to template... */
+HermiteData<double> const& GaussHermiteDataCached(unsigned const);
+
 } // namespace GaussHermite
 
 #endif
