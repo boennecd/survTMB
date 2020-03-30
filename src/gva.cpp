@@ -17,7 +17,7 @@ struct GVA_cond_dens_data {
   Type const eps,
          eps_log = Type(log(eps)),
            kappa;
-  GaussHermite::HermiteData<Type> const &GH_xw;
+  GaussHermite::HermiteData<Type> const GH_xw;
 
   /* potentially needed constants */
   Type const mlog_2_pi_half = Type(-log(2 * M_PI) / 2.),
@@ -32,49 +32,61 @@ struct GVA_cond_dens_data {
 #define GVA_COND_DENS_ARGS                                     \
   Type const &eta_fix, Type const &etaD_fix,                   \
   Type const &event, Type const &va_mean, Type const &va_sd,   \
-  Type const &va_var, GVA_cond_dens_data<Type> const &d
+  Type const &va_var
 
 /* computes the conditional density term for the PH (log-log) link
  * function */
 template<class Type>
-Type ph(GVA_COND_DENS_ARGS) {
-  Type const eta = eta_fix  + va_mean,
-               h = etaD_fix * exp(eta),
-               H = exp(eta + va_var / d.two),
-          if_low = event * d.eps_log - H - h * h * d.kappa,
-          if_ok  = event * log(h)  - H;
+struct ph final : public GVA_cond_dens_data<Type> {
+  using GVA_cond_dens_data<Type>::GVA_cond_dens_data;
 
-  return CppAD::CondExpGe(h, d.eps, if_ok, if_low);
-}
+  Type operator()(GVA_COND_DENS_ARGS) const {
+    Type const eta = eta_fix  + va_mean,
+                h = etaD_fix * exp(eta),
+                H = exp(eta + va_var / this->two),
+           if_low = event * this->eps_log - H - h * h * this->kappa,
+           if_ok  = event * log(h)  - H;
+
+    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+  }
+};
 
 /* computes the conditional density term for the PO (-logit) link
  * function */
 template<class Type>
-Type po(GVA_COND_DENS_ARGS) {
-  Type const eta = eta_fix + va_mean,
-               H = mlogit_integral(
-                 va_mean, va_sd, eta_fix, d.GH_xw),
-               h = etaD_fix * exp(eta - H),
-          if_low = event * d.eps_log - H - h * h * d.kappa,
-          if_ok  = event * log(h)  - H;
+struct po final : public GVA_cond_dens_data<Type> {
+  using GVA_cond_dens_data<Type>::GVA_cond_dens_data;
 
-  return CppAD::CondExpGe(h, d.eps, if_ok, if_low);
-}
+  Type operator()(GVA_COND_DENS_ARGS) const {
+    Type const eta = eta_fix + va_mean,
+                 H = mlogit_integral(
+                   va_mean, va_sd, eta_fix, this->GH_xw),
+                 h = etaD_fix * exp(eta - H),
+            if_low = event * this->eps_log - H - h * h * this->kappa,
+            if_ok  = event * log(h)  - H;
 
-template<class Type>
+    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+  }
+};
+
 /* computes the conditional density term for the probit (-probit) link
  * function */
-Type probit(GVA_COND_DENS_ARGS) {
-  Type const H = probit_integral(va_mean, va_sd, -eta_fix, d.GH_xw),
-          diff = eta_fix + va_mean,
-             h = etaD_fix * exp(
-               d.mlog_2_pi_half - diff * diff / d.two -
-                 va_var / d.two + H),
-        if_low = event * d.eps_log - H - h * h * d.kappa,
-        if_ok  = event * log(h)  - H;
+template<class Type>
+struct probit : public GVA_cond_dens_data<Type> {
+  using GVA_cond_dens_data<Type>::GVA_cond_dens_data;
 
-  return CppAD::CondExpGe(h, d.eps, if_ok, if_low);
-}
+  Type operator()(GVA_COND_DENS_ARGS) const {
+    Type const H = probit_integral(va_mean, va_sd, -eta_fix, this->GH_xw),
+            diff = eta_fix + va_mean,
+               h = etaD_fix * exp(
+                 this->mlog_2_pi_half - diff * diff / this->two -
+                   va_var / this->two + H),
+          if_low = event * this->eps_log - H - h * h * this->kappa,
+          if_ok  = event * log(h)  - H;
+
+    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+  }
+};
 
 #undef GVA_COND_DENS_ARGS
 
@@ -122,12 +134,7 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
                      etaD_fix = XD * b;
 
   /* handle terms from conditional density of observed outcomes */
-  GVA_cond_dens_data<Type> const dat(eps, kappa, GH_xw);
-  typedef Type (*dens_func)(Type const&, Type const&, Type const&,
-                            Type const&, Type const&, Type const&,
-                            GVA_cond_dens_data<Type> const&);
-
-  auto main_loop = [&](dens_func func){
+  auto main_loop = [&](auto const &func){
     unsigned i = 0;
     for(unsigned g = 0; g < grp_size.size(); ++g){
       unsigned const n_members = grp_size[g];
@@ -152,21 +159,26 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
                    err_sd   = sqrt(err_var);
 
         terms += func(
-          eta_fix[i], etaD_fix[i], event[i], err_mean, err_sd, err_var,
-          dat);
+          eta_fix[i], etaD_fix[i], event[i], err_mean, err_sd, err_var);
       }
 
       result -= terms;
     }
   };
 
-  if(link == "PH")
-    main_loop(ph);
-  else if (link == "PO")
-    main_loop(po);
-  else if (link == "probit")
-    main_loop(probit);
-  else
+  if(link == "PH"){
+    ph<Type> const func(eps, kappa, GH_xw);
+    main_loop(func);
+
+  } else if (link == "PO"){
+    po<Type> const func(eps, kappa, GH_xw);
+    main_loop(func);
+
+  } else if (link == "probit"){
+    probit<Type> const func(eps, kappa, GH_xw);
+    main_loop(func);
+
+  } else
     error("'%s' not implemented", link.c_str());
 
 
