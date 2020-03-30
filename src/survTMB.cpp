@@ -1,5 +1,6 @@
 #include "laplace.h"
 #include "gva.h"
+#include "snva.h"
 #include "utils.h"
 
 #include <cmath>
@@ -99,6 +100,13 @@ Type objective_function<Type>::operator() ()
     PARAMETER_VECTOR(theta_VA);
     DATA_INTEGER(n_nodes);
     GVA(COMMON_CALL, theta_VA, n_nodes);
+    return result;
+
+  }  else if(app_type == "SNVA"){
+    PARAMETER_VECTOR(theta_VA);
+    DATA_INTEGER(n_nodes);
+    DATA_STRING(param_type)
+    SNVA(COMMON_CALL, theta_VA, n_nodes, param_type);
     return result;
 
   }

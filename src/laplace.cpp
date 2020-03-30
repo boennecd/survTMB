@@ -1,7 +1,7 @@
 #include "laplace.h"
 #include "dmvnorm_log.h"
 #include "utils.h"
-#include "pnorm_log.h"
+#include "pnorm-log.h"
 #include "utils.h"
 
 namespace survTMB {

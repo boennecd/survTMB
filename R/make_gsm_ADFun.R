@@ -2,6 +2,25 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
+.alpha_to_gamma <- function(alpha){
+  mu <- sqrt(2 / pi) * alpha / sqrt(1 + alpha^2)
+  (4 - pi) / 2 * mu^3 / (1 - mu^2)^(3/2)
+}
+.gamma_to_alpha <- function(gamma){
+  cf <- 2 * gamma / (4 - pi)
+  v1 <- local({
+    cf <- ( cf)^(1/3)
+    cf / sqrt(1 + cf^(2))
+  })
+  v2 <- local({
+    cf <- (-cf)^(1/3)
+    -cf / sqrt(1 + cf^(2))
+  })
+  mu <- ifelse(gamma > 0, v1, v2)
+  o <- sqrt(pi) * mu
+  o / sqrt(2 - pi * mu^2)
+}
+
 #' @importFrom stats optim
 .opt_default <- function(par, fn, gr, ...){
   out <- optim(par, fn = fn, gr = gr, method = "BFGS",
@@ -34,6 +53,18 @@ Shat <- function(obj){
   surv2 <- surv[match(obj$y[, ncol(obj$y) - 1], newobj$time)]
 
   surv2^rr
+}
+
+.cov_to_theta <- function(theta){
+  n_rng <- NCOL(theta)
+  ch <- t(chol(theta))
+  log_sd <- structure(log(diag(ch)), names = paste0("log_sd", 1:n_rng))
+  keep <- lower.tri(ch)
+  lower_tri <-(diag(diag(ch)^(-1), n_rng) %*% ch)[keep]
+  if(n_rng > 1L)
+    names(lower_tri) <-
+      outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
+  c(log_sd, lower_tri)
 }
 
 #####
@@ -70,9 +101,11 @@ make_gsm_ADFun <- function(
   formula, data, df, Z, cluster, do_setup = c("Laplace", "GVA", "SNVA"),
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
-  opt_func = .opt_default, n_threads = 1L){
+  opt_func = .opt_default, n_threads = 1L,
+  skew_start = .alpha_to_gamma(-1)){
   link <- link[1]
   param_type <- param_type[1]
+  skew_boundary <- 0.99527
   stopifnot(
     is.integer(df), df > 0L, inherits(formula, "formula"),
     inherits(Z, "formula"), is.data.frame(data),
@@ -81,7 +114,10 @@ make_gsm_ADFun <- function(
     is.integer(n_nodes), length(n_nodes) == 1L, n_nodes > 0L,
     link %in% c("PH", "PO", "probit"),
     param_type %in% c("DP", "CP_trans", "CP"),
-    is.integer(n_threads) && n_threads > 0L && length(n_threads) == 1L)
+    is.integer(n_threads) && n_threads > 0L && length(n_threads) == 1L,
+    is.numeric(skew_start), length(skew_start) == 1L)
+  eval(bquote(stopifnot(
+    .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
 
   #####
   # get the cluster variable
@@ -359,7 +395,150 @@ make_gsm_ADFun <- function(
   } else
     gva_out <- NULL
 
-  list(laplace = laplace_out, gva = gva_out, snva = NULL, y = y,
+  #####
+  # setup ADFun object for the SNVA
+  if(.snva_char %in% do_setup){
+  # set the initial values
+  n_mu     <- n_rng
+  n_rho    <- n_rng
+  n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
+  n_p_grp  <- n_mu + n_Lambda + n_rho
+  theta_VA <- rep(NA_real_, n_p_grp * n_grp)
+
+  #####
+  # setup starting values for VA parameters
+  # find GVA solution
+  gva_opt <- with(gva_out, opt_func(par, fn, gr))
+  gva_va_vals <- gva_opt$par[-seq_len(length(beta) + length(theta))]
+
+  params$b     <- gva_opt$par[1:length(beta)]
+  params$theta <- gva_opt$par[1:length(theta) + length(beta)]
+
+  if(length(skew_start) == 1L && n_rng > 1L)
+    skew_start <- rep(skew_start, n_rng)
+  n_p_grp_gva <-  n_p_grp - n_rho
+
+  theta_VA <- if(param_type == "DP"){
+    alpha <- .gamma_to_alpha(skew_start)
+    nu <- sqrt(2 / pi) * alpha / sqrt(1 + alpha^2)
+    omega_denom <- sqrt(1 - nu^2)
+    n_lower_tri <- (n_rng * (n_rng - 1L)) / 2L
+
+    vapply(1:n_grp, function(i){
+      # setup mean and VA variance
+      gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
+      sds <- exp(gva_par[1:n_mu + n_mu])
+
+      Sig <- diag(n_rng)
+      if(n_rng > 1L)
+        Sig[lower.tri(Sig)] <- tail(gva_par, n_lower_tri)
+      Sig <- diag(sds, n_rng) %*% Sig
+      Sig <- tcrossprod(Sig)
+
+      # compute VA parameters and return
+      omega <- sds / omega_denom
+      dnu <- omega * nu
+      Omega <- Sig + outer(dnu, dnu)
+
+      xi <- gva_par[1:n_mu] - dnu
+      c(xi, .cov_to_theta(Omega), alpha)
+    }, numeric(n_p_grp), USE.NAMES = FALSE)
+  } else {
+    stopifnot(param_type == "CP_trans")
+    skew_trans <-
+      log((skew_boundary + skew_start) / (skew_boundary - skew_start))
+    vapply(1:n_grp, function(i){
+      # setup mean and VA variance
+      gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
+      c(gva_par, skew_trans)
+    }, numeric(n_p_grp), USE.NAMES = FALSE)
+  }
+
+  # set names
+  theta_VA_names <- local({
+    keep <- which(lower.tri(diag(n_rng)))
+    L <-
+      outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
+
+    proto <- c(paste0("mu", 1:n_rng), paste0("log_sd", 1:n_rng), L,
+               paste0("skew", 1:n_rng))
+
+    c(outer(proto, 1:n_grp, paste, sep = ":"))
+  })
+  theta_VA <- structure(c(theta_VA), names = theta_VA_names)
+
+  adfunc_VA <- local({
+    data_ad_func <- c(
+      list(app_type = .snva_char), data_ad_func,
+      list(n_nodes = n_nodes, param_type = param_type))
+    params$theta_VA <- theta_VA
+
+    MakeADFun(
+      data = data_ad_func, parameters = params, DLL = "survTMB",
+      silent = TRUE)
+  })
+
+  # we make a wrapper object to account for the eps and kappa and allow the
+  # user to change these
+  get_snva_out <- function(theta_VA){
+    with(new.env(), {
+      eps <- adfunc_VA$par["eps"]
+      kappa <- adfunc_VA$par["kappa"]
+      fn <- adfunc_VA$fn
+      gr <- adfunc_VA$gr
+      he <- adfunc_VA$he
+      get_x <- function(x)
+        c(eps = eps, kappa = kappa, x)
+
+      out <- adfunc_VA[
+        !names(adfunc_VA) %in% c("par", "fn", "gr", "he")]
+
+      par <- adfunc_VA$par[-(1:2)]
+      names(par)[seq_along(beta)] <- names(beta)
+      idx_va <- (length(par) - length(theta_VA_names) + 1):length(par)
+      names(par)[idx_va] <- theta_VA_names
+
+      c(list(
+        par = par,
+        fn = function(x, ...){ fn(get_x(x))                               },
+        gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
+        he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+        # function to set penalty parameters
+        update_pen = function(eps, kappa){
+          p_env <- parent.env(environment())
+          if(!missing(eps))
+            assign("eps"  , eps  , p_env)
+          if(!missing(kappa))
+            assign("kappa", kappa, p_env)
+          invisible(with(p_env, c(eps = eps, kappa = kappa)))
+        },
+        # function to get parameters
+        get_params = function(x)
+          x[-idx_va],
+        control = list(maxit = 1000L)
+      ), out)
+    })
+  }
+
+  # find initial VA params
+  func <- get_snva_out(theta_VA)
+  coefs_start <- c(params$b, params$theta)
+  do_drop <- seq_along(coefs_start)
+  get_x <- function(x)
+    c(coefs_start, x)
+
+  fn <- function(x)
+    func$fn(get_x(x))
+  gr <- function(x)
+    func$gr(get_x(x))[-do_drop]
+
+  opt_out <- opt_func(theta_VA, fn = fn, gr = gr)
+  snva_out <- get_snva_out(opt_out$par)
+
+  } else
+    snva_out <- NULL
+
+  list(laplace = laplace_out, gva = gva_out, snva = snva_out, y = y,
        event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
          X = mt_X, Z = mt_Z, baseline = mt_b))
 }

@@ -1,5 +1,5 @@
 #include "testthat-wrap.h"
-#include "pnorm_log.h"
+#include "pnorm-log.h"
 #include <vector>
 #include <limits>
 

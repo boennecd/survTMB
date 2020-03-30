@@ -22,5 +22,6 @@ for(link in c("PH", "PO", "probit"))
       res <- do.call(optim, func$laplace)
 
       expect_known_value(
-        get_par_val_eortc(res), sprintf("test-res/Laplace-%s.RDS", link))
+        get_par_val_eortc(res), sprintf("test-res/Laplace-%s.RDS", link),
+        tolerance = sqrt(eps))
     })

@@ -1,4 +1,4 @@
-context("testing GVA approximation")
+context("testing GVA")
 
 get_par_val_eortc <- function(x){
   x$par <- head(x$par, 6)
@@ -22,5 +22,6 @@ for(link in c("PH", "PO", "probit"))
       res <- do.call(optim, func$gva)
 
       expect_known_value(
-        get_par_val_eortc(res), sprintf("test-res/GVA-%s.RDS", link))
+        get_par_val_eortc(res), sprintf("test-res/GVA-%s.RDS", link),
+        tolerance = sqrt(eps))
     })

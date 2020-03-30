@@ -181,7 +181,6 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
   } else
     error("'%s' not implemented", link.c_str());
 
-
   if(!is_my_region(*result.obj))
     /* only have to add one more term so just return */
     return;
@@ -250,4 +249,4 @@ template void GVA<ADddd>
   (COMMON_ARGS(ADddd), vector<ADddd> const &theta_VA,
    unsigned const n_nodes);
 
-}
+} // namespace survTMB

@@ -2,7 +2,7 @@
 #define GVA_UTILS_H
 
 #include "gaus-hermite.h"
-#include "pnorm_log.h"
+#include "pnorm-log.h"
 
 namespace GaussHermite {
 namespace GVA {

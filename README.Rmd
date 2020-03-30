@@ -9,7 +9,7 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   cache.path = "cache/README-",
   out.width = "100%")
-options(digits = 4)
+options(digits = 5)
 ```
 # survTMB
 
@@ -24,15 +24,17 @@ dat <- coxme::eortc
 
 library(survTMB)
 library(survival)
-fit_model <- function(link, n_threads = 2L, method = "Laplace"){
+fit_model <- function(link, n_threads = 2L, method = "Laplace", 
+                      param_type = "DP"){
   adfun <- make_gsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), 
     Z = ~ trt, df = 3L, data = dat, link = link, do_setup = method, 
-    n_threads = n_threads)
+    n_threads = n_threads, param_type = param_type)
   fit <- 
     if(method == "Laplace")
-      do.call(optim, adfun$laplace) else if(method == "GVA")
-        do.call(optim, adfun$gva)
+      do.call(optim, adfun$laplace) else if(method == "GVA") 
+        do.call(optim, adfun$gva) else if(method == "SNVA")
+          do.call(optim, adfun$snva)
   
   out <- list(-fit$value, par = head(fit$par, 8))
   
@@ -52,11 +54,25 @@ fit_model("probit")
 fit_model("PH"    , method = "GVA")
 fit_model("PO"    , method = "GVA")
 fit_model("probit", method = "GVA")
+
+######
+# w/ SNVA (DP: direct parameterization)
+fit_model("PH"    , method = "SNVA", param_type = "DP")
+fit_model("PO"    , method = "SNVA", param_type = "DP")
+fit_model("probit", method = "SNVA", param_type = "DP")
+
+######
+# w/ SNVA (CP: centralized parameterization)
+fit_model("PH"    , method = "SNVA", param_type = "CP_trans")
+fit_model("PO"    , method = "SNVA", param_type = "CP_trans")
+fit_model("probit", method = "SNVA", param_type = "CP_trans")
+```
+
+```{r load_micro}
+library(microbenchmark)
 ```
 
 ```{r comp_time, cache = 1, dependson = "fit_example"}
-library(microbenchmark)
-
 for(mth in c("Laplace", "GVA")){
   msg <- sprintf("Method: %s", mth)
   cat(sprintf("\n%s\n%s\n", msg, 
@@ -73,6 +89,28 @@ for(mth in c("Laplace", "GVA")){
     `probit     ` = fit_model("probit", 1L, mth),
     `probit (2L)` = fit_model("probit", 2L, mth),
     `probit (4L)` = fit_model("probit", 4L, mth),
+    times = 5))
+}
+```
+
+```{r SNVA_comp_time, cache = 1, dependson = "fit_example"}
+for(param_type in c("DP", "CP_trans")){
+  mth <- "SNVA"
+  msg <- sprintf("Method: %s (%s)", mth, param_type)
+  cat(sprintf("\n%s\n%s\n", msg, 
+              paste0(rep("-", nchar(msg)), collapse = "")))
+  print(microbenchmark(
+    `PH         ` = fit_model("PH"    , 1L, mth, param_type = param_type),
+    `PH     (2L)` = fit_model("PH"    , 2L, mth, param_type = param_type),
+    `PH     (4L)` = fit_model("PH"    , 4L, mth, param_type = param_type),
+    
+    `PO         ` = fit_model("PO"    , 1L, mth, param_type = param_type),
+    `PO     (2L)` = fit_model("PO"    , 2L, mth, param_type = param_type),
+    `PO     (4L)` = fit_model("PO"    , 4L, mth, param_type = param_type), 
+    
+    `probit     ` = fit_model("probit", 1L, mth, param_type = param_type),
+    `probit (2L)` = fit_model("probit", 2L, mth, param_type = param_type),
+    `probit (4L)` = fit_model("probit", 4L, mth, param_type = param_type),
     times = 5))
 }
 ```
