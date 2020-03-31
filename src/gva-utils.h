@@ -1,6 +1,10 @@
 #ifndef GVA_UTILS_H
 #define GVA_UTILS_H
 
+#ifndef M_1_SQRT_2PI
+#define M_1_SQRT_2PI	0.398942280401432677939946059934	/* 1/sqrt(2pi) */
+#endif
+
 #include "gaus-hermite.h"
 #include "pnorm-log.h"
 
@@ -23,15 +27,11 @@ namespace GVA {
  with (non-adaptive) Gauss–Hermite quadrature
 */
 
-template <class Type>
-class mlogit_integral_atomic : public CppAD::atomic_base<Type> {
-  static constexpr unsigned const n = 20L; /* TODO: handle variable n */
+struct mlogit_fam {
   static constexpr double const too_large = 30.;
 
-  template<typename T>
-  static T g(T const &eta) {
-    return CppAD::CondExpGe(
-        eta, T(too_large), eta, log(T(1) + exp(eta)));
+  static double g(double const &eta) {
+    return eta > too_large ? eta : log(1 + exp(eta));
   }
 
   template<typename T>
@@ -41,18 +41,37 @@ class mlogit_integral_atomic : public CppAD::atomic_base<Type> {
     return CppAD::CondExpGe(
       eta, T(too_large), one, one / (one + exp(-eta)));
   }
+  static double gp(double const &eta) {
+    return eta > too_large ? 1 : 1. / (1. + exp(-eta));
+  }
+};
+
+/* atomic function to perform Gauss–Hermite quadrature.
+ *
+ * Args:
+ *   Type: base type.
+ *   Fam: class with two static function: g is the integrand and gp is the
+ *        derivative.
+ */
+template <class Type, class Fam>
+class integral_atomic : public CppAD::atomic_base<Type> {
+  unsigned const n;
 
 public:
-  mlogit_integral_atomic(char const *name):
-  CppAD::atomic_base<Type>(name) {
+  integral_atomic(char const *name, unsigned const n):
+  CppAD::atomic_base<Type>(name), n(n) {
     this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
+
+  /* returns a cached value to use in computation as the scope must remain
+   * in scope while all CppAD::ADfun functions are still in use. */
+  static integral_atomic& get_cached(unsigned const);
 
   static double comp(
       double const mu, double const sig, HermiteData<double> const &xw){
     double out(0.);
     for(unsigned i = 0; i < xw.x.size(); ++i)
-      out += xw.w[i] * g(mu + sig * xw.x[i]);
+      out += xw.w[i] * Fam::g(mu + sig * xw.x[i]);
     out *= sqrt(M_1_PI);
 
     return out;
@@ -66,7 +85,7 @@ public:
     if(q > 0)
       return false;
 
-    HermiteData<double> const &xw = GaussHermiteDataCached(n);
+    HermiteData<double> const &xw = GaussHermiteDataCached<double>(n);
     ty[0] = Type(
       comp(asDouble(tx[0]), M_SQRT2 * asDouble(tx[1]), xw));
 
@@ -89,19 +108,17 @@ public:
     if(q > 0)
       return false;
 
-    /* TODO: switch to <Type> */
-    HermiteData<double> const &xw = GaussHermiteDataCached(n);
+    HermiteData<Type> const &xw = GaussHermiteDataCached<Type>(n);
     Type const mu = tx[0],
              mult = Type(M_SQRT2),
               sig = mult * tx[1];
     px[0] = Type(0.);
     px[1] = Type(0.);
     for(unsigned i = 0; i < xw.x.size(); ++i){
-      Type const xx = Type(xw.x[i]),
-               node = mu + sig * xx,
-               term = Type(xw.w[i]) * gp(node);
-      px[0] +=             term;
-      px[1] += mult * xx * term;
+      Type const node = mu + sig * xw.x[i],
+                 term = xw.w[i] * Fam::gp(node);
+      px[0] +=                  term;
+      px[1] += mult * xw.x[i] * term;
 
     }
 
@@ -122,11 +139,13 @@ public:
   }
 };
 
-/* TODO: get rid of HermiteData<AD<Type> > arg */
+template<class Type>
+using mlogit_integral_atomic = integral_atomic<Type, mlogit_fam>;
+
 template<class Type>
 AD<Type> mlogit_integral
-  (AD<Type> const mu, AD<Type> const sigma, HermiteData<AD<Type> > const &hd){
-  static mlogit_integral_atomic<Type> functor("mlogit");
+  (AD<Type> const mu, AD<Type> const sigma, unsigned const n){
+  auto &functor = mlogit_integral_atomic<Type>::get_cached(n);
 
   CppAD::vector<AD<Type> > tx(2), ty(1);
   tx[0] = mu;
@@ -137,14 +156,13 @@ AD<Type> mlogit_integral
 }
 
 double mlogit_integral
-  (double const mu, double const sigma, HermiteData<double> const &hd);
+  (double const mu, double const sigma,  unsigned const n);
 
 template<class Type>
 Type mlogit_integral
-  (Type const mu, Type const sigma, Type const log_k,
-   HermiteData<Type> const &hd){
+  (Type const mu, Type const sigma, Type const log_k, unsigned const n){
   Type const mu_use = mu + log_k;
-  return mlogit_integral(mu_use, sigma, hd);
+  return mlogit_integral(mu_use, sigma, n);
 }
 
 /* Makes an approximation of
@@ -154,26 +172,58 @@ Type mlogit_integral
 
  with (non-adaptive) Gauss–Hermite quadrature
 */
+
+struct probit_fam {
+  static double g(double const &eta) {
+    return - atomic::Rmath::Rf_pnorm5(eta, 0, 1, 1, 1);
+  }
+
+  template<typename T>
+  static T gp(T const &eta){
+    T const cdf = pnorm_log(eta),
+            pdf = dnorm(eta, T(0.), T(1.), 1L);
+    return - exp(pdf - cdf);
+  }
+  static double gp(double const &eta) {
+    if(eta > -10){
+      auto const cdf = atomic::Rmath::Rf_pnorm5(eta, 0, 1, 1, 0);
+      return - M_1_SQRT_2PI * exp(-eta * eta * .5) / cdf;
+    }
+
+    double const cdf = atomic::Rmath::Rf_pnorm5(eta, 0, 1, 1, 1),
+                 pdf = - eta * eta * .5;
+    return - M_1_SQRT_2PI * exp(pdf - cdf);
+  }
+};
+
 template<class Type>
-Type probit_integral
-  (Type const mu, Type const sigma, HermiteData<Type> const &hd){
-  auto const &x = hd.x,
-             &w = hd.w;
+using probit_integral_atomic = integral_atomic<Type, probit_fam>;
 
-  Type out(0.);
-  Type const mult_sum(sqrt(M_1_PI)),
-                 mult(Type(M_SQRT2) * sigma);
-  for(unsigned i = 0; i < x.size(); ++i)
-    out += w[i] * (-pnorm_log(mu + mult * x[i]));
+template<class Type>
+AD<Type> probit_integral
+  (AD<Type> const mu, AD<Type> const sigma,  unsigned const n){
+  auto &functor = probit_integral_atomic<Type>::get_cached(n);
 
-  return mult_sum * out;
+  CppAD::vector<AD<Type> > tx(2), ty(1);
+  tx[0] = mu;
+  tx[1] = sigma;
+
+  functor(tx, ty);
+  return ty[0];
 }
 
+double probit_integral
+  (double const mu, double const sigma, unsigned const n);
+
+/* Notice this overload is for
+ l(\mu,\sigma) =
+ \int\phi(x;\mu,\sigma^2)
+ (-\log \Phi(k - x))dx
+ */
 template<class Type>
 Type probit_integral
-  (Type const mu, Type const sigma, Type const k,
-   HermiteData<Type> const &hd){
-  return probit_integral(k - mu, sigma, hd);
+  (Type const mu, Type const sigma, Type const k, unsigned const n){
+  return probit_integral(k - mu, sigma, n);
 }
 
 } // namespace GVA

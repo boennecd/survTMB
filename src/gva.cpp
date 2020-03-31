@@ -17,16 +17,15 @@ struct GVA_cond_dens_data {
   Type const eps,
          eps_log = Type(log(eps)),
            kappa;
-  GaussHermite::HermiteData<Type> const GH_xw;
+  unsigned const n_nodes;
 
   /* potentially needed constants */
   Type const mlog_2_pi_half = Type(-log(2 * M_PI) / 2.),
                         two = Type(2.);
 
   GVA_cond_dens_data
-    (Type const &eps, Type const &kappa,
-     GaussHermite::HermiteData<Type> const &GH_xw):
-    eps(eps), kappa(kappa), GH_xw(GH_xw) { }
+    (Type const &eps, Type const &kappa, unsigned const n_nodes):
+    eps(eps), kappa(kappa), n_nodes(n_nodes) { }
 };
 
 #define GVA_COND_DENS_ARGS                                     \
@@ -60,7 +59,7 @@ struct po final : public GVA_cond_dens_data<Type> {
   Type operator()(GVA_COND_DENS_ARGS) const {
     Type const eta = eta_fix + va_mean,
                  H = mlogit_integral(
-                   va_mean, va_sd, eta_fix, this->GH_xw),
+                   va_mean, va_sd, eta_fix, this->n_nodes),
                  h = etaD_fix * exp(eta - H),
             if_low = event * this->eps_log - H - h * h * this->kappa,
             if_ok  = event * log(h)  - H;
@@ -76,7 +75,7 @@ struct probit : public GVA_cond_dens_data<Type> {
   using GVA_cond_dens_data<Type>::GVA_cond_dens_data;
 
   Type operator()(GVA_COND_DENS_ARGS) const {
-    Type const H = probit_integral(va_mean, va_sd, -eta_fix, this->GH_xw),
+    Type const H = probit_integral(va_mean, va_sd, -eta_fix, this->n_nodes),
             diff = eta_fix + va_mean,
                h = etaD_fix * exp(
                  this->mlog_2_pi_half - diff * diff / this->two -
@@ -92,8 +91,7 @@ struct probit : public GVA_cond_dens_data<Type> {
 
 template<class Type>
 void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
-              GaussHermite::HermiteData<Type> const &GH_xw,
-              unsigned const rng_dim){
+              unsigned const n_nodes, unsigned const rng_dim){
   using Eigen::Dynamic;
   using vecT = vector<Type>;
   using std::move;
@@ -167,15 +165,15 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
   };
 
   if(link == "PH"){
-    ph<Type> const func(eps, kappa, GH_xw);
+    ph<Type> const func(eps, kappa, n_nodes);
     main_loop(func);
 
   } else if (link == "PO"){
-    po<Type> const func(eps, kappa, GH_xw);
+    po<Type> const func(eps, kappa, n_nodes);
     main_loop(func);
 
   } else if (link == "probit"){
-    probit<Type> const func(eps, kappa, GH_xw);
+    probit<Type> const func(eps, kappa, n_nodes);
     main_loop(func);
 
   } else
@@ -225,11 +223,7 @@ void GVA(COMMON_ARGS(Type), vector<Type> const &theta_VA,
             theta_VA.size(), expe_size);
   }
 
-  GaussHermite::HermiteData<Type> const
-    GH_xw(GaussHermite::GaussHermiteData(n_nodes));
-  vector<Type> GH_x(n_nodes), GH_w(n_nodes);
-
-  return GVA_comp(COMMON_CALL, theta_VA, GH_xw, rng_dim);
+  return GVA_comp(COMMON_CALL, theta_VA, n_nodes, rng_dim);
 }
 
 using ADd   = CppAD::AD<double>;

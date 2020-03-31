@@ -26,8 +26,12 @@ struct HermiteData {
 
 HermiteData<double> GaussHermiteData(unsigned const);
 
-/* TODO: change to template... */
-HermiteData<double> const& GaussHermiteDataCached(unsigned const);
+template<class Type>
+HermiteData<Type> const& GaussHermiteDataCached(unsigned const);
+
+constexpr std::size_t GaussHermiteDataCachedMaxArg(){
+  return 1000L;
+}
 
 } // namespace GaussHermite
 

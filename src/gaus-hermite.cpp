@@ -39,13 +39,9 @@
 #endif
 #include <R_ext/Lapack.h>
 
-namespace {
-constexpr std::size_t const n_cache(1000L);
-
-std::array<std::unique_ptr<GaussHermite::HermiteData<double> >, n_cache>
-  cached_values;
-
-} // namespace
+#ifdef _OPENMP
+#include "omp.h"
+#endif
 
 namespace GaussHermite {
 using std::vector;
@@ -167,10 +163,15 @@ HermiteData<double> GaussHermiteData(unsigned const n) {
   return out;
 }
 
-HermiteData<double> const& GaussHermiteDataCached(unsigned const n){
+template<class Type>
+HermiteData<Type> const& GaussHermiteDataCached(unsigned const n){
+  constexpr std::size_t n_cache = GaussHermiteDataCachedMaxArg();
   if(n > n_cache or n == 0l)
     throw std::invalid_argument(
         "GaussHermiteDataCached: invalid n (too large or zero)");
+
+  static std::array<std::unique_ptr<HermiteData<Type> >, n_cache>
+    cached_values;
 
   unsigned const idx = n - 1L;
   bool has_value = cached_values[idx].get();
@@ -184,8 +185,8 @@ HermiteData<double> const& GaussHermiteDataCached(unsigned const n){
 #endif
   has_value = cached_values[idx].get();
   if(!has_value){
-    std::unique_ptr<HermiteData<double> > new_ptr(
-      new HermiteData<double>(GaussHermiteData(n)));
+    std::unique_ptr<HermiteData<Type> > new_ptr(
+      new HermiteData<Type>(GaussHermiteData(n)));
     std::swap(cached_values[idx], new_ptr);
   }
 #ifdef _OPENMP
@@ -194,4 +195,18 @@ HermiteData<double> const& GaussHermiteDataCached(unsigned const n){
 
   return *cached_values[idx];
 }
+
+using ADd   = CppAD::AD<double>;
+using ADdd  = CppAD::AD<CppAD::AD<double> >;
+using ADddd = CppAD::AD<CppAD::AD<CppAD::AD<double> > >;
+
+template
+HermiteData<double> const& GaussHermiteDataCached(unsigned const n);
+template
+HermiteData<ADd   > const& GaussHermiteDataCached(unsigned const n);
+template
+HermiteData<ADdd  > const& GaussHermiteDataCached(unsigned const n);
+template
+HermiteData<ADddd > const& GaussHermiteDataCached(unsigned const n);
+
 } // namespace GaussHermite

@@ -38,7 +38,6 @@ context("gav-utils unit tests") {
      k     = c(  2, .5,  5,  6)))
      */
     constexpr unsigned const n_nodes(20L);
-    auto xw = GaussHermiteData(n_nodes);
     std::vector<double> x(n_nodes), w(n_nodes);
     std::vector<double> const
       mu     = { -1,   1,  0,  2 },
@@ -52,7 +51,7 @@ context("gav-utils unit tests") {
 
     for(unsigned i = 0; i < mu.size(); ++i){
       double const intval = mlogit_integral(
-        mu[i], sigma[i], std::log(k[i]), xw);
+        mu[i], sigma[i], std::log(k[i]), n_nodes);
 
       expect_equal(ex_res[i], intval);
     }
@@ -60,13 +59,12 @@ context("gav-utils unit tests") {
     /* check Jacobian */
     using ADd = AD<double>;
     vector<ADd > a(3), b(1);
-    HermiteData<ADd> xwAD(xw);
     a[0] = ADd(mu[0]);
     a[1] = ADd(sigma[0]);
     a[2] = ADd(k[0]);
 
     CppAD::Independent(a);
-    b[0] = mlogit_integral(a[0], a[1], log(a[2]), xwAD);
+    b[0] = mlogit_integral(a[0], a[1], log(a[2]), n_nodes);
     CppAD::ADFun<double> func(a, b);
 
     auto d = derivs.cbegin();
@@ -83,21 +81,25 @@ context("gav-utils unit tests") {
       expect_equal(ex_res[i], yy[0]);
 
       auto dx = func.Reverse(1, weight);
-      for(unsigned j = 0; j < 3; ++j, ++d)
-        expect_equal_eps(*d, dx[j], eps_deriv);
+      expect_equal_eps(*d, dx[0], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[1], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[2], eps_deriv);
+      d++;
     }
   }
 
   test_that("probit_integral gives the correct result"){
     /*
-     integrand <- function(x, mu, sigma, rho, k, s, use_log = FALSE){
+     integrand <- function(x, mu, sigma, k, s, use_log = FALSE){
     f1 <- dnorm(x, mean = mu, sd = sigma, log = use_log)
     f2 <- -pnorm(k + s * x, log.p = TRUE)
     if(use_log) f1 + log(f2) else f1 * f2
     }
-    psi <- function(mu, sigma, rho, k, s)
+    psi <- function(mu, sigma, k, s)
     integrate(
-      integrand, mu = mu, sigma = sigma, rho = rho, k = k, s = s,
+      integrand, mu = mu, sigma = sigma, k = k, s = s,
     lower = -Inf, upper = Inf, rel.tol = 1e-10, abs.tol = 0)$value
     # the approximation should work well for these values
     dput(mapply(
@@ -106,20 +108,67 @@ context("gav-utils unit tests") {
     sigma =  c(1, .5, 1, 2, .7),
     k     =  c(1, -1, 2, 1, .8),
     s     = -c(1, 1, 1, 1, 1)))
+    dpsi <- function(mu, sigma, k){
+    func <- function(x)
+    psi(mu = x[1], sigma = x[2], k = x[3], s = -1)
+    numDeriv::jacobian(func, c(mu, sigma, k), method.args = list(eps = 1e-10))
+    }
+    dput(mapply(dpsi,
+    mu    =  c(0, -1, 1, 0, -1),
+    sigma =  c(1, .5, 1, 2, .7),
+    k     =  c(1, -1, 2, 1, .8)))
     */
     constexpr unsigned const n_nodes = 40L;
-    auto xw = GaussHermiteData(n_nodes);
 
     std::vector<double> const
         mu     = { 0, -1, 1, 0, -1 },
         sigma  = { 1, .5, 1, 2, .7 },
         k      = { 1, -1, 2, 1, .8 },
         ex_res = { 0.35934760083045, 0.771877623464394, 0.35934760083045,
-                   0.942178782481152, 0.078745703164216 };
+                   0.942178782481152, 0.078745703164216 },
+       derivs = { 0.414713892660567, 0.377255144182391, -0.414715858841479,
+                  0.825026811085921, 0.311729351150906, -0.825026811091284, 0.414715858841496,
+                  0.377255144185024, -0.414715858840827, 0.686685373662083, 0.795828849179965,
+                  -0.686690855788584, 0.133023446854648, 0.131235495730402, -0.133023446854061 };
+
     for(unsigned i = 0; i < mu.size(); ++i){
       double const intval = probit_integral(
-        mu[i], sigma[i], k[i], xw);
+        mu[i], sigma[i], k[i], n_nodes);
       expect_equal(ex_res[i], intval);
+    }
+
+    /* check Jacobian */
+    using ADd = AD<double>;
+    vector<ADd > a(3), b(1);
+    a[0] = ADd(mu[0]);
+    a[1] = ADd(sigma[0]);
+    a[2] = ADd(k[0]);
+
+    CppAD::Independent(a);
+    b[0] = probit_integral(a[0], a[1], a[2], n_nodes);
+    CppAD::ADFun<double> func(a, b);
+
+    auto d = derivs.cbegin();
+    vector<double> aa(3), weight(1);
+    weight[0] = 1.;
+    double const eps_deriv = std::pow(
+      std::numeric_limits<double>::epsilon(), 1./ 4.);
+    for(unsigned i = 0; i < mu.size(); ++i){
+      aa[0] = mu[i];
+      aa[1] = sigma[i];
+      aa[2] = k[i];
+
+      auto yy = func.Forward(0, aa);
+      expect_equal(ex_res[i], yy[0]);
+
+      auto dx = func.Reverse(1, weight);
+
+      expect_equal_eps(*d, dx[0], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[1], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[2], eps_deriv);
+      d++;
     }
   }
 }
