@@ -14,15 +14,15 @@ struct SNVA_cond_dens_dat {
   Type const eps,
          eps_log = Type(log(eps)),
            kappa;
-  HermiteData<Type> const xw;
+  unsigned const n_nodes;
 
   /* potentially needed constants */
   Type const mlog_2_pi_half = Type(-log(2 * M_PI) / 2.),
                         two = Type(2.);
 
   SNVA_cond_dens_dat
-  (Type const eps, Type const kappa, HermiteData<Type> const &xw):
-  eps(eps), kappa(kappa), xw(xw) { }
+  (Type const eps, Type const kappa, unsigned const n_nodes):
+  eps(eps), kappa(kappa), n_nodes(n_nodes) { }
 };
 
 #define SNVA_COND_DENS_ARGS                                      \
@@ -56,7 +56,7 @@ struct po final : public SNVA_cond_dens_dat<Type> {
 
   Type operator()(SNVA_COND_DENS_ARGS) const {
     Type const H = mlogit_integral(
-      va_mu, va_sd, va_rho, eta_fix, this->xw),
+      va_mu, va_sd, va_rho, eta_fix, this->n_nodes),
                h = etaD_fix * exp(eta_fix + dist_mean - H),
           if_low = event * this->eps_log - H - h * h * this->kappa,
           if_ok  = event * log(h)  - H;
@@ -73,7 +73,7 @@ struct probit final : public SNVA_cond_dens_dat<Type> {
 
   Type operator()(SNVA_COND_DENS_ARGS) const {
     Type const H = probit_integral(
-        va_mu, va_sd, va_rho, -eta_fix, this->xw),
+        va_mu, va_sd, va_rho, -eta_fix, this->n_nodes),
             diff = (eta_fix + dist_mean),
                h = etaD_fix * exp(
                  this->mlog_2_pi_half - diff * diff / this->two -
@@ -183,15 +183,15 @@ void SNVA_comp
   };
 
   if(link == "PH"){
-    ph<Type> func(eps, kappa, xw);
+    ph<Type>     func(eps, kappa, xw.x.size());
     main_loop(func);
 
   } else if (link == "PO"){
-    po<Type> func(eps, kappa, xw);
+    po<Type>     func(eps, kappa, xw.x.size());
     main_loop(func);
 
   } else if (link == "probit"){
-    probit<Type> func(eps, kappa, xw);
+    probit<Type> func(eps, kappa, xw.x.size());
     main_loop(func);
 
   } else

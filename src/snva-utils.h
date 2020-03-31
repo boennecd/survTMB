@@ -98,45 +98,172 @@ mode_n_Hess<Type> get_SNVA_mode_n_Hess
  and the mode of the random effect density. The approximation seems to
  poor if there is a large skew.
  */
-template<class Type>
-Type mlogit_integral
-  (Type const mu, Type const sigma, Type const rho,
-   HermiteData<Type> const &hd){
-  /* compute xi and lambda and assign constants */
-  auto const dvals = get_SNVA_mode_n_Hess(mu, sigma, rho);
-  Type const one(1.),
-             two(2.),
-        too_large(30.),
-         sigma_sq = sigma * sigma,
-               xi = dvals.mode,
-           lambda = one / sqrt(-dvals.Hess);
+struct mlogit_fam {
+  static constexpr double const too_large = 30.;
 
-  /* compute approximate integral with Gauss–Hermite quadrature */
-  Type out(0.);
-  Type const
-    mult_sum(lambda / sigma * Type(M_2_SQRTPI)),
-    mult    (Type(M_SQRT2) * lambda);
+  template<typename T>
+  static T g(T const &eta) {
+    return CppAD::CondExpGe(
+      eta, T(too_large), eta, log(T(1) + exp(eta)));
+  }
+  static double g(double const &eta) {
+    return eta > too_large ? eta : log(1 + exp(eta));
+  }
+};
 
-  for(unsigned i = 0; i < hd.x.size(); ++i){
-    Type const o = hd.x[i],
-              xo = xi + mult * o,
-         xo_diff = (xo - mu),
-             fac = CppAD::CondExpGe(
-               xo, too_large, xo, log(one + exp(xo)));
+/* atomic function to perform Gauss–Hermite quadrature.
+ *
+ * Args:
+ *   Type: base type.
+ *   Fam: class with one static function g which is the integrand.
+ */
+template <class Type, class Fam>
+class integral_atomic : public CppAD::atomic_base<Type> {
+  unsigned const n;
 
-    out +=
-      hd.w[i] * exp(o * o - xo_diff * xo_diff / two / sigma_sq) *
-      pnorm(rho * (xo - mu)) * fac;
+public:
+  integral_atomic(char const *name, unsigned const n):
+  CppAD::atomic_base<Type>(name), n(n) {
+    this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
 
-  return mult_sum * out;
+  /* returns a cached value to use in computations as the object must remain
+   * in scope while all CppAD::ADfun functions are still in use. */
+  static integral_atomic& get_cached(unsigned const);
+
+  static double comp(
+      double const mu, double const sig, double const rho,
+      HermiteData<double> const &xw){
+    auto const dvals = get_SNVA_mode_n_Hess(mu, sig, rho);
+    double const xi = dvals.mode,
+             lambda = 1. / sqrt(-dvals.Hess),
+               mult = M_SQRT2 * lambda;
+
+    double out(0.);
+    for(unsigned i = 0; i < xw.x.size(); ++i){
+      const double xx = xw.x[i],
+                   zz = xi + mult * xx,
+                  dif = zz - mu;
+      out += xw.w[i] * Fam::g(zz) *
+        exp(xx * xx - dif * dif / 2. / sig / sig) * pnorm(rho * dif);
+    }
+    out *= M_2_SQRTPI * lambda / sig;
+
+    return out;
+  }
+
+  virtual bool forward(std::size_t p, std::size_t q,
+                       const CppAD::vector<bool> &vx,
+                       CppAD::vector<bool> &vy,
+                       const CppAD::vector<Type> &tx,
+                       CppAD::vector<Type> &ty){
+    if(q > 0)
+      return false;
+
+    HermiteData<double> const &xw = GaussHermiteDataCached<double>(n);
+    ty[0] = Type(
+      comp(asDouble(tx[0]), asDouble(tx[1]), asDouble(tx[2]), xw));
+
+    /* set variable flags */
+    if (vx.size() > 0) {
+      bool anyvx = false;
+      for (std::size_t i = 0; i < vx.size(); i++)
+        anyvx |= vx[i];
+      for (std::size_t i = 0; i < vy.size(); i++)
+        vy[i] = anyvx;
+    }
+
+    return true;
+  }
+
+  virtual bool reverse(std::size_t q, const CppAD::vector<Type> &tx,
+                       const CppAD::vector<Type> &ty,
+                       CppAD::vector<Type> &px,
+                       const CppAD::vector<Type> &py){
+    if(q > 0)
+      return false;
+
+    HermiteData<Type> const &xw = GaussHermiteDataCached<Type>(n);
+    Type const mu = tx[0],
+              sig = tx[1],
+              rho = tx[2];
+
+    auto const dvals = get_SNVA_mode_n_Hess(mu, sig, rho);
+    Type const xi = dvals.mode,
+              one(1.),
+           lambda = Type(one) / sqrt(-dvals.Hess),
+             mult = Type(M_SQRT2) * lambda;
+
+    px[0] = Type(0.);
+    px[1] = Type(0.);
+    px[2] = Type(0.);
+    for(unsigned i = 0; i < xw.x.size(); ++i){
+      Type const xx = xw.x[i],
+                 zz = xi + mult * xx,
+                dif = zz - mu,
+            dif_std = dif / sig,
+          constants = xw.w[i] * Fam::g(zz) * exp(xx * xx),
+               dnrm = exp(- dif_std * dif_std / 2),
+              ddnrm = -dnrm,
+               pnrm =         pnorm (rho * dif),
+              dpnrm = atomic::dnorm1(rho * dif);
+      px[0] -= constants * (
+        dif_std / sig * ddnrm * pnrm + rho * dnrm * dpnrm);
+      px[1] -= constants * pnrm * (dif_std * dif_std - one) / sig * ddnrm;
+      px[2] += constants * dnrm * dpnrm * dif;
+    }
+
+    Type const fac = Type(M_2_SQRTPI) * lambda / sig;
+    px[0] *= fac * py[0];
+    px[1] *= fac * py[0];
+    px[2] *= fac * py[0];
+
+    return true;
+  }
+
+  virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
+                              CppAD::vector<bool>& st) {
+    bool anyrt = false;
+    for (std::size_t i = 0; i < rt.size(); i++)
+      anyrt |= rt[i];
+    for (std::size_t i = 0; i < st.size(); i++)
+      st[i] = anyrt;
+    return true;
+  }
+};
+
+template<class Type>
+using mlogit_integral_atomic = integral_atomic<Type, mlogit_fam>;
+
+template<class Type>
+AD<Type> mlogit_integral
+  (AD<Type> const mu, AD<Type> const sigma, AD<Type> const rho,
+   unsigned const n_nodes){
+  auto &functor = mlogit_integral_atomic<Type>::get_cached(n_nodes);
+
+  CppAD::vector<AD<Type> > tx(3), ty(1);
+  tx[0] = mu;
+  tx[1] = sigma;
+  tx[2] = rho;
+
+  functor(tx, ty);
+  return ty[0];
+}
+
+inline double mlogit_integral
+  (double const mu, double const sigma, double const rho,
+   unsigned const n_nodes){
+  HermiteData<double> const &hd =
+    GaussHermiteDataCached<double>(n_nodes);
+  return mlogit_integral_atomic<double>::comp(mu, sigma, rho, hd);
 }
 
 template<class Type>
 Type mlogit_integral
   (Type const mu, Type const sigma, Type const rho, Type const log_k,
-   HermiteData<Type> const &hd){
-  return mlogit_integral(mu + log_k, sigma, rho, hd);
+   unsigned const n_nodes){
+  Type const mu_use = mu + log_k;
+  return mlogit_integral(mu_use, sigma, rho, n_nodes);
 }
 
 /* Makes an approximation of
@@ -148,42 +275,47 @@ Type mlogit_integral
  and the mode of the random effect density. The approximation seems to
  poor if there is a large skew.
  */
-template<class Type>
-Type probit_integral
-  (Type const mu, Type const sigma, Type const rho,
-   HermiteData<Type> const &hd){
-  /* compute xi and lambda and assign constants */
-  auto const dvals = get_SNVA_mode_n_Hess(mu, sigma, rho);
-  Type const one(1.),
-             two(2.),
-        sigma_sq = sigma * sigma,
-              xi = dvals.mode,
-          lambda = one / sqrt(-dvals.Hess);
-
-  /* compute approximate integral with Gauss–Hermite quadrature */
-  Type out(0.);
-  Type const
-    mult_sum(lambda / sigma * Type(M_2_SQRTPI)),
-    mult    (Type(M_SQRT2) * lambda);
-
-  for(unsigned i = 0; i < hd.x.size(); ++i){
-    Type const o = hd.x[i],
-              xo = xi + mult * o,
-         xo_diff = (xo - mu);
-
-    out +=
-      hd.w[i] * exp(o * o - xo_diff * xo_diff / two / sigma_sq) *
-      pnorm(rho * (xo - mu)) * (-pnorm_log(xo));
+struct probit_fam {
+  template<class Type>
+  static Type g(Type const &eta) {
+    return - pnorm_log(eta);
   }
+  static double g(double const &eta) {
+    return - atomic::Rmath::Rf_pnorm5(eta, 0, 1, 1, 1);
+  }
+};
 
-  return mult_sum * out;
+template<class Type>
+using probit_integral_atomic = integral_atomic<Type, probit_fam>;
+
+template<class Type>
+AD<Type> probit_integral
+  (AD<Type> const mu, AD<Type> const sigma, AD<Type> const rho,
+   unsigned const n_nodes){
+  auto &functor = probit_integral_atomic<Type>::get_cached(n_nodes);
+
+  CppAD::vector<AD<Type> > tx(3), ty(1);
+  tx[0] = mu;
+  tx[1] = sigma;
+  tx[2] = rho;
+
+  functor(tx, ty);
+  return ty[0];
+}
+
+inline double probit_integral
+  (double const mu, double const sigma, double const rho,
+   unsigned const n_nodes){
+  HermiteData<double> const &hd =
+    GaussHermiteDataCached<double>(n_nodes);
+  return probit_integral_atomic<double>::comp(mu, sigma, rho, hd);
 }
 
 template<class Type>
 Type probit_integral
   (Type const mu, Type const sigma, Type const rho, Type const k,
-   HermiteData<Type> const &hd){
-  return probit_integral(k - mu, sigma, -rho, hd);
+   unsigned const n_nodes){
+  return probit_integral(k - mu, sigma, -rho, n_nodes);
 }
 
 /* The following functions maps from the input vector to the

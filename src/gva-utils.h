@@ -26,7 +26,6 @@ namespace GVA {
 
  with (non-adaptive) Gauss–Hermite quadrature
 */
-
 struct mlogit_fam {
   static constexpr double const too_large = 30.;
 
@@ -63,7 +62,7 @@ public:
     this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
 
-  /* returns a cached value to use in computation as the scope must remain
+  /* returns a cached value to use in computations as the object must remain
    * in scope while all CppAD::ADfun functions are still in use. */
   static integral_atomic& get_cached(unsigned const);
 
@@ -155,8 +154,11 @@ AD<Type> mlogit_integral
   return ty[0];
 }
 
-double mlogit_integral
-  (double const mu, double const sigma,  unsigned const n);
+inline double mlogit_integral
+  (double const mu, double const sigma,  unsigned const n){
+  HermiteData<double> const &xw = GaussHermiteDataCached<double>(n);
+  return mlogit_integral_atomic<double>::comp(mu, M_SQRT2 * sigma, xw);
+}
 
 template<class Type>
 Type mlogit_integral
@@ -172,7 +174,6 @@ Type mlogit_integral
 
  with (non-adaptive) Gauss–Hermite quadrature
 */
-
 struct probit_fam {
   static double g(double const &eta) {
     return - atomic::Rmath::Rf_pnorm5(eta, 0, 1, 1, 1);
@@ -212,8 +213,11 @@ AD<Type> probit_integral
   return ty[0];
 }
 
-double probit_integral
-  (double const mu, double const sigma, unsigned const n);
+inline double probit_integral
+  (double const mu, double const sigma, unsigned const n){
+  HermiteData<double> const &xw = GaussHermiteDataCached<double>(n);
+  return probit_integral_atomic<double>::comp(mu, M_SQRT2 * sigma, xw);
+}
 
 /* Notice this overload is for
  l(\mu,\sigma) =

@@ -1,4 +1,4 @@
-#include "gva-utils.h"
+#include "snva-utils.h"
 #include <array>
 #include <memory>
 
@@ -7,8 +7,7 @@
 #endif
 
 namespace GaussHermite {
-namespace GVA {
-
+namespace SNVA {
 template <class Type, class Fam>
 integral_atomic<Type, Fam>&
 integral_atomic<Type, Fam>::get_cached(unsigned const n){
@@ -28,7 +27,7 @@ integral_atomic<Type, Fam>::get_cached(unsigned const n){
     return *cached_values[idx];
 
 #ifdef _OPENMP
-#pragma omp critical (gvaCache)
+#pragma omp critical (snvaCache)
 {
 #endif
   has_value = cached_values[idx].get();
@@ -59,4 +58,4 @@ template class integral_atomic<ADdd  , probit_fam>;
 template class integral_atomic<ADddd , probit_fam>;
 
 } // namespace GaussHermite
-} // namespace GVA
+} // namespace SNVA

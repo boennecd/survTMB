@@ -60,21 +60,75 @@ context("snva-utils unit tests") {
      rho   = c(0, -1, 1, 1, -2),
      k     = c(1, .3, 2, 1, .8),
      s     = c(1, 1, 1, 1, 1)))
+     dpsi <- function(mu, sigma, rho, k){
+     func <- function(x)
+     psi(mu = x[1], sigma = x[2], rho = x[3], k = x[4], s = 1)
+     numDeriv::jacobian(func, c(mu, sigma, rho, k),
+     method.args = list(eps = 1e-10))
+     }
+     dput(mapply(dpsi,
+     mu    = c(0, -1, 1, 0, -1),
+     sigma = c(1, .5, 1, 2, .7),
+     rho   = c(0, -1, 1, 1, -2),
+     k     = c(1, .3, 2, 1, .8)))
      */
     constexpr unsigned const n_nodes = 40L;
-    auto xw = GaussHermite::GaussHermiteData(n_nodes);
     std::vector<double> const
         mu     = { 0, -1, 1, 0, -1 },
         sigma  = { 1, .5, 1, 2, .7 },
         rho    = { 0, -1, 1, 1, -2 },
         k      = { 1, .3, 2, 1, .8 },
         ex_res = { 0.80605918334744, 0.0969646948660297, 2.38729257810521, 1.78136403451249,
-                   0.189741259960398 };
+                   0.189741259960398 },
+        derivs = { 0.500006490454055, 0.206620964134777, 0.398937704544547,
+                   0.499999999989764, 0.0915328990478164, -0.0276112082285875, 0.0152040703474796,
+                   0.305109663495911, 0.882551315240342, 0.793854072803876, 0.232363697133678,
+                   0.44127565761652, 0.73931997580623, 0.731042542671959, 0.142729929312629,
+                   0.739329245111041, 0.169614547405035, -0.10904339875669, 0.0180383959195121,
+                   0.212018184253227 };
 
     for(unsigned i = 0; i < mu.size(); ++i){
       double const intval = mlogit_integral(
-        mu[i], sigma[i], rho[i], std::log(k[i]), xw);
+        mu[i], sigma[i], rho[i], std::log(k[i]), n_nodes);
       expect_equal(ex_res[i], intval);
+    }
+
+    /* check Jacobian */
+    using ADd = AD<double>;
+    vector<ADd > a(4), b(1);
+    a[0] = ADd(mu[0]);
+    a[1] = ADd(sigma[0]);
+    a[2] = ADd(rho[0]);
+    a[3] = ADd(k[0]);
+
+    CppAD::Independent(a);
+    b[0] = mlogit_integral(a[0], a[1], a[2], log(a[3]), n_nodes);
+    CppAD::ADFun<double> func(a, b);
+
+    auto d = derivs.cbegin();
+    vector<double> aa(4), weight(1);
+    weight[0] = 1.;
+    double const eps_deriv = std::pow(
+      std::numeric_limits<double>::epsilon(), 1./ 4.);
+    for(unsigned i = 0; i < mu.size(); ++i){
+      aa[0] = mu[i];
+      aa[1] = sigma[i];
+      aa[2] = rho[i];
+      aa[3] = k[i];
+
+      auto yy = func.Forward(0, aa);
+      expect_equal(ex_res[i], yy[0]);
+
+      auto dx = func.Reverse(1, weight);
+
+      expect_equal_eps(*d, dx[0], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[1], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[2], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[3], eps_deriv);
+      d++;
     }
   }
 
@@ -98,21 +152,75 @@ context("snva-utils unit tests") {
      rho   =  c(0, -1,  1,  1,  -2),
      k     =  c(1, .3, -2,  1, -.8),
      s     = -c(1,  1,  1,  1,   1)))
+     dpsi <- function(mu, sigma, rho, k){
+     func <- function(x)
+     psi(mu = x[1], sigma = x[2], rho = x[3], k = x[4], s = -1)
+     numDeriv::jacobian(func, c(mu, sigma, rho, k),
+     method.args = list(eps = 1e-10))
+     }
+     dput(mapply(dpsi,
+     mu    =  c(0, -1,  1,  0,  -1),
+     sigma =  c(1, .5,  1,  2,  .7),
+     rho   =  c(0, -1,  1,  1,  -2),
+     k     =  c(1, .3, -2,  1, -.8)))
      */
     unsigned const n_nodes = 40L;
-    auto xw = GaussHermite::GaussHermiteData(n_nodes);
     std::vector<double> const
         mu     = { 0, -1,  1,  0,  -1 },
         sigma  = { 1, .5,  1,  2,  .7 },
         rho    = { 0, -1,  1,  1,  -2 },
         k      = { 1, .3, -2,  1, -.8 },
         ex_res = { 0.35934760083045, 0.0981790817582183, 8.93028198953091, 1.79323321188706,
-                   0.360643279313754 };
+                   0.360643279313754 },
+        derivs = { 0.414713892660567, 0.377255144182391, 0.330895837479333,
+                   -0.414715858841479, 0.171778814619194, -0.0170681853114501, 0.0309884723079667,
+                   -0.171778814619795, 3.82006109597964, 3.72538370057417, 0.928490173628573,
+                   -3.82006109586034, 1.24521443636393, 1.62553040226332, 0.111857457341852,
+                   -1.24520007126255, 0.471920179688172, -0.278392484375124, 0.0533432871738786,
+                   -0.471920179691003 };
     for(unsigned i = 0; i < mu.size(); ++i){
       double const intval = probit_integral(
-        mu[i], sigma[i], rho[i], k[i], xw);
+        mu[i], sigma[i], rho[i], k[i], n_nodes);
 
       expect_equal(ex_res[i], intval);
+    }
+
+    /* check Jacobian */
+    using ADd = AD<double>;
+    vector<ADd > a(4), b(1);
+    a[0] = ADd(mu[0]);
+    a[1] = ADd(sigma[0]);
+    a[2] = ADd(rho[0]);
+    a[3] = ADd(k[0]);
+
+    CppAD::Independent(a);
+    b[0] = probit_integral(a[0], a[1], a[2], a[3], n_nodes);
+    CppAD::ADFun<double> func(a, b);
+
+    auto d = derivs.cbegin();
+    vector<double> aa(4), weight(1);
+    weight[0] = 1.;
+    double const eps_deriv = std::pow(
+      std::numeric_limits<double>::epsilon(), 1./ 4.);
+    for(unsigned i = 0; i < mu.size(); ++i){
+      aa[0] = mu[i];
+      aa[1] = sigma[i];
+      aa[2] = rho[i];
+      aa[3] = k[i];
+
+      auto yy = func.Forward(0, aa);
+      expect_equal(ex_res[i], yy[0]);
+
+      auto dx = func.Reverse(1, weight);
+
+      expect_equal_eps(*d, dx[0], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[1], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[2], eps_deriv);
+      d++;
+      expect_equal_eps(*d, dx[3], eps_deriv);
+      d++;
     }
   }
 

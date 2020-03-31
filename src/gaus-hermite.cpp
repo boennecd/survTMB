@@ -180,7 +180,7 @@ HermiteData<Type> const& GaussHermiteDataCached(unsigned const n){
     return *cached_values[idx];
 
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (GHQCache)
 {
 #endif
   has_value = cached_values[idx].get();
