@@ -13,7 +13,7 @@ The [example](#example) section shows an example of how to use the package with 
 Example
 -------
 
-We estimate a GSM using different link functions and different methods below. First, we define function to perform the estimation. Then we use the different methods with models using various link functions.
+We estimate a GSM using different link functions and different methods below. First, we define a function to perform the estimation. Then we use the different methods with models using various link functions.
 
 ``` r
 dat <- coxme::eortc
@@ -26,7 +26,7 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
     adfun <- make_gsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
-      n_threads = .(n_threads), param_type = .(param_type))
+      n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L)
     fit <- fit_mgsm(adfun, method = .(method))
     list(fit = fit, fun = adfun)
   }), parent.frame())
@@ -39,7 +39,7 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> GSM estimated with method 'Laplace' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       param_type = "DP", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
 #> Estimated fixed effects:
@@ -62,7 +62,7 @@ fit_model("PO"    )$fit
 #> GSM estimated with method 'Laplace' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       param_type = "DP", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
 #> Estimated fixed effects:
@@ -85,7 +85,7 @@ fit_model("probit")$fit
 #> GSM estimated with method 'Laplace' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       param_type = "DP", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
 #> Estimated fixed effects:
@@ -111,7 +111,7 @@ fit_model("probit")$fit
 #> GSM estimated with method 'GVA' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
-#>       param_type = "DP", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "GVA")
 #> 
 #> Estimated fixed effects:
@@ -134,7 +134,7 @@ fit_model("PO"    , method = "GVA")$fit
 #> GSM estimated with method 'GVA' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
-#>       param_type = "DP", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "GVA")
 #> 
 #> Estimated fixed effects:
@@ -157,7 +157,7 @@ fit_model("probit", method = "GVA")$fit
 #> GSM estimated with method 'GVA' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
-#>       param_type = "DP", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "GVA")
 #> 
 #> Estimated fixed effects:
@@ -193,7 +193,7 @@ fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
 #> GSM estimated with method 'SNVA' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       param_type = "DP", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -216,7 +216,7 @@ fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> GSM estimated with method 'SNVA' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       param_type = "DP", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -239,7 +239,7 @@ fit_model("probit", method = "SNVA", param_type = "DP")$fit
 #> GSM estimated with method 'SNVA' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       param_type = "DP", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -265,12 +265,12 @@ fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> GSM estimated with method 'SNVA' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       param_type = "CP_trans", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "CP_trans", link = "PH", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                  -7.829                                   0.725 
+#>                                  -7.827                                   0.724 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
 #>                                   5.394                                  11.390 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
@@ -278,17 +278,17 @@ fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0315 0.0236             0.177 0.557
-#> trt              0.0236 0.0568             0.557 0.238
+#> (Intercept)      0.0294 0.0257             0.172 0.639
+#> trt              0.0257 0.0549             0.639 0.234
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
-#> Estimated lower bound is -13026.73
+#> Estimated lower bound is -13026.70
 fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> GSM estimated with method 'SNVA' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       param_type = "CP_trans", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "CP_trans", link = "PO", n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -301,8 +301,8 @@ fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0617 0.0375             0.248 0.402
-#> trt              0.0375 0.1409             0.402 0.375
+#> (Intercept)      0.0624 0.0373             0.250 0.396
+#> trt              0.0373 0.1422             0.396 0.377
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13031.23
@@ -311,24 +311,25 @@ fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 #> GSM estimated with method 'SNVA' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       param_type = "CP_trans", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "CP_trans", link = "probit", 
+#>       n_threads = 2L)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                  -3.745                                   0.606 
+#>                                  -3.745                                   0.605 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   2.660                                   5.003 
+#>                                   2.660                                   5.005 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
 #>                                   2.973 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix is:
-#>             (Intercept)     trt       (Intercept)   trt
-#> (Intercept)     0.02478 0.00967             0.157 0.282
-#> trt             0.00967 0.04758             0.282 0.218
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0236 0.0108             0.154 0.325
+#> trt              0.0108 0.0469             0.325 0.217
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
-#> Estimated lower bound is -13035.31
+#> Estimated lower bound is -13035.20
 ```
 
 Benchmark
@@ -364,29 +365,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           832  838  848    840  858  869     5
-#>  PH     (2L)  546  555  558    559  559  573     5
-#>  PH     (4L)  414  419  422    421  426  430     5
-#>  PO          1346 1362 1366   1363 1373 1386     5
-#>  PO     (2L)  860  861  871    867  879  886     5
-#>  PO     (4L)  609  633  641    634  658  673     5
-#>  probit       902  903  909    912  914  916     5
-#>  probit (2L)  562  565  574    572  582  590     5
-#>  probit (4L)  403  408  410    411  411  418     5
+#>  PH           872  877  899    892  905  948     5
+#>  PH     (2L)  568  575  580    578  583  595     5
+#>  PH     (4L)  422  428  433    432  436  448     5
+#>  PO          1380 1386 1393   1387 1397 1414     5
+#>  PO     (2L)  895  898  917    911  913  967     5
+#>  PO     (4L)  641  646  653    652  661  664     5
+#>  probit       914  937  951    957  968  979     5
+#>  probit (2L)  580  587  609    611  629  637     5
+#>  probit (4L)  419  423  428    430  432  438     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           245  245  246    246  246  248     5
-#>  PH     (2L)  167  167  170    169  170  176     5
-#>  PH     (4L)  138  138  139    139  140  141     5
-#>  PO           990  993  999    995 1006 1010     5
-#>  PO     (2L)  592  592  593    594  594  594     5
-#>  PO     (4L)  414  417  420    418  425  428     5
-#>  probit      1776 1784 1788   1787 1788 1803     5
-#>  probit (2L) 1037 1047 1053   1048 1056 1078     5
-#>  probit (4L)  708  715  725    722  732  748     5
+#>  PH           247  248  251    252  253  255     5
+#>  PH     (2L)  169  169  171    171  172  172     5
+#>  PH     (4L)  140  141  143    142  142  152     5
+#>  PO           812  814  819    820  820  827     5
+#>  PO     (2L)  496  497  500    501  502  502     5
+#>  PO     (4L)  351  355  358    356  358  368     5
+#>  probit      1399 1399 1405   1403 1408 1414     5
+#>  probit (2L)  830  834  838    841  842  842     5
+#>  probit (4L)  579  580  582    582  584  585     5
 ```
 
 ``` r
@@ -414,29 +415,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           434  435  438    436  438  446     5
-#>  PH     (2L)  302  304  309    308  314  320     5
-#>  PH     (4L)  235  236  239    237  242  247     5
-#>  PO          3655 3671 3697   3689 3693 3777     5
-#>  PO     (2L) 2375 2564 2562   2592 2610 2667     5
-#>  PO     (4L) 1596 1649 1706   1650 1743 1892     5
-#>  probit      3939 3961 4003   3984 3993 4140     5
-#>  probit (2L) 2474 2689 2716   2754 2776 2887     5
-#>  probit (4L) 1675 1711 1728   1727 1754 1776     5
+#>  PH           427  435  435    435  435  444     5
+#>  PH     (2L)  279  279  285    283  290  293     5
+#>  PH     (4L)  219  219  222    220  224  228     5
+#>  PO          2888 2897 2931   2901 2954 3016     5
+#>  PO     (2L) 1963 2100 2156   2170 2228 2319     5
+#>  PO     (4L) 1259 1311 1312   1318 1320 1354     5
+#>  probit      3066 3067 3092   3102 3111 3114     5
+#>  probit (2L) 1979 2043 2149   2237 2241 2247     5
+#>  probit (4L) 1313 1342 1354   1349 1370 1394     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           607  612  615    617  620  620     5
-#>  PH     (2L)  319  325  328    331  332  332     5
-#>  PH     (4L)  284  286  288    286  288  296     5
-#>  PO          5574 5626 5628   5638 5645 5657     5
-#>  PO     (2L) 2404 2498 2551   2584 2628 2638     5
-#>  PO     (4L) 3126 3135 3242   3158 3248 3540     5
-#>  probit      8704 8715 8762   8733 8791 8868     5
-#>  probit (2L) 3249 3528 3559   3529 3599 3887     5
-#>  probit (4L) 2443 2450 2570   2509 2575 2873     5
+#>  PH           492  495  498    497  502  505     5
+#>  PH     (2L)  349  352  353    354  355  358     5
+#>  PH     (4L)  262  267  269    268  270  276     5
+#>  PO          5263 5272 5336   5307 5320 5516     5
+#>  PO     (2L) 1672 1679 1791   1800 1892 1910     5
+#>  PO     (4L) 1421 1439 1467   1472 1479 1525     5
+#>  probit      5429 5433 5454   5440 5445 5521     5
+#>  probit (2L) 3194 3504 3577   3716 3720 3749     5
+#>  probit (4L) 2432 2500 2544   2517 2567 2702     5
 ```
 
 References

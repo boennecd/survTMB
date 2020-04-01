@@ -32,7 +32,7 @@ comparison of the computation time of the methods.
 ## Example
 
 We estimate a GSM using different link functions and different methods 
-below. First, we define function to perform the estimation. Then we use 
+below. First, we define a function to perform the estimation. Then we use 
 the different methods with models using various link functions.
 
 ```{r fit_example, cache = 1}
@@ -46,7 +46,7 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
     adfun <- make_gsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
-      n_threads = .(n_threads), param_type = .(param_type))
+      n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L)
     fit <- fit_mgsm(adfun, method = .(method))
     list(fit = fit, fun = adfun)
   }), parent.frame())
