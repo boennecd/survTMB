@@ -23,23 +23,16 @@
 
 #' @importFrom stats optim
 .opt_default <- function(par, fn, gr, ...){
-  out <- optim(par, fn = fn, gr = gr, method = "BFGS",
-               control = list(reltol = .Machine$double.eps^(1/4),
-                              maxit = 1000))
+  cl <- match.call()
+  cl[[1L]] <- quote(stats::optim)
+  if(is.null(cl$method))
+    cl$method <- "BFGS"
+  if(is.null(cl$control))
+    cl$control <- list(reltol = .Machine$double.eps^(1/4), maxit = 1000)
+
+  out <- eval(cl, parent.frame())
   stopifnot(out$convergence == 0L)
   out
-}
-
-.cov_to_theta <- function(theta){
-  n_rng <- NCOL(theta)
-  ch <- t(chol(theta))
-  log_sd <- structure(log(diag(ch)), names = paste0("log_sd", 1:n_rng))
-  keep <- lower.tri(ch)
-  lower_tri <-(diag(diag(ch)^(-1), n_rng) %*% ch)[keep]
-  if(n_rng > 1L)
-    names(lower_tri) <-
-      outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
-  c(log_sd, lower_tri)
 }
 
 #' @importFrom survival survfit
@@ -65,6 +58,17 @@ Shat <- function(obj){
     names(lower_tri) <-
       outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
   c(log_sd, lower_tri)
+}
+
+.theta_to_cov <- function(theta){
+  dim <- .5 * (sqrt(8 * length(theta) + 1) - 1)
+  if(dim < 2L)
+    return(exp(2 * theta))
+
+  L <- diag(dim)
+  L[lower.tri(L)] <- tail(theta, -dim)
+  L <- diag(exp(head(theta, dim))) %*% L
+  tcrossprod(L)
 }
 
 #####
@@ -538,7 +542,10 @@ make_gsm_ADFun <- function(
   } else
     snva_out <- NULL
 
-  list(laplace = laplace_out, gva = gva_out, snva = snva_out, y = y,
-       event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
-         X = mt_X, Z = mt_Z, baseline = mt_b))
+  structure(
+    list(laplace = laplace_out, gva = gva_out, snva = snva_out, y = y,
+         event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
+           X = mt_X, Z = mt_Z, baseline = mt_b), cl = match.call(),
+         link = link, opt_func = opt_func),
+    class = "GSM_ADFun")
 }

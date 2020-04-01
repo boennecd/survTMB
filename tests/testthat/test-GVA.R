@@ -1,6 +1,7 @@
 context("testing GVA")
 
 get_par_val_eortc <- function(x){
+  x <- x$optim
   x$par <- head(x$par, 6)
   x[c("par", "value")]
 }
@@ -16,12 +17,15 @@ for(link in c("PH", "PO", "probit"))
     test_that(sprintf("GVA gives previous results (%s, %d)", sQuote(link),
                       n_threads), {
       func <- get_func_eortc(link, n_threads)
+      expect_s3_class(func, "GSM_ADFun")
 
       eps <- .Machine$double.eps^(3/5)
-      func$gva$control <- eps
-      res <- do.call(optim, func$gva)
+      res <- fit_mgsm(func, "GVA", control = list(reltol = eps))
+      expect_s3_class(res, "GSM_ADFit")
 
       expect_known_value(
         get_par_val_eortc(res), sprintf("test-res/GVA-%s.RDS", link),
         tolerance = sqrt(eps))
+      expect_known_output(res, sprintf("test-res/GVA-%s.txt", link),
+                          print = TRUE)
     })

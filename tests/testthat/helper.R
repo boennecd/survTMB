@@ -6,4 +6,7 @@ eortc <- if(file.exists("eortc.RDS"))
   readRDS("eortc.RDS") else
     readRDS(file.path("tests", "testthat", "eortc.RDS"))
 
-formals(expect_known_value)$update <- FALSE
+formals(expect_known_value) $update <- FALSE
+formals(expect_known_output)$update <- FALSE
+options(width = 80, digits = 4, useFancyQuotes = FALSE,
+        setWidthOnResize = FALSE)

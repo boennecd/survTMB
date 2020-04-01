@@ -2,12 +2,18 @@
 survTMB
 =======
 
-TODO: Write intro to the package...
+This package contains methods to estimated mixed generalized survival models (Liu, Pawitan, and Clements 2016; Liu, Pawitan, and Clements 2017). All methods use automatic differentiation using the CppAD library (B. Bell 2019) through the TMB package (Kristensen et al. 2016). The estimation methods are
+
+-   A Laplace approximation method using TMB.
+-   Gaussian variational approximation (GVA) similar to the method shown by Ormerod and Wand (2012).
+-   Skew-normal variational approximation (SNVA) similar to the method shown by Ormerod (2011).
+
+The [example](#example) section shows an example of how to use the package with different methods. The [benchmark](#benchmark) section shows a comparison of the computation time of the methods.
 
 Example
 -------
 
-TODO: write description
+We estimate a GSM using different link functions and different methods below. First, we define function to perform the estimation. Then we use the different methods with models using various link functions.
 
 ``` r
 dat <- coxme::eortc
@@ -16,191 +22,319 @@ library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP"){
-  adfun <- make_gsm_ADFun(
-    Surv(y, uncens) ~ trt, cluster = as.factor(center), 
-    Z = ~ trt, df = 3L, data = dat, link = link, do_setup = method, 
-    n_threads = n_threads, param_type = param_type)
-  fit <- 
-    if(method == "Laplace")
-      do.call(optim, adfun$laplace) else if(method == "GVA") 
-        do.call(optim, adfun$gva) else if(method == "SNVA")
-          do.call(optim, adfun$snva)
-  
-  out <- list(-fit$value, par = head(fit$par, 8))
-  
-  names(out)[1L] <- if(method == "Laplace")
-    "logLik" else "lower bound"
-  out
+  eval(bquote({
+    adfun <- make_gsm_ADFun(
+      Surv(y, uncens) ~ trt, cluster = as.factor(center), 
+      Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
+      n_threads = .(n_threads), param_type = .(param_type))
+    fit <- fit_mgsm(adfun, method = .(method))
+    list(fit = fit, fun = adfun)
+  }), parent.frame())
 }
 
 ######
 # w/ Laplace
-fit_model("PH"    )
-#> $logLik
-#> [1] -13026.6757
+(lap_ph <- fit_model("PH"    ))$fit
 #> 
-#> $par
-#>                             (Intercept)                                     trt 
-#>                           -7.8232328523                            0.7198516887 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            5.3941546610                           11.3890932863 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            4.7992329025                           -1.8429548771 
-#>                                   theta                                   theta 
-#>                           -2.2318985734                            1.7952915040
-fit_model("PO"    )
-#> $logLik
-#> [1] -13031.16041
+#> GSM estimated with method 'Laplace' with link 'PH' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#>       param_type = "DP", link = "PH", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
-#> $par
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                            -8.049406749                             1.029741911 
+#>                                  -7.439                                   0.752 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                             5.697060912                            11.821001229 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                             5.593477692                            -1.584164581 
-#>                                   theta                                   theta 
-#>                            -1.869970860                             1.947962080
-fit_model("probit")
-#> $logLik
-#> [1] -13035.13832
+#>                                   5.110                                  10.636 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   4.695 
 #> 
-#> $par
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)     trt       (Intercept)    trt
+#> (Intercept)      0.0579 -0.0132             0.241 -0.190
+#> trt             -0.0132  0.0837            -0.190  0.289
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated log-likelihood is -13028.98
+fit_model("PO"    )$fit
+#> 
+#> GSM estimated with method 'Laplace' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#>       param_type = "DP", link = "PO", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "Laplace")
+#> 
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                           -3.7399188924                            0.5992700212 
+#>                                   -7.62                                    1.11 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            2.6601203807                            5.0043913748 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            2.9722064746                           -1.9988364130 
-#>                                   theta                                   theta 
-#>                           -1.8502382811                            0.7924195633
+#>                                    5.37                                   11.00 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.39 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)      trt       (Intercept)     trt
+#> (Intercept)     0.09336 -0.00461            0.3055 -0.0386
+#> trt            -0.00461  0.15272           -0.0386  0.3908
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated log-likelihood is -13033.04
+fit_model("probit")$fit
+#> 
+#> GSM estimated with method 'Laplace' with link 'probit' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#>       param_type = "DP", link = "probit", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "Laplace")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                  -3.630                                   0.587 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                   2.647                                   4.714 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   2.988 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)     trt       (Intercept)    trt
+#> (Intercept)      0.0499 -0.0153             0.223 -0.204
+#> trt             -0.0153  0.1115            -0.204  0.334
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated log-likelihood is -13039.10
 
 ######
 # w/ GVA
-fit_model("PH"    , method = "GVA")
-#> $`lower bound`
-#> [1] -13026.73806
+(gva_fit <- fit_model("PH"    , method = "GVA"))$fit
 #> 
-#> $par
-#>                             (Intercept)                                     trt 
-#>                           -7.8268712791                            0.7232878681 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            5.3939925692                           11.3896128017 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            4.7993519927                           -1.7871605349 
-#>                                   theta                                   theta 
-#>                           -1.7361101036                            0.8783932750
-fit_model("PO"    , method = "GVA")
-#> $`lower bound`
-#> [1] -13031.10877
+#> GSM estimated with method 'GVA' with link 'PH' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#>       param_type = "DP", link = "PH", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "GVA")
 #> 
-#> $par
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                           -8.0542478654                            1.0345436621 
+#>                                  -7.827                                   0.723 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            5.6972245460                           11.8220193230 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            5.5943198048                           -1.5177841973 
-#>                                   theta                                   theta 
-#>                           -1.3850294115                            0.9845349819
-fit_model("probit", method = "GVA")
-#> $`lower bound`
-#> [1] -13035.14892
+#>                                   5.394                                  11.390 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   4.799 
 #> 
-#> $par
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0280 0.0259             0.167 0.660
+#> trt              0.0259 0.0550             0.660 0.235
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13026.74
+fit_model("PO"    , method = "GVA")$fit
+#> 
+#> GSM estimated with method 'GVA' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#>       param_type = "DP", link = "PO", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "GVA")
+#> 
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                           -3.7418205373                            0.6018560988 
+#>                                   -8.05                                    1.03 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            2.6601732516                            5.0038905656 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            2.9724793475                           -1.9680664220 
-#>                                   theta                                   theta 
-#>                           -1.7059861559                            0.5690654814
+#>                                    5.70                                   11.82 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.59 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)   trt       (Intercept)   trt
+#> (Intercept)       0.048 0.054             0.219 0.702
+#> trt               0.054 0.123             0.702 0.351
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13031.11
+fit_model("probit", method = "GVA")$fit
+#> 
+#> GSM estimated with method 'GVA' with link 'probit' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#>       param_type = "DP", link = "probit", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "GVA")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                  -3.742                                   0.602 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                   2.660                                   5.004 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   2.972 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0195 0.0144             0.140 0.495
+#> trt              0.0144 0.0437             0.495 0.209
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13035.15
+
+# the GVA solutions seems to be better. First, we print a log-likelihood 
+# approximation using the Laplace approximation at the GVA solution
+print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
+#> [1] -13026.71
+#> attr(,"logarithm")
+#> [1] TRUE
+# then we print the log-likelihood approximation at the Laplace solution
+-lap_ph$fit$optim$value
+#> [1] -13029
 
 ######
 # w/ SNVA (DP: direct parameterization)
-fit_model("PH"    , method = "SNVA", param_type = "DP")
-#> $`lower bound`
-#> [1] -13026.73553
+fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
 #> 
-#> $par
-#>                             (Intercept)                                     trt 
-#>                           -7.8267969825                            0.7233878832 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            5.3940985676                           11.3899028519 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            4.7994743473                           -1.8045742722 
-#>                                   theta                                   theta 
-#>                           -1.7502359919                            0.9158786061
-fit_model("PO"    , method = "SNVA", param_type = "DP")
-#> $`lower bound`
-#> [1] -13031.10591
+#> GSM estimated with method 'SNVA' with link 'PH' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       param_type = "DP", link = "PH", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
-#> $par
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                            -8.053660182                             1.032859368 
+#>                                  -7.827                                   0.723 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                             5.697300624                            11.822048489 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                             5.594198518                            -1.524556393 
-#>                                   theta                                   theta 
-#>                            -1.451694088                             1.095708146
-fit_model("probit", method = "SNVA", param_type = "DP")
-#> $`lower bound`
-#> [1] -13035.3148
+#>                                   5.394                                  11.390 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   4.799 
 #> 
-#> $par
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0271 0.0262             0.165 0.675
+#> trt              0.0262 0.0555             0.675 0.236
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13026.74
+fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
+#> 
+#> GSM estimated with method 'SNVA' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       param_type = "DP", link = "PO", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "SNVA")
+#> 
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                           -3.7473128000                            0.6064949783 
+#>                                   -8.05                                    1.03 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            2.6610868775                            5.0055287310 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            2.9737651686                           -1.8007789312 
-#>                                   theta                                   theta 
-#>                           -1.5035552927                            0.1818880866
+#>                                    5.70                                   11.82 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.59 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0474 0.0559             0.218 0.739
+#> trt              0.0559 0.1207             0.739 0.347
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13031.11
+fit_model("probit", method = "SNVA", param_type = "DP")$fit
+#> 
+#> GSM estimated with method 'SNVA' with link 'probit' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       param_type = "DP", link = "probit", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "SNVA")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                  -3.747                                   0.606 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                   2.661                                   5.006 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   2.974 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)     trt       (Intercept)   trt
+#> (Intercept)     0.02728 0.00668             0.165 0.179
+#> trt             0.00668 0.05107             0.179 0.226
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13035.31
 
 ######
 # w/ SNVA (CP: centralized parameterization)
-fit_model("PH"    , method = "SNVA", param_type = "CP_trans")
-#> $`lower bound`
-#> [1] -13026.72826
+fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
-#> $par
-#>                             (Intercept)                                     trt 
-#>                           -7.8286041580                            0.7252509681 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            5.3940371090                           11.3900490246 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            4.7995132667                           -1.7291160711 
-#>                                   theta                                   theta 
-#>                           -1.6198187270                            0.6715015168
-fit_model("PO"    , method = "SNVA", param_type = "CP_trans")
-#> $`lower bound`
-#> [1] -13031.22757
+#> GSM estimated with method 'SNVA' with link 'PH' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       param_type = "CP_trans", link = "PH", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
-#> $par
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                           -8.0638727322                            1.0425044459 
+#>                                  -7.829                                   0.725 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            5.6983653823                           11.8233679076 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            5.5964995964                           -1.3931263562 
-#>                                   theta                                   theta 
-#>                           -1.0679788694                            0.4390664046
-fit_model("probit", method = "SNVA", param_type = "CP_trans")
-#> $`lower bound`
-#> [1] -13035.3136
+#>                                   5.394                                  11.390 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   4.800 
 #> 
-#> $par
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0315 0.0236             0.177 0.557
+#> trt              0.0236 0.0568             0.557 0.238
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13026.73
+fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
+#> 
+#> GSM estimated with method 'SNVA' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       param_type = "CP_trans", link = "PO", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "SNVA")
+#> 
+#> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                           -3.7445370729                            0.6055055795 
+#>                                   -8.06                                    1.04 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                            2.6601098819                            5.0025483695 
-#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                            2.9728743169                           -1.8488522015 
-#>                                   theta                                   theta 
-#>                           -1.5640410826                            0.2936106644
+#>                                    5.70                                   11.82 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.60 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0617 0.0375             0.248 0.402
+#> trt              0.0375 0.1409             0.402 0.375
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13031.23
+fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
+#> 
+#> GSM estimated with method 'SNVA' with link 'probit' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       param_type = "CP_trans", link = "probit", n_threads = 2L)
+#>   fit_mgsm(object = adfun, method = "SNVA")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                  -3.745                                   0.606 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                   2.660                                   5.003 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                   2.973 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix is:
+#>             (Intercept)     trt       (Intercept)   trt
+#> (Intercept)     0.02478 0.00967             0.157 0.282
+#> trt             0.00967 0.04758             0.282 0.218
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13035.31
 ```
+
+Benchmark
+---------
+
+We provide a benchmark of the estimation methods used in section [example](#example) below.
 
 ``` r
 library(microbenchmark)
@@ -229,30 +363,30 @@ for(mth in c("Laplace", "GVA")){
 #> Method: Laplace
 #> ---------------
 #> Unit: milliseconds
-#>         expr    min     lq   mean median     uq    max neval
-#>  PH           795.5  797.1  805.2  808.0  812.2  813.1     5
-#>  PH     (2L)  507.8  513.5  523.7  523.4  528.5  545.4     5
-#>  PH     (4L)  364.0  373.2  383.4  389.0  393.8  396.7     5
-#>  PO          1150.9 1169.0 1185.8 1191.1 1193.3 1224.4     5
-#>  PO     (2L)  716.8  720.5  742.7  743.1  757.6  775.5     5
-#>  PO     (4L)  513.9  533.3  540.1  546.1  549.7  557.6     5
-#>  probit      1556.9 1581.4 1598.9 1594.3 1620.0 1641.7     5
-#>  probit (2L)  917.1  949.6  950.3  956.0  963.5  965.2     5
-#>  probit (4L)  655.9  667.3  679.8  681.2  685.6  709.0     5
+#>         expr  min   lq mean median   uq  max neval
+#>  PH           832  838  848    840  858  869     5
+#>  PH     (2L)  546  555  558    559  559  573     5
+#>  PH     (4L)  414  419  422    421  426  430     5
+#>  PO          1346 1362 1366   1363 1373 1386     5
+#>  PO     (2L)  860  861  871    867  879  886     5
+#>  PO     (4L)  609  633  641    634  658  673     5
+#>  probit       902  903  909    912  914  916     5
+#>  probit (2L)  562  565  574    572  582  590     5
+#>  probit (4L)  403  408  410    411  411  418     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr    min     lq   mean median     uq    max neval
-#>  PH           248.3  251.2  252.3  253.9  254.0  254.0     5
-#>  PH     (2L)  170.9  171.1  172.4  171.1  171.6  177.2     5
-#>  PH     (4L)  139.9  140.6  142.3  141.0  143.3  146.4     5
-#>  PO          1006.4 1007.8 1014.7 1014.5 1021.0 1023.8     5
-#>  PO     (2L)  599.5  599.8  608.8  601.0  611.9  631.8     5
-#>  PO     (4L)  419.2  422.0  431.0  437.4  438.3  438.3     5
-#>  probit      1826.4 1830.4 1841.2 1833.4 1837.6 1878.2     5
-#>  probit (2L) 1063.8 1067.2 1072.3 1072.1 1073.2 1085.1     5
-#>  probit (4L)  720.9  724.5  727.3  727.4  728.4  735.1     5
+#>         expr  min   lq mean median   uq  max neval
+#>  PH           245  245  246    246  246  248     5
+#>  PH     (2L)  167  167  170    169  170  176     5
+#>  PH     (4L)  138  138  139    139  140  141     5
+#>  PO           990  993  999    995 1006 1010     5
+#>  PO     (2L)  592  592  593    594  594  594     5
+#>  PO     (4L)  414  417  420    418  425  428     5
+#>  probit      1776 1784 1788   1787 1788 1803     5
+#>  probit (2L) 1037 1047 1053   1048 1056 1078     5
+#>  probit (4L)  708  715  725    722  732  748     5
 ```
 
 ``` r
@@ -279,28 +413,43 @@ for(param_type in c("DP", "CP_trans")){
 #> Method: SNVA (DP)
 #> -----------------
 #> Unit: milliseconds
-#>         expr    min     lq   mean median     uq    max neval
-#>  PH           440.8  441.2  446.6  442.7  450.2  458.4     5
-#>  PH     (2L)  300.1  300.6  308.4  305.0  306.7  329.4     5
-#>  PH     (4L)  234.2  236.6  245.3  244.7  251.2  259.9     5
-#>  PO          3755.4 3761.6 3779.1 3767.3 3794.0 3817.2     5
-#>  PO     (2L) 2718.2 2723.8 2797.3 2730.3 2896.5 2917.5     5
-#>  PO     (4L) 1661.8 1675.4 1723.1 1699.8 1773.4 1804.8     5
-#>  probit      4025.7 4025.9 4039.3 4040.7 4048.6 4055.4     5
-#>  probit (2L) 2510.9 2556.5 2754.4 2767.2 2925.8 3011.6     5
-#>  probit (4L) 1653.2 1677.2 1717.8 1685.1 1715.9 1857.5     5
+#>         expr  min   lq mean median   uq  max neval
+#>  PH           434  435  438    436  438  446     5
+#>  PH     (2L)  302  304  309    308  314  320     5
+#>  PH     (4L)  235  236  239    237  242  247     5
+#>  PO          3655 3671 3697   3689 3693 3777     5
+#>  PO     (2L) 2375 2564 2562   2592 2610 2667     5
+#>  PO     (4L) 1596 1649 1706   1650 1743 1892     5
+#>  probit      3939 3961 4003   3984 3993 4140     5
+#>  probit (2L) 2474 2689 2716   2754 2776 2887     5
+#>  probit (4L) 1675 1711 1728   1727 1754 1776     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
-#>         expr    min     lq   mean median     uq    max neval
-#>  PH           635.9  638.9  654.2  663.3  664.6  668.6     5
-#>  PH     (2L)  332.4  339.6  343.3  340.4  344.1  359.8     5
-#>  PH     (4L)  297.7  297.7  301.9  298.9  300.0  315.0     5
-#>  PO          5751.8 5770.4 5790.6 5783.6 5803.8 5843.5     5
-#>  PO     (2L) 2227.3 2594.0 2543.1 2613.8 2614.7 2665.7     5
-#>  PO     (4L) 3225.5 3298.8 3321.4 3311.8 3385.0 3385.7     5
-#>  probit      8828.4 8830.0 8917.9 8892.9 8928.4 9109.7     5
-#>  probit (2L) 3593.4 3711.3 3758.5 3729.6 3878.8 3879.1     5
-#>  probit (4L) 2547.2 2553.4 2580.6 2578.6 2599.3 2624.5     5
+#>         expr  min   lq mean median   uq  max neval
+#>  PH           607  612  615    617  620  620     5
+#>  PH     (2L)  319  325  328    331  332  332     5
+#>  PH     (4L)  284  286  288    286  288  296     5
+#>  PO          5574 5626 5628   5638 5645 5657     5
+#>  PO     (2L) 2404 2498 2551   2584 2628 2638     5
+#>  PO     (4L) 3126 3135 3242   3158 3248 3540     5
+#>  probit      8704 8715 8762   8733 8791 8868     5
+#>  probit (2L) 3249 3528 3559   3529 3599 3887     5
+#>  probit (4L) 2443 2450 2570   2509 2575 2873     5
 ```
+
+References
+----------
+
+Bell, B. 2019. *CppAD: A Package for C++ Algorithmic Differentiation*. <http://www.coin-or.org/CppAD>.
+
+Kristensen, Kasper, Anders Nielsen, Casper W. Berg, Hans Skaug, and Bradley M. Bell. 2016. “TMB: Automatic Differentiation and Laplace Approximation.” *Journal of Statistical Software* 70 (5): 1–21. doi:[10.18637/jss.v070.i05](https://doi.org/10.18637/jss.v070.i05).
+
+Liu, Xing-Rong, Yudi Pawitan, and Mark Clements. 2016. “Parametric and Penalized Generalized Survival Models.” *Statistical Methods in Medical Research* 27 (5): 1531–46. doi:[10.1177/0962280216664760](https://doi.org/10.1177/0962280216664760).
+
+Liu, Xing-Rong, Yudi Pawitan, and Mark S. Clements. 2017. “Generalized Survival Models for Correlated Time-to-Event Data.” *Statistics in Medicine* 36 (29): 4743–62. doi:[10.1002/sim.7451](https://doi.org/10.1002/sim.7451).
+
+Ormerod, J. T. 2011. “Skew-Normal Variational Approximations for Bayesian Inference.” *Unpublished Article*.
+
+Ormerod, J. T., and M. P. Wand. 2012. “Gaussian Variational Approximate Inference for Generalized Linear Mixed Models.” *Journal of Computational and Graphical Statistics* 21 (1). Taylor & Francis: 2–17. doi:[10.1198/jcgs.2011.09118](https://doi.org/10.1198/jcgs.2011.09118).

@@ -1,6 +1,7 @@
 context("testing Laplace approximation")
 
 get_par_val_eortc <- function(x){
+  x <- x$optim
   x$par <- head(x$par, 6)
   x[c("par", "value")]
 }
@@ -16,12 +17,15 @@ for(link in c("PH", "PO", "probit"))
     test_that(sprintf("Laplace gives previous results (%s, %d)", sQuote(link),
                       n_threads), {
       func <- get_func_eortc(link, n_threads)
+      expect_s3_class(func, "GSM_ADFun")
 
       eps <- .Machine$double.eps^(3/5)
-      func$laplace$control <- eps
-      res <- do.call(optim, func$laplace)
+      res <- fit_mgsm(func, "Laplace", control = list(reltol = eps))
+      expect_s3_class(res, "GSM_ADFit")
 
       expect_known_value(
         get_par_val_eortc(res), sprintf("test-res/Laplace-%s.RDS", link),
         tolerance = sqrt(eps))
+      expect_known_output(res, sprintf("test-res/Laplace-%s.txt", link),
+                          print = TRUE)
     })

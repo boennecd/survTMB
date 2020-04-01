@@ -1,0 +1,87 @@
+@Manual{Bell19,
+    title = {{C}pp{AD}: a package for {C}++ algorithmic differentiation},
+    author = {Bell, B.},
+    year = {2019},
+    url = {http://www.coin-or.org/CppAD},
+  }
+
+@article{Liu17,
+author = {Liu, Xing-Rong and Pawitan, Yudi and Clements, Mark S.},
+title = {Generalized survival models for correlated time-to-event data},
+journal = {Statistics in Medicine},
+
+volume = {36},
+number = {29},
+pages = {4743-4762},
+keywords = {adaptive Gauss-Hermite quadrature, correlated survival data, generalized survival models, link functions, random effects, tensor product},
+doi = {10.1002/sim.7451},
+url = {https://onlinelibrary.wiley.com/doi/abs/10.1002/sim.7451},
+eprint = {https://onlinelibrary.wiley.com/doi/pdf/10.1002/sim.7451},
+abstract = {Our aim is to develop a rich and coherent framework for modeling correlated time-to-event data, including (1) survival regression models with different links and (2) flexible modeling for time-dependent and nonlinear effects with rich postestimation. We extend the class of generalized survival models, which expresses a transformed survival in terms of a linear predictor, by incorporating a shared frailty or random effects for correlated survival data. The proposed approach can include parametric or penalized smooth functions for time, time-dependent effects, nonlinear effects, and their interactions. The maximum (penalized) marginal likelihood method is used to estimate the regression coefficients and the variance for the frailty or random effects. The optimal smoothing parameters for the penalized marginal likelihood estimation can be automatically selected by a likelihood-based cross-validation criterion. For models with normal random effects, Gauss-Hermite quadrature can be used to obtain the cluster-level marginal likelihoods. The Akaike Information Criterion can be used to compare models and select the link function. We have implemented these methods in the R package rstpm2. Simulating for both small and larger clusters, we find that this approach performs well. Through 2 applications, we demonstrate (1) a comparison of proportional hazards and proportional odds models with random effects for clustered survival data and (2) the estimation of time-varying effects on the log-time scale, age-varying effects for a specific treatment, and two-dimensional splines for time and age.},
+year = {2017}
+}
+
+@article{Liu16,
+author = {Xing-Rong Liu and Yudi Pawitan and Mark Clements},
+title ={Parametric and penalized generalized survival models},
+journal = {Statistical Methods in Medical Research},
+volume = {27},
+number = {5},
+pages = {1531-1546},
+year = {2016},
+doi = {10.1177/0962280216664760},
+    note ={PMID: 27587596},
+
+URL = {
+        https://doi.org/10.1177/0962280216664760
+
+},
+eprint = {
+        https://doi.org/10.1177/0962280216664760
+
+}
+,
+    abstract = { We describe generalized survival models, where g(S(t|z)), for link function g, survival S, time t, and covariates z, is modeled by a linear predictor in terms of covariate effects and smooth time effects. These models include proportional hazards and proportional odds models, and extend the parametric Royston–Parmar models. Estimation is described for both fully parametric linear predictors and combinations of penalized smoothers and parametric effects. The penalized smoothing parameters can be selected automatically using several information criteria. The link function may be selected based on prior assumptions or using an information criterion. We have implemented the models in R. All of the penalized smoothers from the mgcv package are available for smooth time effects and smooth covariate effects. The generalized survival models perform well in a simulation study, compared with some existing models. The estimation of smooth covariate effects and smooth time-dependent hazard or odds ratios is simplified, compared with many non-parametric models. Applying these models to three cancer survival datasets, we find that the proportional odds model is better than the proportional hazards model for two of the datasets. }
+}
+
+@Article{Kristensen16,
+    title = {{TMB}: Automatic Differentiation and {L}aplace
+      Approximation},
+    author = {Kasper Kristensen and Anders Nielsen and Casper W. Berg
+      and Hans Skaug and Bradley M. Bell},
+    journal = {Journal of Statistical Software},
+    year = {2016},
+    volume = {70},
+    number = {5},
+    pages = {1--21},
+    doi = {10.18637/jss.v070.i05},
+  }
+
+@article{Ormerod12,
+author = { J. T.   Ormerod  and  M. P.   Wand },
+title = {Gaussian Variational Approximate Inference for Generalized Linear Mixed Models},
+journal = {Journal of Computational and Graphical Statistics},
+volume = {21},
+number = {1},
+pages = {2-17},
+year  = {2012},
+publisher = {Taylor & Francis},
+doi = {10.1198/jcgs.2011.09118},
+
+URL = {
+        https://doi.org/10.1198/jcgs.2011.09118
+
+},
+eprint = {
+        https://doi.org/10.1198/jcgs.2011.09118
+
+}
+
+}
+
+@article{Ormerod11,
+  title={Skew-normal variational approximations for Bayesian inference},
+  author={Ormerod, J. T.},
+  journal={Unpublished article},
+  year={2011}
+}

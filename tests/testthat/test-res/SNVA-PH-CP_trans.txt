@@ -1,0 +1,22 @@
+
+GSM estimated with method 'SNVA' with link 'PH' from call:
+  make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = eortc, 
+      df = 3L, Z = ~1, cluster = as.factor(center), do_setup = "SNVA", 
+      param_type = param_type, link = link, n_threads = n_threads)
+  fit_mgsm(object = func, method = "SNVA", control = list(reltol = eps))
+
+Estimated fixed effects:
+                            (Intercept)                                     trt 
+                                -8.7496                                  0.6276 
+nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+                                 6.1781                                 13.1246 
+nsx(log(y), df = 3, intercept = FALSE)3 
+                                 4.7729 
+
+Estimated random effect covariance matrix (correlation matrix) is:
+            (Intercept)       (Intercept)
+(Intercept)      0.0681             0.261
+(standard deviations are in the diagonal of the correlation matrix)
+
+Estimated lower bound is -3629.76
+

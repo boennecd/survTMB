@@ -1,5 +1,6 @@
 ---
 output: github_document
+bibliography: README.bib
 ---
 
 ```{r, include = FALSE}
@@ -9,20 +10,30 @@ knitr::opts_chunk$set(
   fig.path = "man/figures/README-",
   cache.path = "cache/README-",
   out.width = "100%")
-options(digits = 4)
+options(digits = 3)
 ```
 # survTMB
 
-TODO: Write intro to the package...
+This package contains methods to estimated mixed generalized survival 
+models [@Liu16;@Liu17]. All methods use automatic differentiation using 
+the CppAD library [@Bell19] through the TMB package [@Kristensen16]. The 
+estimation methods are 
+
+ - A Laplace approximation method using TMB. 
+ - Gaussian variational approximation (GVA) similar to the method shown 
+   by @Ormerod12. 
+ - Skew-normal variational approximation (SNVA) similar to the method shown
+   by @Ormerod11.
+   
+The [example](#example) section shows an example of how to use the package
+with different methods. The [benchmark](#benchmark) section shows a 
+comparison of the computation time of the methods.
 
 ## Example
 
-TODO: write description
-
-```{r set_low_digits, echo = FALSE}
-.old_digits <- getOption("digits")
-options(digits = 10)
-```
+We estimate a GSM using different link functions and different methods 
+below. First, we define function to perform the estimation. Then we use 
+the different methods with models using various link functions.
 
 ```{r fit_example, cache = 1}
 dat <- coxme::eortc
@@ -31,51 +42,50 @@ library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP"){
-  adfun <- make_gsm_ADFun(
-    Surv(y, uncens) ~ trt, cluster = as.factor(center), 
-    Z = ~ trt, df = 3L, data = dat, link = link, do_setup = method, 
-    n_threads = n_threads, param_type = param_type)
-  fit <- 
-    if(method == "Laplace")
-      do.call(optim, adfun$laplace) else if(method == "GVA") 
-        do.call(optim, adfun$gva) else if(method == "SNVA")
-          do.call(optim, adfun$snva)
-  
-  out <- list(-fit$value, par = head(fit$par, 8))
-  
-  names(out)[1L] <- if(method == "Laplace")
-    "logLik" else "lower bound"
-  out
+  eval(bquote({
+    adfun <- make_gsm_ADFun(
+      Surv(y, uncens) ~ trt, cluster = as.factor(center), 
+      Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
+      n_threads = .(n_threads), param_type = .(param_type))
+    fit <- fit_mgsm(adfun, method = .(method))
+    list(fit = fit, fun = adfun)
+  }), parent.frame())
 }
 
 ######
 # w/ Laplace
-fit_model("PH"    )
-fit_model("PO"    )
-fit_model("probit")
+(lap_ph <- fit_model("PH"    ))$fit
+fit_model("PO"    )$fit
+fit_model("probit")$fit
 
 ######
 # w/ GVA
-fit_model("PH"    , method = "GVA")
-fit_model("PO"    , method = "GVA")
-fit_model("probit", method = "GVA")
+(gva_fit <- fit_model("PH"    , method = "GVA"))$fit
+fit_model("PO"    , method = "GVA")$fit
+fit_model("probit", method = "GVA")$fit
+
+# the GVA solutions seems to be better. First, we print a log-likelihood 
+# approximation using the Laplace approximation at the GVA solution
+print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
+# then we print the log-likelihood approximation at the Laplace solution
+-lap_ph$fit$optim$value
 
 ######
 # w/ SNVA (DP: direct parameterization)
-fit_model("PH"    , method = "SNVA", param_type = "DP")
-fit_model("PO"    , method = "SNVA", param_type = "DP")
-fit_model("probit", method = "SNVA", param_type = "DP")
+fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
+fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
+fit_model("probit", method = "SNVA", param_type = "DP")$fit
 
 ######
 # w/ SNVA (CP: centralized parameterization)
-fit_model("PH"    , method = "SNVA", param_type = "CP_trans")
-fit_model("PO"    , method = "SNVA", param_type = "CP_trans")
-fit_model("probit", method = "SNVA", param_type = "CP_trans")
+fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
+fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
+fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 ```
 
-```{r back_set_low_digits, echo = FALSE}
-options(digits = .old_digits)
-```
+## Benchmark
+We provide a benchmark of the estimation methods used in section 
+[example](#example) below.
 
 ```{r load_micro}
 library(microbenchmark)
@@ -123,3 +133,5 @@ for(param_type in c("DP", "CP_trans")){
     times = 5))
 }
 ```
+
+## References
