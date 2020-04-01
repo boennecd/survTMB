@@ -21,6 +21,7 @@ Suggests:
     testthat
 RoxygenNote: 7.0.1
 LinkingTo: 
+    Rcpp,
     RcppEigen,
     TMB, 
     testthat
