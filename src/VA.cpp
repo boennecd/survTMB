@@ -3,6 +3,8 @@
 #include "utils.h"
 #include "snva.h"
 #include "gva.h"
+#include <memory>
+#include <vector>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -143,6 +145,12 @@ class VA_worker {
                  n_para = 2L + n_b + n_t + n_v;
 
 public:
+#ifdef _OPENMP
+  std::size_t const n_blocks = n_threads;
+#else
+  std::size_t const n_blocks = 1L;
+#endif
+
   VA_worker(Rcpp::List data, Rcpp::List parameters):
   data(data), parameters(parameters) {
     SETUP_DATA_CHECK;
@@ -193,22 +201,66 @@ public:
 
 struct VA_func {
   using ADd = CppAD::AD<double>;
-  CppAD::ADFun<double> func;
+  template<class Type>
+  using ADFun = CppAD::ADFun<Type>;
+
+  std::vector<std::unique_ptr<ADFun<double> > > funcs;
 
   VA_func(Rcpp::List data, Rcpp::List parameters){
     VA_worker<ADd> w(data, parameters);
-    auto args = w.get_args_va<ADd>();
-    CppAD::Independent(args);
-    vector<ADd> y(1);
-    y[0] = w(args);
-    func.Dependent(args, y);
-    func.optimize();
+    funcs.resize(w.n_blocks);
+    vector<ADd> args = w.get_args_va<ADd>();
+
+#ifdef _OPENMP
+#pragma omp parallel for if(w.n_blocks > 1L) firstprivate(args)
+#endif
+    for(unsigned i = 0; i < w.n_blocks; ++i){
+      funcs[i].reset(new ADFun<double>());
+
+      CppAD::Independent(args);
+      vector<ADd> y(1);
+      y[0] = w(args);
+
+      funcs[i]->Dependent(args, y);
+      funcs[i]->optimize();
+    }
   }
+};
+
+#ifdef _OPENMP
+bool is_in_parallel(){
+  return static_cast<bool>(omp_in_parallel());
+}
+size_t get_thread_num(){
+  return static_cast<size_t>(omp_get_thread_num());
+}
+#endif
+
+template<class Type>
+struct setup_parallel_ad {
+#ifdef _OPENMP
+  setup_parallel_ad(std::size_t const nthreads, bool const setup = true) {
+    if(nthreads < 2L)
+      return;
+
+    if(setup)
+      CppAD::thread_alloc::parallel_setup(
+        nthreads, is_in_parallel, get_thread_num);
+    CppAD::parallel_ad<Type>();
+  }
+  ~setup_parallel_ad(){
+    CppAD::parallel_ad<Type>();
+  }
+#else
+  setup_parallel_ad(unsigned const nthreads, bool const setup = true):
+    setup_parallel_ad() { }
+#endif
 };
 
 // [[Rcpp::export]]
 SEXP get_VA_funcs
   (Rcpp::List data, Rcpp::List parameters){
+  setup_parallel_ad<double> setup((unsigned)data["n_threads"]);
   return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
 }
 
@@ -216,22 +268,46 @@ SEXP get_VA_funcs
 double VA_funcs_eval_lb
   (SEXP p, SEXP par){
   Rcpp::XPtr<VA_func > ptr(p);
+  std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
 
-  auto y = ptr->func.Forward(0, parv);
-  return y[0];
+  unsigned const n_blocks = ptr->funcs.size();
+  double out(0);
+#ifdef _OPENMP
+#pragma omp parallel for if(n_blocks > 1L) firstprivate(parv) reduction(+:out)
+#endif
+  for(unsigned i = 0; i < n_blocks; ++i)
+    out += funcs[i]->Forward(0, parv)[0];
+
+  return out;
 }
 
 // [[Rcpp::export]]
 Rcpp::NumericVector VA_funcs_eval_grad
   (SEXP p, SEXP par){
   Rcpp::XPtr<VA_func > ptr(p);
+  std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
 
-  ptr->func.Forward(0, parv);
-  vector<double> w(1);
-  w[0] = 1;
-  vector<double> grad = ptr->func.Reverse(1, w);
+  unsigned const n_blocks = ptr->funcs.size();
+  vector<double> grad(parv.size());
+  grad.setZero();
+
+#ifdef _OPENMP
+#pragma omp parallel for if(n_blocks > 1L) firstprivate(parv)
+#endif
+  for(unsigned i = 0; i < n_blocks; ++i){
+    funcs[i]->Forward(0, parv);
+    vector<double> w(1);
+    w[0] = 1;
+
+    vector<double> grad_i = funcs[i]->Reverse(1, w);
+#ifdef _OPENMP
+    /* TODO: replace with a reduction */
+#pragma omp critical
+#endif
+    grad += grad_i;
+  }
 
   std::size_t const n = grad.size();
   Rcpp::NumericVector out(n);
