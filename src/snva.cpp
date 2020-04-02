@@ -87,9 +87,9 @@ struct probit final : public SNVA_cond_dens_dat<Type> {
 
 #undef SNVA_COND_DENS_ARGS
 
-template<class Type>
+template<class Type, template <class> class Accumlator>
 void SNVA_comp
-  (COMMON_ARGS(Type), vector<Type> const &theta_VA,
+  (COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
    HermiteData<Type> const &xw, std::string const &param_type,
    unsigned const rng_dim){
   using vecT = vector<Type>;
@@ -235,8 +235,8 @@ void SNVA_comp
 
 namespace survTMB {
 
-template<class Type>
-void SNVA(COMMON_ARGS(Type), vector<Type> const &theta_VA,
+template<class Type, template <class> class Accumlator>
+void SNVA(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
           unsigned const n_nodes, std::string const &param_type){
   /* checks */
   unsigned const rng_dim = get_rng_dim(theta);
@@ -260,17 +260,20 @@ using ADd   = CppAD::AD<double>;
 using ADdd  = CppAD::AD<CppAD::AD<double> >;
 using ADddd = CppAD::AD<CppAD::AD<CppAD::AD<double> > >;
 
-template void SNVA<double>
-  (COMMON_ARGS(double), vector<double> const &theta_VA,
-   unsigned const n_nodes, std::string const &param_type);
-template void SNVA<ADd>
-  (COMMON_ARGS(ADd), vector<ADd> const &theta_VA,
-   unsigned const n_nodes, std::string const &param_type);
-template void SNVA<ADdd>
-  (COMMON_ARGS(ADdd), vector<ADdd> const &theta_VA,
-   unsigned const n_nodes, std::string const &param_type);
-template void SNVA<ADddd>
-  (COMMON_ARGS(ADddd), vector<ADddd> const &theta_VA,
-   unsigned const n_nodes, std::string const &param_type);
+#define DEF_SNVA(TYPE, ACCUMLATOR)                             \
+  template void SNVA<TYPE, ACCUMLATOR>                         \
+    (COMMON_ARGS(TYPE, ACCUMLATOR),                            \
+     vector<TYPE> const &theta_VA,                             \
+     unsigned const n_nodes, std::string const &param_type)
+
+DEF_SNVA(double, parallel_accumulator);
+DEF_SNVA(ADd   , parallel_accumulator);
+DEF_SNVA(ADdd  , parallel_accumulator);
+DEF_SNVA(ADddd , parallel_accumulator);
+
+DEF_SNVA(double, accumulator_mock);
+DEF_SNVA(ADd   , accumulator_mock);
+DEF_SNVA(ADdd  , accumulator_mock);
+DEF_SNVA(ADddd , accumulator_mock);
 
 } // namespace survTMB

@@ -19,7 +19,7 @@ models [@Liu16;@Liu17]. All methods use automatic differentiation using
 the CppAD library [@Bell19] through the TMB package [@Kristensen16]. The 
 estimation methods are 
 
- - A Laplace approximation method using TMB. 
+ - a Laplace approximation using TMB. 
  - Gaussian variational approximation (GVA) similar to the method shown 
    by @Ormerod12. 
  - Skew-normal variational approximation (SNVA) similar to the method shown

@@ -49,7 +49,8 @@ Type laplace_probit_terms
 }
 
 template<class Type>
-void laplace(COMMON_ARGS(Type), matrix<Type> const &u){
+void laplace(COMMON_ARGS(Type, parallel_accumulator),
+             matrix<Type> const &u){
   /* checks */
   unsigned const rng_dim = survTMB::get_rng_dim(theta);
   {
@@ -130,12 +131,12 @@ using ADdd  = CppAD::AD<CppAD::AD<double> >;
 using ADddd = CppAD::AD<CppAD::AD<CppAD::AD<double> > >;
 
 template void laplace<double>(
-    COMMON_ARGS(double), matrix<double> const &u);
+    COMMON_ARGS(double, parallel_accumulator), matrix<double> const &u);
 template void laplace<ADd>(
-    COMMON_ARGS(ADd), matrix<ADd> const &u);
+    COMMON_ARGS(ADd, parallel_accumulator), matrix<ADd> const &u);
 template void laplace<ADdd>(
-    COMMON_ARGS(ADdd), matrix<ADdd> const &u);
+    COMMON_ARGS(ADdd, parallel_accumulator), matrix<ADdd> const &u);
 template void laplace<ADddd>(
-    COMMON_ARGS(ADddd), matrix<ADddd> const &u);
+    COMMON_ARGS(ADddd, parallel_accumulator), matrix<ADddd> const &u);
 
 } // namespace survTMB

@@ -3,6 +3,7 @@
 S3method(print,GSM_ADFit)
 export(fit_mgsm)
 export(make_gsm_ADFun)
+importFrom(Rcpp,evalCpp)
 importFrom(TMB,MakeADFun)
 importFrom(rstpm2,nsx)
 importFrom(stats,cov2cor)

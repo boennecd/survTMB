@@ -13,6 +13,9 @@
 #ifndef install
 #define install	Rf_install
 #endif
+#ifndef error
+#define error	Rf_error
+#endif
 
 /* TMB redefines a few macro. Thus, we undefine them first */
 #ifdef R_D_val

@@ -7,12 +7,40 @@
 /* FROM: COMPILEATTRIBUTES */
 using namespace Rcpp;
 
-void hello_world();
-RcppExport SEXP _survTMB_hello_world() {
+// get_VA_funcs
+SEXP get_VA_funcs(Rcpp::List data, Rcpp::List parameters);
+RcppExport SEXP _survTMB_get_VA_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
   BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
   Rcpp::RNGScope rcpp_rngScope_gen;
-  hello_world();
-  return R_NilValue;
+  Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+  Rcpp::traits::input_parameter< Rcpp::List >::type parameters(parametersSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_VA_funcs(data, parameters));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// VA_funcs_eval_lb
+double VA_funcs_eval_lb(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_VA_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::RNGScope rcpp_rngScope_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
+  rcpp_result_gen = Rcpp::wrap(VA_funcs_eval_lb(p, par));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// VA_funcs_eval_grad
+Rcpp::NumericVector VA_funcs_eval_grad(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_VA_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::RNGScope rcpp_rngScope_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
+  rcpp_result_gen = Rcpp::wrap(VA_funcs_eval_grad(p, par));
+  return rcpp_result_gen;
   END_RCPP
 }
 
@@ -22,7 +50,9 @@ static const R_CallMethodDef CallEntries[] = {
   /* END: COMPILEATTRIBUTES */
   TMB_CALLDEFS,
   /* FROM: COMPILEATTRIBUTES */
-  {"_survTMB_hello_world", (DL_FUNC) &_survTMB_hello_world, 0},
+  {"_survTMB_get_VA_funcs", (DL_FUNC) &_survTMB_get_VA_funcs, 2},
+  {"_survTMB_VA_funcs_eval_lb", (DL_FUNC) &_survTMB_VA_funcs_eval_lb, 2},
+  {"_survTMB_VA_funcs_eval_grad", (DL_FUNC) &_survTMB_VA_funcs_eval_grad, 2},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };

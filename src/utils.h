@@ -2,6 +2,10 @@
 #define SURVTMB_UTILS_H
 
 #include "tmb_includes.h"
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+#include <memory>
 
 namespace survTMB {
 
@@ -66,6 +70,55 @@ bool is_my_region(objective_function<Type> const &o){
      (!o.parallel_ignore_statements))
     return true;
   return false;
+}
+
+/* mock class to use instead when not using the TMB framework */
+struct objective_mock {
+  int selected_parallel_region = 0;
+
+  inline bool is_my_region() const {
+#ifdef _OPENMP
+    return omp_get_thread_num() == selected_parallel_region;
+#else
+    return true;
+#endif
+  }
+
+  inline bool parallel_region(){
+    bool const ans = is_my_region();
+#ifdef _OPENMP
+    ++selected_parallel_region;
+    if(selected_parallel_region >= omp_get_num_threads())
+      selected_parallel_region = 0L;
+#endif
+    return ans;
+  }
+};
+
+template<class Type>
+class accumulator_mock {
+  Type result = Type(0.);
+
+public:
+  std::unique_ptr<objective_mock> const obj;
+
+  accumulator_mock(): obj(new objective_mock()) { }
+
+  inline void operator+=(Type x){
+    if(obj->parallel_region())
+      result += x;
+  }
+  inline void operator-=(Type x){
+    if(obj->parallel_region())
+      result -= x;
+  }
+  operator Type(){
+    return result;
+  }
+};
+
+inline bool is_my_region(objective_mock const &o){
+  return o.is_my_region();
 }
 
 } // namespace survTMB

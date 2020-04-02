@@ -15,8 +15,8 @@ namespace survTMB {
  *             elemenet is an upper diagonal matrix L such that the
  *             covariance matrix is L^\top L.
  */
-template<class Type>
-void GVA(COMMON_ARGS(Type), vector<Type> const &theta_VA,
+template<class Type, template <class> class Accumlator>
+void GVA(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
          unsigned const n_nodes);
 
 } // namespace survTMB

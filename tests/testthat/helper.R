@@ -1,3 +1,7 @@
+library(testthat)
+library(survTMB)
+library(survival)
+
 # set.seed(1)
 # eortc <- subset(coxme::eortc, center %in% head(unique(center), 10))
 # eortc <- eortc[sample(NROW(eortc)), ]
@@ -10,3 +14,7 @@ formals(expect_known_value) $update <- FALSE
 formals(expect_known_output)$update <- FALSE
 options(width = 80, digits = 4, useFancyQuotes = FALSE,
         setWidthOnResize = FALSE)
+
+test_res_dir <- if(!dir.exists("test-res"))
+  file.path("tests", "testthat", "test-res") else
+    "test-res"

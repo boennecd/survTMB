@@ -24,8 +24,10 @@ for(link in c("PH", "PO", "probit"))
       expect_s3_class(res, "GSM_ADFit")
 
       expect_known_value(
-        get_par_val_eortc(res), sprintf("test-res/Laplace-%s.RDS", link),
+        get_par_val_eortc(res),
+        sprintf(file.path(test_res_dir, "Laplace-%s.RDS"), link),
         tolerance = sqrt(eps))
-      expect_known_output(res, sprintf("test-res/Laplace-%s.txt", link),
-                          print = TRUE)
+      expect_known_output(
+        res, sprintf(file.path(test_res_dir, "Laplace-%s.txt"), link),
+        print = TRUE)
     })

@@ -71,6 +71,24 @@ Shat <- function(obj){
   tcrossprod(L)
 }
 
+
+.set_use_own_VA_method <- with(new.env(), {
+  .use_own_VA_method <- TRUE
+  function(use_own_VA_method){
+    stopifnot(
+      is.logical(use_own_VA_method),
+      length(use_own_VA_method) == 1L,
+      !is.na(use_own_VA_method))
+    .use_own_VA_method <<- use_own_VA_method
+    invisible(use_own_VA_method)
+  }
+})
+
+.get_use_own_VA_method <- with(
+  environment(.set_use_own_VA_method),
+  function()
+    .use_own_VA_method)
+
 #####
 # Define function to get objective function.
 #
@@ -306,6 +324,14 @@ make_gsm_ADFun <- function(
   } else
     laplace_out <- NULL
 
+  get_par_va <- function(params)
+    with(params, {
+      names(b)        <- rep("b", length(b))
+      names(theta)    <- rep("theta", length(theta))
+      names(theta_VA) <- rep("theta_VA", length(theta_VA))
+      c(eps = eps, kappa = kappa, b, theta, theta_VA)
+    })
+
   #####
   # setup ADFun object for the GVA
   if(.gva_char %in% do_setup || .snva_char %in% do_setup){
@@ -334,9 +360,23 @@ make_gsm_ADFun <- function(
         list(n_nodes = n_nodes))
       params$theta_VA <- theta_VA
 
-      MakeADFun(
-        data = data_ad_func, parameters = params, DLL = "survTMB",
-        silent = TRUE)
+      if(.get_use_own_VA_method()){
+        data_ad_func$param_type <- "DP"
+        within(list(), {
+          ptr <- get_VA_funcs(data = data_ad_func, parameters = params)
+          fn <- function(par)
+            VA_funcs_eval_lb(ptr, par)
+          gr <- function(par)
+            drop(VA_funcs_eval_grad(ptr, par))
+          he <- function(par)
+            stop("he not implemented")
+          par <- get_par_va(params)
+        })
+
+      } else
+        MakeADFun(
+          data = data_ad_func, parameters = params, DLL = "survTMB",
+          silent = TRUE)
     })
 
     # we make a wrapper object to account for the eps and kappa and allow the
@@ -477,9 +517,21 @@ make_gsm_ADFun <- function(
       list(n_nodes = n_nodes, param_type = param_type))
     params$theta_VA <- theta_VA
 
-    MakeADFun(
-      data = data_ad_func, parameters = params, DLL = "survTMB",
-      silent = TRUE)
+    if(.get_use_own_VA_method())
+      within(list(), {
+        ptr <- get_VA_funcs(data = data_ad_func, parameters = params)
+        fn <- function(par)
+          VA_funcs_eval_lb(ptr, par)
+        gr <- function(par)
+          drop(VA_funcs_eval_grad(ptr, par))
+        he <- function(par)
+          stop("he not implemented")
+        par <- get_par_va(params)
+      })
+    else
+      MakeADFun(
+        data = data_ad_func, parameters = params, DLL = "survTMB",
+        silent = TRUE)
   })
 
   # we make a wrapper object to account for the eps and kappa and allow the

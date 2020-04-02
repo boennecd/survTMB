@@ -26,6 +26,7 @@ LinkingTo:
     TMB, 
     testthat
 Imports: 
+    Rcpp, 
     TMB (>= 1.7.15), 
     survival, 
     rstpm2

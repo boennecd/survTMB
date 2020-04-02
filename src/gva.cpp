@@ -89,8 +89,8 @@ struct probit : public GVA_cond_dens_data<Type> {
 
 #undef GVA_COND_DENS_ARGS
 
-template<class Type>
-void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
+template<class Type, template <class> class Accumlator>
+void GVA_comp(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
               unsigned const n_nodes, unsigned const rng_dim){
   using Eigen::Dynamic;
   using vecT = vector<Type>;
@@ -208,8 +208,8 @@ void GVA_comp(COMMON_ARGS(Type), vector<Type> const &theta_VA,
 
 namespace survTMB {
 
-template<class Type>
-void GVA(COMMON_ARGS(Type), vector<Type> const &theta_VA,
+template<class Type, template <class> class Accumlator>
+void GVA(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
          unsigned const n_nodes){
   unsigned const rng_dim = get_rng_dim(theta);
   {
@@ -230,17 +230,20 @@ using ADd   = CppAD::AD<double>;
 using ADdd  = CppAD::AD<CppAD::AD<double> >;
 using ADddd = CppAD::AD<CppAD::AD<CppAD::AD<double> > >;
 
-template void GVA<double>
-  (COMMON_ARGS(double), vector<double> const &theta_VA,
-   unsigned const n_nodes);
-template void GVA<ADd>
-  (COMMON_ARGS(ADd), vector<ADd> const &theta_VA,
-   unsigned const n_nodes);
-template void GVA<ADdd>
-  (COMMON_ARGS(ADdd), vector<ADdd> const &theta_VA,
-   unsigned const n_nodes);
-template void GVA<ADddd>
-  (COMMON_ARGS(ADddd), vector<ADddd> const &theta_VA,
-   unsigned const n_nodes);
+#define DEF_GVA(TYPE, ACCUMLATOR)                              \
+  template void GVA<TYPE, ACCUMLATOR>                          \
+    (COMMON_ARGS(TYPE, ACCUMLATOR),                            \
+     vector<TYPE> const &theta_VA,                             \
+     unsigned const n_nodes)
+
+DEF_GVA(double, parallel_accumulator);
+DEF_GVA(ADd   , parallel_accumulator);
+DEF_GVA(ADdd  , parallel_accumulator);
+DEF_GVA(ADddd , parallel_accumulator);
+
+DEF_GVA(double, accumulator_mock);
+DEF_GVA(ADd   , accumulator_mock);
+DEF_GVA(ADdd  , accumulator_mock);
+DEF_GVA(ADddd , accumulator_mock);
 
 } // namespace survTMB

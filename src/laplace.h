@@ -12,7 +12,7 @@ namespace survTMB {
  *   u: [random effect dim] x [# groups] matrix with random effects.
  */
 template<class Type>
-void laplace(COMMON_ARGS(Type), matrix<Type> const &u);
+void laplace(COMMON_ARGS(Type, parallel_accumulator), matrix<Type> const &u);
 
 } // namespace survTMB
 
