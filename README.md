@@ -140,11 +140,11 @@ fit <- fit_model("PO", method = "GVA", with_hess = TRUE)
 par <- with(fit$fit, c(params, va_params))
 dense_hess <- fit$fun$gva$he(par)
 
-# has many zeros and is sparse
+# has many zeros (i.e. it is sparse)
 mean(abs(dense_hess) > 0) # fraction of non-zeros
 #> [1] 0.105
 
-# plot non-zero entries (zero block's are non-zero; ignore upper triangle)
+# plot non-zero entries (black block's are non-zero; ignore upper triangle)
 par(mar = c(1, 1, 1, 1))
 is_non_zero <- t(abs(dense_hess) > 0)
 is_non_zero[upper.tri(is_non_zero)] <- FALSE
@@ -211,12 +211,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 145.34 145.96 149.19 146.93 149.64 158.41
-#>               Compute sparse Hessian  19.26  19.31  19.62  19.50  19.95  20.42
-#>         Invert dense Hessian (naive)   5.11   5.13   5.26   5.29   5.36   5.39
-#>        Invert sparse Hessian (naive)   1.04   1.09   1.20   1.22   1.31   1.35
-#>   Invert dense Hessian (alternative)   1.30   1.35   1.38   1.36   1.41   1.46
-#>  Invert sparse Hessian (alternative)   2.75   2.82   2.97   2.96   2.99   3.48
+#>                Compute dense Hessian 149.73 150.15 152.27 152.22 153.60 156.97
+#>               Compute sparse Hessian  19.91  19.95  20.13  20.14  20.20  20.66
+#>         Invert dense Hessian (naive)   5.13   5.20   5.31   5.34   5.39   5.47
+#>        Invert sparse Hessian (naive)   1.06   1.09   1.21   1.22   1.30   1.38
+#>   Invert dense Hessian (alternative)   1.29   1.38   1.40   1.40   1.44   1.46
+#>  Invert sparse Hessian (alternative)   2.79   2.83   2.99   2.99   3.02   3.26
 #>  neval
 #>     10
 #>     10

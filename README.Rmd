@@ -89,10 +89,10 @@ fit <- fit_model("PO", method = "GVA", with_hess = TRUE)
 par <- with(fit$fit, c(params, va_params))
 dense_hess <- fit$fun$gva$he(par)
 
-# has many zeros and is sparse
+# has many zeros (i.e. it is sparse)
 mean(abs(dense_hess) > 0) # fraction of non-zeros
 
-# plot non-zero entries (zero block's are non-zero; ignore upper triangle)
+# plot non-zero entries (black block's are non-zero; ignore upper triangle)
 par(mar = c(1, 1, 1, 1))
 is_non_zero <- t(abs(dense_hess) > 0)
 is_non_zero[upper.tri(is_non_zero)] <- FALSE

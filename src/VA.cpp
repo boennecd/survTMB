@@ -316,6 +316,8 @@ struct VA_func {
       /* record f'' but in a sparse manner. Thus, we first need to
        * find the number of non-zero entries and their positions */
       vector<bool> keepcol(n_vars);
+      for(unsigned i = 0; i < 2; ++i)
+        keepcol[i] = false;
       for(unsigned i = 2; i < n_vars; ++i)
         keepcol[i] = true;
       df.my_init(keepcol);
@@ -370,16 +372,12 @@ struct VA_func {
         }
       }
 
-      CppAD::ADFun<double> ddf;
-      ddf.Dependent(xxx, yyy);
-
       /* store output */
       sparse_hess_dat.reset(new sparse_mat_data());
       auto &shd = *sparse_hess_dat;
-
+      shd.ddf.Dependent(xxx, yyy);
       shd.row_idx = std::move(row_idx);
       shd.col_idx = std::move(col_idx);
-      shd.ddf = ddf;
     }
   }
 };
