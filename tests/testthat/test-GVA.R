@@ -6,11 +6,13 @@ get_par_val_eortc <- function(x){
   x[c("par", "value")]
 }
 
-get_func_eortc <- function(link, n_threads)
+get_func_eortc <- function(link, n_threads, dense_hess = FALSE,
+                           sparse_hess = FALSE)
   make_gsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
     df = 3L, data = eortc, link = link, do_setup = "GVA",
-    n_threads = n_threads)
+    n_threads = n_threads, dense_hess = dense_hess,
+    sparse_hess = sparse_hess)
 
 for(link in c("PH", "PO", "probit"))
   for(n_threads in 1:2)
@@ -36,3 +38,34 @@ for(link in c("PH", "PO", "probit"))
           res, sprintf(file.path(test_res_dir, "GVA-%s.txt"), link),
           print = TRUE)
       })
+
+for(link in c("PH", "PO", "probit"))
+  test_that(
+    sprintf("GVA gives correct Hessian estimates (%s)", sQuote(link)), {
+      skip_if_not_installed("numDeriv")
+
+      old_val <- survTMB:::.get_use_own_VA_method()
+      on.exit(survTMB:::.set_use_own_VA_method(old_val))
+
+      survTMB:::.set_use_own_VA_method(TRUE)
+      my_func <- get_func_eortc(link = link, 2L, dense_hess = TRUE)
+      sp_func <- get_func_eortc(link = link, 2L, sparse_hess = TRUE)
+      survTMB:::.set_use_own_VA_method(FALSE)
+      tm_func <- get_func_eortc(link = link, 2L)
+
+      my_fit <- fit_mgsm(my_func, "GVA")
+
+      par <- with(my_fit, c(params, va_params))
+      my_hes <- my_func$gva$he(par)
+      sp_hes <- sp_func$gva$he_sp(par)
+      expect_s4_class(sp_hes, "dsCMatrix")
+      tm_hes <- tm_func$gva$he(par)
+
+      eps <- .Machine$double.eps^(3/5)
+      nu_hes <- numDeriv::jacobian(
+        my_func$gva$gr, par, method.args = list(eps = eps))
+
+      expect_equal(my_hes, tm_hes)
+      expect_equal(my_hes, as.matrix(sp_hes), check.attributes = FALSE)
+      expect_equal(my_hes, nu_hes, tolerance = sqrt(eps))
+    })

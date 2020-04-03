@@ -13,3 +13,11 @@ VA_funcs_eval_grad <- function(p, par) {
     .Call(`_survTMB_VA_funcs_eval_grad`, p, par)
 }
 
+VA_funcs_eval_hess <- function(p, par) {
+    .Call(`_survTMB_VA_funcs_eval_hess`, p, par)
+}
+
+VA_funcs_eval_hess_sparse <- function(p, par) {
+    .Call(`_survTMB_VA_funcs_eval_hess_sparse`, p, par)
+}
+

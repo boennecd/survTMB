@@ -118,13 +118,15 @@ Shat <- function(obj){
 #' @importFrom stats model.frame model.response terms model.matrix lm lm.fit predict qnorm
 #' @importFrom rstpm2 nsx
 #' @importFrom survival coxph frailty Surv
+#' @importFrom Matrix sparseMatrix
 #' @export
 make_gsm_ADFun <- function(
   formula, data, df, Z, cluster, do_setup = c("Laplace", "GVA", "SNVA"),
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
   opt_func = .opt_default, n_threads = 1L,
-  skew_start = .alpha_to_gamma(-1)){
+  skew_start = .alpha_to_gamma(-1), dense_hess = FALSE,
+  sparse_hess = FALSE){
   link <- link[1]
   param_type <- param_type[1]
   skew_boundary <- 0.99527
@@ -137,7 +139,9 @@ make_gsm_ADFun <- function(
     link %in% c("PH", "PO", "probit"),
     param_type %in% c("DP", "CP_trans", "CP"),
     is.integer(n_threads) && n_threads > 0L && length(n_threads) == 1L,
-    is.numeric(skew_start), length(skew_start) == 1L)
+    is.numeric(skew_start), length(skew_start) == 1L,
+    is.logical(dense_hess), length(dense_hess) == 1L, !is.na(dense_hess),
+    is.logical(sparse_hess), length(sparse_hess) == 1L, !is.na(sparse_hess))
   eval(bquote(stopifnot(
     .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
 
@@ -324,6 +328,7 @@ make_gsm_ADFun <- function(
   } else
     laplace_out <- NULL
 
+  # assign util functions for VA
   get_par_va <- function(params)
     with(params, {
       names(b)        <- rep("b", length(b))
@@ -331,6 +336,12 @@ make_gsm_ADFun <- function(
       names(theta_VA) <- rep("theta_VA", length(theta_VA))
       c(eps = eps, kappa = kappa, b, theta, theta_VA)
     })
+  eval_hess_sparse <- function(ptr, par){
+    out <- VA_funcs_eval_hess_sparse(ptr, par)
+    Matrix::sparseMatrix(
+      i = out$row_idx + 1L, j = out$col_idx + 1L, x = out$val,
+      symmetric = TRUE)
+  }
 
   #####
   # setup ADFun object for the GVA
@@ -357,7 +368,8 @@ make_gsm_ADFun <- function(
     adfunc_VA <- local({
       data_ad_func <- c(
         list(app_type = .gva_char), data_ad_func,
-        list(n_nodes = n_nodes))
+        list(n_nodes = n_nodes, dense_hess = dense_hess,
+             sparse_hess = sparse_hess))
       params$theta_VA <- theta_VA
 
       if(.get_use_own_VA_method()){
@@ -369,14 +381,18 @@ make_gsm_ADFun <- function(
           gr <- function(par)
             drop(VA_funcs_eval_grad(ptr, par))
           he <- function(par)
-            stop("he not implemented")
+            VA_funcs_eval_hess(ptr, par)
+          he_sp <- function(par)
+            eval_hess_sparse(ptr, par)
           par <- get_par_va(params)
         })
 
       } else
-        MakeADFun(
+        within(MakeADFun(
           data = data_ad_func, parameters = params, DLL = "survTMB",
-          silent = TRUE)
+          silent = TRUE),
+          he_sp <- function(...)
+            stop())
     })
 
     # we make a wrapper object to account for the eps and kappa and allow the
@@ -384,14 +400,15 @@ make_gsm_ADFun <- function(
     gva_out <- with(new.env(), {
       eps <- adfunc_VA$par["eps"]
       kappa <- adfunc_VA$par["kappa"]
-      fn <- adfunc_VA$fn
-      gr <- adfunc_VA$gr
-      he <- adfunc_VA$he
+      fn    <- adfunc_VA$fn
+      gr    <- adfunc_VA$gr
+      he    <- adfunc_VA$he
+      he_sp <- adfunc_VA$he_sp
       get_x <- function(x)
         c(eps = eps, kappa = kappa, x)
 
       out <- adfunc_VA[
-        !names(adfunc_VA) %in% c("par", "fn", "gr", "he")]
+        !names(adfunc_VA) %in% c("par", "fn", "gr", "he", "he_sp")]
 
       par <- adfunc_VA$par[-(1:2)]
       names(par)[seq_along(inits$coef)] <- names(inits$coef)
@@ -404,6 +421,9 @@ make_gsm_ADFun <- function(
         fn = function(x, ...){ fn(get_x(x))                               },
         gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
         he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+        he_sp = function(x, ...){
+          he_sp(get_x(x))[-(1:2), -(1:2), drop = FALSE]
+        },
         # function to set penalty parameters
         update_pen = function(eps, kappa){
           p_env <- parent.env(environment())
@@ -514,7 +534,8 @@ make_gsm_ADFun <- function(
   adfunc_VA <- local({
     data_ad_func <- c(
       list(app_type = .snva_char), data_ad_func,
-      list(n_nodes = n_nodes, param_type = param_type))
+      list(n_nodes = n_nodes, param_type = param_type,
+           dense_hess = dense_hess, sparse_hess = sparse_hess))
     params$theta_VA <- theta_VA
 
     if(.get_use_own_VA_method())
@@ -525,13 +546,17 @@ make_gsm_ADFun <- function(
         gr <- function(par)
           drop(VA_funcs_eval_grad(ptr, par))
         he <- function(par)
-          stop("he not implemented")
+          VA_funcs_eval_hess(ptr, par)
+        he_sp <- function(par)
+          eval_hess_sparse(ptr, par)
         par <- get_par_va(params)
       })
     else
-      MakeADFun(
+      within(MakeADFun(
         data = data_ad_func, parameters = params, DLL = "survTMB",
-        silent = TRUE)
+        silent = TRUE),
+        he_sp <- function(...)
+          stop())
   })
 
   # we make a wrapper object to account for the eps and kappa and allow the
@@ -543,11 +568,12 @@ make_gsm_ADFun <- function(
       fn <- adfunc_VA$fn
       gr <- adfunc_VA$gr
       he <- adfunc_VA$he
+      he_sp <- adfunc_VA$he_sp
       get_x <- function(x)
         c(eps = eps, kappa = kappa, x)
 
       out <- adfunc_VA[
-        !names(adfunc_VA) %in% c("par", "fn", "gr", "he")]
+        !names(adfunc_VA) %in% c("par", "fn", "gr", "he", "he_sp")]
 
       par <- adfunc_VA$par[-(1:2)]
       names(par)[seq_along(beta)] <- names(beta)
@@ -559,6 +585,9 @@ make_gsm_ADFun <- function(
         fn = function(x, ...){ fn(get_x(x))                               },
         gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
         he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+        he_sp = function(x, ...){
+          he_sp(get_x(x))[-(1:2), -(1:2), drop = FALSE]
+        },
         # function to set penalty parameters
         update_pen = function(eps, kappa){
           p_env <- parent.env(environment())

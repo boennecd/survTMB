@@ -7,6 +7,8 @@ Authors@R: c(person("Benjamin", "Christoffersen",
                     role = c("cre", "aut")), 
              person("Mark", "Clements",  
                     role = "cph"), 
+             person("Kasper", "Kristensen", 
+                    role = "cph"),
              person("Alexander", "Blocker", 
                     role = "cph"))
 Maintainer: Benjamin Christoffersen <boennecd@gmail.com>
@@ -18,7 +20,8 @@ LazyData: true
 Depends: R (>= 3.6.0)
 SystemRequirements: C++14
 Suggests: 
-    testthat
+    testthat, 
+    numDeriv
 RoxygenNote: 7.0.1
 LinkingTo: 
     Rcpp,
@@ -29,4 +32,5 @@ Imports:
     Rcpp, 
     TMB (>= 1.7.15), 
     survival, 
-    rstpm2
+    rstpm2, 
+    Matrix

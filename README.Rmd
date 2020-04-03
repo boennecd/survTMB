@@ -9,7 +9,7 @@ knitr::opts_chunk$set(
   comment = "#>",
   fig.path = "man/figures/README-",
   cache.path = "cache/README-",
-  out.width = "100%")
+  out.width = "100%", error = FALSE)
 options(digits = 3)
 ```
 # survTMB
@@ -31,44 +31,138 @@ comparison of the computation time of the methods.
 
 ## Example
 
-We estimate a GSM using different link functions and different methods 
-below. First, we define a function to perform the estimation. Then we use 
-the different methods with models using various link functions.
+We estimate a GSM a below with the proportional odds (PO) link function 
+using both a Laplace approximation, a GVA, and a SNVA. 
+First, we define a function to perform the estimation.
 
-```{r fit_example, cache = 1}
+```{r fit_example, cache = 1, fig.width = 5, fig.height = 3.67}
+# assign variable with data 
 dat <- coxme::eortc
 
+# assign function to estimate the model
 library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
-                      param_type = "DP"){
+                      param_type = "DP", with_hess = FALSE){
   eval(bquote({
     adfun <- make_gsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
-      n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L)
+      n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L, 
+      dense_hess = .(with_hess), sparse_hess = .(with_hess))
     fit <- fit_mgsm(adfun, method = .(method))
     list(fit = fit, fun = adfun)
   }), parent.frame())
 }
 
+# estimate the model using different methods. Start w/ Laplace
+(lap_ph <- fit_model("PO"))$fit
+
+# w/ GVA
+(gva_fit <- fit_model("PO", method = "GVA"))$fit
+
+# the GVA solution seems to be better. First, we print a log-likelihood 
+# approximation using the Laplace approximation at the GVA solution
+print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
+# then we print the log-likelihood approximation at the Laplace solution
+-lap_ph$fit$optim$value
+
+# w/ SNVA
+fit_model("PO", method = "SNVA", param_type = "DP")$fit
+```
+
+### Computing the Hessian
+
+The Hessian using a variational approximation (VA) can be computed as both 
+a dense and as sparse matrix. We show an example below where we compare the
+two approaches. 
+
+```{r load_micro}
+library(microbenchmark) # needed for benchmarking
+```
+
+```{r comp_hess, cache = 1, dependson = "fit_example"}
+# fit model w/ GVA
+fit <- fit_model("PO", method = "GVA", with_hess = TRUE)
+
+# compute dense Hessian
+par <- with(fit$fit, c(params, va_params))
+dense_hess <- fit$fun$gva$he(par)
+
+# has many zeros and is sparse
+mean(abs(dense_hess) > 0) # fraction of non-zeros
+
+# plot non-zero entries (zero block's are non-zero; ignore upper triangle)
+par(mar = c(1, 1, 1, 1))
+is_non_zero <- t(abs(dense_hess) > 0)
+is_non_zero[upper.tri(is_non_zero)] <- FALSE
+image(is_non_zero, xaxt = "n", yaxt = "n", 
+      col = gray.colors(2, 1, 0))
+
+# compute sparse Hessian
+sparse_hess <- fit$fun$gva$he_sp(par)
+
+# they are identical 
+stopifnot(isTRUE(
+  all.equal(as.matrix(sparse_hess), dense_hess, check.attributes = FALSE)))
+
+# we usually want the first part the inverse negative Hessian for the model 
+# parameters. This can be computed as follows
+library(Matrix)
+n_vars <- length(fit$fit$params)
+naiv_vcov <- function(hess)
+  solve(hess)[1:n_vars, 1:n_vars]
+alte_vcov <- function(hess){
+  idx <- 1:n_vars
+  A <- hess[ idx,  idx]
+  C <- hess[-idx,  idx]
+  D <- hess[-idx, -idx]
+  solve(A - crossprod(C, solve(D, C)))
+}
+
+# these are the asymptotic standard deviations
+structure(sqrt(diag(alte_vcov(dense_hess))), names = names(fit$fit$params))
+
+# check output is the same
+stopifnot(
+  isTRUE(all.equal(naiv_vcov(dense_hess), alte_vcov(dense_hess))),
+  isTRUE(all.equal(naiv_vcov(dense_hess), as.matrix(alte_vcov(sparse_hess)), 
+                   check.attributes = FALSE)),
+  isTRUE(all.equal(naiv_vcov(dense_hess), as.matrix(naiv_vcov(sparse_hess)), 
+                   check.attributes = FALSE)))
+
+# compare computation time
+microbenchmark(
+  `Compute dense Hessian`               = fit$fun$gva$he(par), 
+  `Compute sparse Hessian`              = fit$fun$gva$he_sp(par), 
+  `Invert dense Hessian (naive)`        = naiv_vcov(dense_hess), 
+  `Invert sparse Hessian (naive)`       = naiv_vcov(sparse_hess),
+  `Invert dense Hessian (alternative)`  = alte_vcov(dense_hess), 
+  `Invert sparse Hessian (alternative)` = alte_vcov(sparse_hess),
+  times = 10)
+
+# compare storage cost
+as.numeric(object.size(dense_hess) / object.size(sparse_hess))
+```
+
+The sparse matrix only becomes more favorable for larger data sets
+(that is, in terms of the number of clusters).
+
+### Other link functions
+We estimate the same model below with other link functions.
+
+```{r other_link, cache = 1, dependson = "fit_example"}
 ######
 # w/ Laplace
-(lap_ph <- fit_model("PH"    ))$fit
+fit_model("PH"    )$fit
 fit_model("PO"    )$fit
 fit_model("probit")$fit
 
 ######
 # w/ GVA
-(gva_fit <- fit_model("PH"    , method = "GVA"))$fit
+fit_model("PH"    , method = "GVA")$fit
 fit_model("PO"    , method = "GVA")$fit
 fit_model("probit", method = "GVA")$fit
-
-# the GVA solutions seems to be better. First, we print a log-likelihood 
-# approximation using the Laplace approximation at the GVA solution
-print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
-# then we print the log-likelihood approximation at the Laplace solution
--lap_ph$fit$optim$value
 
 ######
 # w/ SNVA (DP: direct parameterization)
@@ -86,10 +180,6 @@ fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 ## Benchmark
 We provide a benchmark of the estimation methods used in section 
 [example](#example) below.
-
-```{r load_micro}
-library(microbenchmark)
-```
 
 ```{r comp_time, cache = 1, dependson = "fit_example"}
 for(mth in c("Laplace", "GVA")){

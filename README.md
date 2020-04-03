@@ -13,33 +13,235 @@ The [example](#example) section shows an example of how to use the package with 
 Example
 -------
 
-We estimate a GSM using different link functions and different methods below. First, we define a function to perform the estimation. Then we use the different methods with models using various link functions.
+We estimate a GSM a below with the proportional odds (PO) link function using both a Laplace approximation, a GVA, and a SNVA. First, we define a function to perform the estimation.
 
 ``` r
+# assign variable with data 
 dat <- coxme::eortc
 
+# assign function to estimate the model
 library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
-                      param_type = "DP"){
+                      param_type = "DP", with_hess = FALSE){
   eval(bquote({
     adfun <- make_gsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
-      n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L)
+      n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L, 
+      dense_hess = .(with_hess), sparse_hess = .(with_hess))
     fit <- fit_mgsm(adfun, method = .(method))
     list(fit = fit, fun = adfun)
   }), parent.frame())
 }
 
+# estimate the model using different methods. Start w/ Laplace
+(lap_ph <- fit_model("PO"))$fit
+#> 
+#> GSM estimated with method 'Laplace' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
+#>   fit_mgsm(object = adfun, method = "Laplace")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                   -7.62                                    1.11 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                    5.37                                   11.00 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.39 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix) is:
+#>             (Intercept)      trt       (Intercept)     trt
+#> (Intercept)     0.09336 -0.00461            0.3055 -0.0386
+#> trt            -0.00461  0.15272           -0.0386  0.3908
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated log-likelihood is -13033.04
+
+# w/ GVA
+(gva_fit <- fit_model("PO", method = "GVA"))$fit
+#> 
+#> GSM estimated with method 'GVA' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
+#>   fit_mgsm(object = adfun, method = "GVA")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                   -8.05                                    1.03 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                    5.70                                   11.82 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.59 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix) is:
+#>             (Intercept)   trt       (Intercept)   trt
+#> (Intercept)       0.048 0.054             0.219 0.702
+#> trt               0.054 0.123             0.702 0.351
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13031.11
+
+# the GVA solution seems to be better. First, we print a log-likelihood 
+# approximation using the Laplace approximation at the GVA solution
+print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
+#> [1] -13031.17
+#> attr(,"logarithm")
+#> [1] TRUE
+# then we print the log-likelihood approximation at the Laplace solution
+-lap_ph$fit$optim$value
+#> [1] -13033
+
+# w/ SNVA
+fit_model("PO", method = "SNVA", param_type = "DP")$fit
+#> 
+#> GSM estimated with method 'SNVA' with link 'PO' from call:
+#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
+#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
+#>   fit_mgsm(object = adfun, method = "SNVA")
+#> 
+#> Estimated fixed effects:
+#>                             (Intercept)                                     trt 
+#>                                   -8.05                                    1.03 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                    5.70                                   11.82 
+#> nsx(log(y), df = 3, intercept = FALSE)3 
+#>                                    5.59 
+#> 
+#> Estimated random effect covariance matrix (correlation matrix) is:
+#>             (Intercept)    trt       (Intercept)   trt
+#> (Intercept)      0.0474 0.0559             0.218 0.739
+#> trt              0.0559 0.1207             0.739 0.347
+#> (standard deviations are in the diagonal of the correlation matrix)
+#> 
+#> Estimated lower bound is -13031.11
+```
+
+### Computing the Hessian
+
+The Hessian using a variational approximation (VA) can be computed as both a dense and as sparse matrix. We show an example below where we compare the two approaches.
+
+``` r
+library(microbenchmark) # needed for benchmarking
+```
+
+``` r
+# fit model w/ GVA
+fit <- fit_model("PO", method = "GVA", with_hess = TRUE)
+
+# compute dense Hessian
+par <- with(fit$fit, c(params, va_params))
+dense_hess <- fit$fun$gva$he(par)
+
+# has many zeros and is sparse
+mean(abs(dense_hess) > 0) # fraction of non-zeros
+#> [1] 0.105
+
+# plot non-zero entries (zero block's are non-zero; ignore upper triangle)
+par(mar = c(1, 1, 1, 1))
+is_non_zero <- t(abs(dense_hess) > 0)
+is_non_zero[upper.tri(is_non_zero)] <- FALSE
+image(is_non_zero, xaxt = "n", yaxt = "n", 
+      col = gray.colors(2, 1, 0))
+```
+
+<img src="man/figures/README-comp_hess-1.png" width="100%" />
+
+``` r
+
+# compute sparse Hessian
+sparse_hess <- fit$fun$gva$he_sp(par)
+
+# they are identical 
+stopifnot(isTRUE(
+  all.equal(as.matrix(sparse_hess), dense_hess, check.attributes = FALSE)))
+
+# we usually want the first part the inverse negative Hessian for the model 
+# parameters. This can be computed as follows
+library(Matrix)
+n_vars <- length(fit$fit$params)
+naiv_vcov <- function(hess)
+  solve(hess)[1:n_vars, 1:n_vars]
+alte_vcov <- function(hess){
+  idx <- 1:n_vars
+  A <- hess[ idx,  idx]
+  C <- hess[-idx,  idx]
+  D <- hess[-idx, -idx]
+  solve(A - crossprod(C, solve(D, C)))
+}
+
+# these are the asymptotic standard deviations
+structure(sqrt(diag(alte_vcov(dense_hess))), names = names(fit$fit$params))
+#>                             (Intercept)                                     trt 
+#>                                   0.420                                   0.109 
+#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
+#>                                   0.282                                   0.816 
+#> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
+#>                                   0.162                                   0.466 
+#>                                   theta                                   theta 
+#>                                   1.230                                   2.116
+
+# check output is the same
+stopifnot(
+  isTRUE(all.equal(naiv_vcov(dense_hess), alte_vcov(dense_hess))),
+  isTRUE(all.equal(naiv_vcov(dense_hess), as.matrix(alte_vcov(sparse_hess)), 
+                   check.attributes = FALSE)),
+  isTRUE(all.equal(naiv_vcov(dense_hess), as.matrix(naiv_vcov(sparse_hess)), 
+                   check.attributes = FALSE)))
+
+# compare computation time
+microbenchmark(
+  `Compute dense Hessian`               = fit$fun$gva$he(par), 
+  `Compute sparse Hessian`              = fit$fun$gva$he_sp(par), 
+  `Invert dense Hessian (naive)`        = naiv_vcov(dense_hess), 
+  `Invert sparse Hessian (naive)`       = naiv_vcov(sparse_hess),
+  `Invert dense Hessian (alternative)`  = alte_vcov(dense_hess), 
+  `Invert sparse Hessian (alternative)` = alte_vcov(sparse_hess),
+  times = 10)
+#> Unit: milliseconds
+#>                                 expr    min     lq   mean median     uq    max
+#>                Compute dense Hessian 144.46 144.77 148.86 147.85 151.54 158.54
+#>               Compute sparse Hessian  18.91  19.47  20.00  19.83  20.38  21.65
+#>         Invert dense Hessian (naive)   5.16   5.32   5.35   5.35   5.41   5.49
+#>        Invert sparse Hessian (naive)   1.12   1.14   1.27   1.26   1.36   1.43
+#>   Invert dense Hessian (alternative)   1.32   1.33   1.39   1.37   1.45   1.49
+#>  Invert sparse Hessian (alternative)   2.78   2.94   3.03   2.99   3.18   3.27
+#>  neval
+#>     10
+#>     10
+#>     10
+#>     10
+#>     10
+#>     10
+
+# compare storage cost
+as.numeric(object.size(dense_hess) / object.size(sparse_hess))
+#> [1] 5.05
+```
+
+The sparse matrix only becomes more favorable for larger data sets (that is, in terms of the number of clusters).
+
+### Other link functions
+
+We estimate the same model below with other link functions.
+
+``` r
 ######
 # w/ Laplace
-(lap_ph <- fit_model("PH"    ))$fit
+fit_model("PH"    )$fit
 #> 
 #> GSM estimated with method 'Laplace' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
 #> Estimated fixed effects:
@@ -62,7 +264,8 @@ fit_model("PO"    )$fit
 #> GSM estimated with method 'Laplace' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
 #> Estimated fixed effects:
@@ -85,7 +288,8 @@ fit_model("probit")$fit
 #> GSM estimated with method 'Laplace' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
 #> 
 #> Estimated fixed effects:
@@ -106,12 +310,13 @@ fit_model("probit")$fit
 
 ######
 # w/ GVA
-(gva_fit <- fit_model("PH"    , method = "GVA"))$fit
+fit_model("PH"    , method = "GVA")$fit
 #> 
 #> GSM estimated with method 'GVA' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
-#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
 #> 
 #> Estimated fixed effects:
@@ -134,7 +339,8 @@ fit_model("PO"    , method = "GVA")$fit
 #> GSM estimated with method 'GVA' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
-#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
 #> 
 #> Estimated fixed effects:
@@ -157,7 +363,8 @@ fit_model("probit", method = "GVA")$fit
 #> GSM estimated with method 'GVA' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
-#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
 #> 
 #> Estimated fixed effects:
@@ -176,16 +383,6 @@ fit_model("probit", method = "GVA")$fit
 #> 
 #> Estimated lower bound is -13035.15
 
-# the GVA solutions seems to be better. First, we print a log-likelihood 
-# approximation using the Laplace approximation at the GVA solution
-print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
-#> [1] -13026.71
-#> attr(,"logarithm")
-#> [1] TRUE
-# then we print the log-likelihood approximation at the Laplace solution
--lap_ph$fit$optim$value
-#> [1] -13029
-
 ######
 # w/ SNVA (DP: direct parameterization)
 fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
@@ -193,7 +390,8 @@ fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
 #> GSM estimated with method 'SNVA' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -216,7 +414,8 @@ fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> GSM estimated with method 'SNVA' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -239,7 +438,8 @@ fit_model("probit", method = "SNVA", param_type = "DP")$fit
 #> GSM estimated with method 'SNVA' with link 'probit' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -265,7 +465,8 @@ fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> GSM estimated with method 'SNVA' with link 'PH' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       n_nodes = 15L, param_type = "CP_trans", link = "PH", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "CP_trans", link = "PH", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -288,7 +489,8 @@ fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> GSM estimated with method 'SNVA' with link 'PO' from call:
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-#>       n_nodes = 15L, param_type = "CP_trans", link = "PO", n_threads = 2L)
+#>       n_nodes = 15L, param_type = "CP_trans", link = "PO", n_threads = 2L, 
+#>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -312,7 +514,7 @@ fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 #>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
 #>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "CP_trans", link = "probit", 
-#>       n_threads = 2L)
+#>       n_threads = 2L, dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
 #> 
 #> Estimated fixed effects:
@@ -338,10 +540,6 @@ Benchmark
 We provide a benchmark of the estimation methods used in section [example](#example) below.
 
 ``` r
-library(microbenchmark)
-```
-
-``` r
 for(mth in c("Laplace", "GVA")){
   msg <- sprintf("Method: %s", mth)
   cat(sprintf("\n%s\n%s\n", msg, 
@@ -365,29 +563,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           841  846  861    850  874  894     5
-#>  PH     (2L)  541  555  563    569  573  576     5
-#>  PH     (4L)  394  399  415    414  423  448     5
-#>  PO          1354 1378 1393   1395 1417 1422     5
-#>  PO     (2L)  843  850  902    888  926 1002     5
-#>  PO     (4L)  632  646  660    649  654  718     5
-#>  probit       927  929  956    936  946 1041     5
-#>  probit (2L)  570  581  587    588  592  601     5
-#>  probit (4L)  405  415  416    418  422  423     5
+#>  PH          1025 1044 1044   1048 1049 1054     5
+#>  PH     (2L)  647  653  658    658  664  669     5
+#>  PH     (4L)  484  484  485    485  487  487     5
+#>  PO          1606 1617 1619   1621 1626 1626     5
+#>  PO     (2L)  995 1008 1010   1012 1015 1017     5
+#>  PO     (4L)  701  701  714    718  724  727     5
+#>  probit      1003 1006 1042   1010 1074 1117     5
+#>  probit (2L)  619  619  622    620  626  626     5
+#>  probit (4L)  431  435  452    443  466  484     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           217  220  222    224  225  227     5
-#>  PH     (2L)  148  149  177    153  154  282     5
-#>  PH     (4L)  121  122  123    124  124  125     5
-#>  PO           792  793  798    798  802  803     5
-#>  PO     (2L)  475  484  488    489  494  496     5
-#>  PO     (4L)  340  343  343    344  344  346     5
-#>  probit      1362 1375 1384   1376 1401 1405     5
-#>  probit (2L)  809  818  827    822  836  852     5
-#>  probit (4L)  557  559  564    560  570  577     5
+#>  PH           272  272  274    273  274  277     5
+#>  PH     (2L)  181  182  186    182  183  204     5
+#>  PH     (4L)  142  143  144    144  145  147     5
+#>  PO           848  850  862    855  867  892     5
+#>  PO     (2L)  511  516  524    525  533  533     5
+#>  PO     (4L)  352  354  359    355  355  375     5
+#>  probit      1434 1440 1442   1441 1444 1453     5
+#>  probit (2L)  847  849  857    849  850  888     5
+#>  probit (4L)  566  566  574    570  571  598     5
 ```
 
 ``` r
@@ -415,29 +613,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           372  372  380    377  387  390     5
-#>  PH     (2L)  245  248  247    248  249  249     5
-#>  PH     (4L)  190  192  198    192  207  209     5
-#>  PO          2978 2983 3036   3025 3057 3137     5
-#>  PO     (2L) 1770 1807 1814   1810 1830 1855     5
-#>  PO     (4L) 1170 1208 1226   1216 1258 1276     5
-#>  probit      3155 3168 3176   3174 3181 3203     5
-#>  probit (2L) 1861 1914 1929   1917 1960 1996     5
-#>  probit (4L) 1228 1254 1253   1254 1256 1270     5
+#>  PH           454  457  462    461  463  477     5
+#>  PH     (2L)  290  293  295    295  298  300     5
+#>  PH     (4L)  214  214  223    215  223  250     5
+#>  PO          3073 3091 3122   3106 3138 3202     5
+#>  PO     (2L) 1808 1838 1916   1853 1990 2089     5
+#>  PO     (4L) 1197 1199 1210   1208 1219 1228     5
+#>  probit      3247 3249 3274   3267 3286 3322     5
+#>  probit (2L) 1881 1932 1986   2019 2032 2065     5
+#>  probit (4L) 1255 1262 1279   1280 1293 1307     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           431  434  446    445  446  473     5
-#>  PH     (2L)  304  305  319    312  313  361     5
-#>  PH     (4L)  230  231  239    235  249  251     5
-#>  PO          5524 5539 5633   5548 5614 5940     5
-#>  PO     (2L) 1520 1543 1587   1554 1657 1662     5
-#>  PO     (4L)  984 1001 1013   1007 1024 1051     5
-#>  probit      5664 5681 5745   5683 5777 5918     5
-#>  probit (2L) 3072 3098 3189   3103 3225 3447     5
-#>  probit (4L) 2231 2373 2449   2443 2458 2739     5
+#>  PH           534  544  552    548  565  569     5
+#>  PH     (2L)  369  372  377    375  378  390     5
+#>  PH     (4L)  267  267  271    268  268  285     5
+#>  PO          5664 5738 5830   5779 5899 6071     5
+#>  PO     (2L) 1587 1621 1655   1639 1671 1760     5
+#>  PO     (4L) 1009 1015 1059   1020 1043 1209     5
+#>  probit      5780 5802 5875   5852 5856 6086     5
+#>  probit (2L) 3171 3433 3392   3447 3452 3457     5
+#>  probit (4L) 2224 2231 2340   2329 2428 2488     5
 ```
 
 References
