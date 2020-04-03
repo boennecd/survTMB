@@ -106,6 +106,9 @@ sparse_hess <- fit$fun$gva$he_sp(par)
 stopifnot(isTRUE(
   all.equal(as.matrix(sparse_hess), dense_hess, check.attributes = FALSE)))
 
+# compare storage cost
+as.numeric(object.size(dense_hess) / object.size(sparse_hess))
+
 # we usually want the first part the inverse negative Hessian for the model 
 # parameters. This can be computed as follows
 library(Matrix)
@@ -140,9 +143,6 @@ microbenchmark(
   `Invert dense Hessian (alternative)`  = alte_vcov(dense_hess), 
   `Invert sparse Hessian (alternative)` = alte_vcov(sparse_hess),
   times = 10)
-
-# compare storage cost
-as.numeric(object.size(dense_hess) / object.size(sparse_hess))
 ```
 
 The sparse matrix only becomes more favorable for larger data sets

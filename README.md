@@ -163,6 +163,10 @@ sparse_hess <- fit$fun$gva$he_sp(par)
 stopifnot(isTRUE(
   all.equal(as.matrix(sparse_hess), dense_hess, check.attributes = FALSE)))
 
+# compare storage cost
+as.numeric(object.size(dense_hess) / object.size(sparse_hess))
+#> [1] 11
+
 # we usually want the first part the inverse negative Hessian for the model 
 # parameters. This can be computed as follows
 library(Matrix)
@@ -207,12 +211,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 144.46 144.77 148.86 147.85 151.54 158.54
-#>               Compute sparse Hessian  18.91  19.47  20.00  19.83  20.38  21.65
-#>         Invert dense Hessian (naive)   5.16   5.32   5.35   5.35   5.41   5.49
-#>        Invert sparse Hessian (naive)   1.12   1.14   1.27   1.26   1.36   1.43
-#>   Invert dense Hessian (alternative)   1.32   1.33   1.39   1.37   1.45   1.49
-#>  Invert sparse Hessian (alternative)   2.78   2.94   3.03   2.99   3.18   3.27
+#>                Compute dense Hessian 145.34 145.96 149.19 146.93 149.64 158.41
+#>               Compute sparse Hessian  19.26  19.31  19.62  19.50  19.95  20.42
+#>         Invert dense Hessian (naive)   5.11   5.13   5.26   5.29   5.36   5.39
+#>        Invert sparse Hessian (naive)   1.04   1.09   1.20   1.22   1.31   1.35
+#>   Invert dense Hessian (alternative)   1.30   1.35   1.38   1.36   1.41   1.46
+#>  Invert sparse Hessian (alternative)   2.75   2.82   2.97   2.96   2.99   3.48
 #>  neval
 #>     10
 #>     10
@@ -220,10 +224,6 @@ microbenchmark(
 #>     10
 #>     10
 #>     10
-
-# compare storage cost
-as.numeric(object.size(dense_hess) / object.size(sparse_hess))
-#> [1] 5.05
 ```
 
 The sparse matrix only becomes more favorable for larger data sets (that is, in terms of the number of clusters).
