@@ -8,7 +8,7 @@ get_par_val_eortc <- function(x){
 
 get_func_eortc <- function(link, n_threads, param_type, dense_hess = FALSE,
                            sparse_hess = FALSE)
-  make_gsm_ADFun(
+  make_mgsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
     df = 3L, data = eortc, link = link, do_setup = "SNVA",
     n_threads = n_threads, param_type = param_type, dense_hess = dense_hess,
@@ -26,11 +26,14 @@ for(link in c("PH", "PO", "probit"))
           survTMB:::.set_use_own_VA_method(use_own)
 
           func <- get_func_eortc(link, n_threads, param_type)
-          expect_s3_class(func, "GSM_ADFun")
+          expect_s3_class(func, "MGSM_ADFun")
+          expect_setequal(names(func), .MGSM_ADFun_members)
+          expect_true(!is.null(func$gva)) # change the RD file if this fails
 
           eps <- .Machine$double.eps^(3/5)
           res <- fit_mgsm(func, "SNVA", control = list(reltol = eps))
-          expect_s3_class(res, "GSM_ADFit")
+          expect_s3_class(res, "MGSM_ADFit")
+          expect_setequal(names(res), .MGSM_fit_members)
 
           expect_known_value(
             get_par_val_eortc(res),
@@ -58,6 +61,11 @@ for(link in c("PH", "PO", "probit"))
           link = link, 2L, param_type, dense_hess = TRUE)
         sp_func <- get_func_eortc(
           link = link, 2L, param_type, sparse_hess = TRUE)
+        expect_known_output(
+          sp_func, sprintf(file.path(test_res_dir,
+                                     "SNVA-func-sparse-%s-%s.txt"),
+                           link, param_type),
+          print = TRUE)
         survTMB:::.set_use_own_VA_method(FALSE)
         tm_func <- get_func_eortc(
           link = link, 2L, param_type)

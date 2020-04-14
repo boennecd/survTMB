@@ -1,8 +1,8 @@
 #' @importFrom stats cov2cor
 #' @export
-print.GSM_ADFit <- function(x, ...){
+print.MGSM_ADFit <- function(x, ...){
   cat(sprintf(
-    "\nGSM estimated with method %s with link %s from call:\n",
+    "\nMGSM estimated with method %s with link %s from call:\n",
     sQuote(x$method), sQuote(x$link)),
     paste0("  ", deparse(x$ADFun_cl), collapse = "\n"), "\n",
     paste0("  ", deparse(x$fit_cl)  , collapse = "\n"), "\n\n", sep = "")
@@ -31,3 +31,28 @@ print.GSM_ADFit <- function(x, ...){
 
   invisible(list(fix_par = fix_par, vcov = vcov))
 }
+
+#' @export
+print.MGSM_ADFun <- function(x, ...){
+  cat(sprintf(
+    "\nMGSM objective function with link %s from call:\n",
+    sQuote(x$link)),
+    paste0("  ", deparse(x$cl), collapse = "\n"), "\n\n", sep = "")
+
+  yn <- function(z)
+    if(z) "Yes" else "No"
+
+
+  cat("The following is available:\n")
+  to_print <- c(
+    `Laplace approximation`  = yn(!is.null(x$laplace)),
+    `GVA`                    = yn(!is.null(x$gva)),
+    `SNVA`                   = yn(!is.null(x$snva)),
+    `Dense Hessian with VA`  = yn(x$dense_hess),
+    `Sparse Hessian with VA` = yn(x$sparse_hess))
+
+  for(i in seq_along(to_print))
+    cat(sprintf("%-23s %3s\n", names(to_print)[i], to_print[i]))
+  cat("\n")
+}
+

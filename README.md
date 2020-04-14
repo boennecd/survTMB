@@ -2,9 +2,9 @@
 survTMB
 =======
 
-This package contains methods to estimated mixed generalized survival models (Liu, Pawitan, and Clements 2016; Liu, Pawitan, and Clements 2017). All methods use automatic differentiation using the CppAD library (B. Bell 2019) through the TMB package (Kristensen et al. 2016). The estimation methods are
+This package contains methods to estimated mixed generalized survival models (Liu, Pawitan, and Clements 2016; Liu, Pawitan, and Clements 2017). All methods use automatic differentiation using the CppAD library (B. Bell 2019) through [the TMB package](https://github.com/kaskr/adcomp) (Kristensen et al. 2016). The estimation methods are
 
--   a Laplace approximation using TMB.
+-   a Laplace approximation using [TMB](https://github.com/kaskr/adcomp).
 -   Gaussian variational approximation (GVA) similar to the method shown by Ormerod and Wand (2012).
 -   Skew-normal variational approximation (SNVA) similar to the method shown by Ormerod (2011).
 
@@ -25,7 +25,7 @@ library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", with_hess = FALSE){
   eval(bquote({
-    adfun <- make_gsm_ADFun(
+    adfun <- make_mgsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
       n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L, 
@@ -38,9 +38,9 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 # estimate the model using different methods. Start w/ Laplace
 (lap_ph <- fit_model("PO"))$fit
 #> 
-#> GSM estimated with method 'Laplace' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#> MGSM estimated with method 'Laplace' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
 #>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
@@ -64,9 +64,9 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 # w/ GVA
 (gva_fit <- fit_model("PO", method = "GVA"))$fit
 #> 
-#> GSM estimated with method 'GVA' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#> MGSM estimated with method 'GVA' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
@@ -100,9 +100,9 @@ print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
 # w/ SNVA
 fit_model("PO", method = "SNVA", param_type = "DP")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -211,12 +211,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 149.73 150.15 152.27 152.22 153.60 156.97
-#>               Compute sparse Hessian  19.91  19.95  20.13  20.14  20.20  20.66
-#>         Invert dense Hessian (naive)   5.13   5.20   5.31   5.34   5.39   5.47
-#>        Invert sparse Hessian (naive)   1.06   1.09   1.21   1.22   1.30   1.38
-#>   Invert dense Hessian (alternative)   1.29   1.38   1.40   1.40   1.44   1.46
-#>  Invert sparse Hessian (alternative)   2.79   2.83   2.99   2.99   3.02   3.26
+#>                Compute dense Hessian 146.85 147.10 148.03 147.79 148.74 149.65
+#>               Compute sparse Hessian  19.08  19.18  19.47  19.26  19.94  20.06
+#>         Invert dense Hessian (naive)   5.19   5.22   5.28   5.27   5.29   5.48
+#>        Invert sparse Hessian (naive)   1.05   1.10   1.20   1.19   1.24   1.42
+#>   Invert dense Hessian (alternative)   1.34   1.34   1.36   1.36   1.38   1.40
+#>  Invert sparse Hessian (alternative)   2.70   2.74   2.88   2.84   2.96   3.19
 #>  neval
 #>     10
 #>     10
@@ -237,9 +237,9 @@ We estimate the same model below with other link functions.
 # w/ Laplace
 fit_model("PH"    )$fit
 #> 
-#> GSM estimated with method 'Laplace' with link 'PH' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#> MGSM estimated with method 'Laplace' with link 'PH' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
 #>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
@@ -261,9 +261,9 @@ fit_model("PH"    )$fit
 #> Estimated log-likelihood is -13028.98
 fit_model("PO"    )$fit
 #> 
-#> GSM estimated with method 'Laplace' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#> MGSM estimated with method 'Laplace' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
 #>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
@@ -285,9 +285,9 @@ fit_model("PO"    )$fit
 #> Estimated log-likelihood is -13033.04
 fit_model("probit")$fit
 #> 
-#> GSM estimated with method 'Laplace' with link 'probit' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
+#> MGSM estimated with method 'Laplace' with link 'probit' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
 #>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "Laplace")
@@ -312,9 +312,9 @@ fit_model("probit")$fit
 # w/ GVA
 fit_model("PH"    , method = "GVA")$fit
 #> 
-#> GSM estimated with method 'GVA' with link 'PH' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#> MGSM estimated with method 'GVA' with link 'PH' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
@@ -336,9 +336,9 @@ fit_model("PH"    , method = "GVA")$fit
 #> Estimated lower bound is -13026.74
 fit_model("PO"    , method = "GVA")$fit
 #> 
-#> GSM estimated with method 'GVA' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#> MGSM estimated with method 'GVA' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
@@ -360,9 +360,9 @@ fit_model("PO"    , method = "GVA")$fit
 #> Estimated lower bound is -13031.11
 fit_model("probit", method = "GVA")$fit
 #> 
-#> GSM estimated with method 'GVA' with link 'probit' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
+#> MGSM estimated with method 'GVA' with link 'probit' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "GVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "GVA")
@@ -387,9 +387,9 @@ fit_model("probit", method = "GVA")$fit
 # w/ SNVA (DP: direct parameterization)
 fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'PH' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'PH' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -411,9 +411,9 @@ fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
 #> Estimated lower bound is -13026.74
 fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -435,9 +435,9 @@ fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> Estimated lower bound is -13031.11
 fit_model("probit", method = "SNVA", param_type = "DP")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'probit' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'probit' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -462,9 +462,9 @@ fit_model("probit", method = "SNVA", param_type = "DP")$fit
 # w/ SNVA (CP: centralized parameterization)
 fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'PH' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'PH' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "CP_trans", link = "PH", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -486,9 +486,9 @@ fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> Estimated lower bound is -13026.70
 fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'PO' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'PO' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "CP_trans", link = "PO", n_threads = 2L, 
 #>       dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -510,9 +510,9 @@ fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> Estimated lower bound is -13031.23
 fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 #> 
-#> GSM estimated with method 'SNVA' with link 'probit' from call:
-#>   make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, df = 3L, 
-#>       Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+#> MGSM estimated with method 'SNVA' with link 'probit' from call:
+#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
+#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
 #>       n_nodes = 15L, param_type = "CP_trans", link = "probit", 
 #>       n_threads = 2L, dense_hess = FALSE, sparse_hess = FALSE)
 #>   fit_mgsm(object = adfun, method = "SNVA")
@@ -563,29 +563,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH          1025 1044 1044   1048 1049 1054     5
-#>  PH     (2L)  647  653  658    658  664  669     5
-#>  PH     (4L)  484  484  485    485  487  487     5
-#>  PO          1606 1617 1619   1621 1626 1626     5
-#>  PO     (2L)  995 1008 1010   1012 1015 1017     5
-#>  PO     (4L)  701  701  714    718  724  727     5
-#>  probit      1003 1006 1042   1010 1074 1117     5
-#>  probit (2L)  619  619  622    620  626  626     5
-#>  probit (4L)  431  435  452    443  466  484     5
+#>  PH          1070 1071 1075   1077 1080 1080     5
+#>  PH     (2L)  656  669  674    680  682  686     5
+#>  PH     (4L)  472  474  486    490  496  497     5
+#>  PO          1607 1639 1644   1647 1651 1675     5
+#>  PO     (2L) 1003 1012 1018   1017 1021 1038     5
+#>  PO     (4L)  723  728  740    728  731  789     5
+#>  probit      1003 1007 1013   1009 1012 1033     5
+#>  probit (2L)  607  617  620    621  624  630     5
+#>  probit (4L)  444  445  450    447  450  465     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           272  272  274    273  274  277     5
-#>  PH     (2L)  181  182  186    182  183  204     5
-#>  PH     (4L)  142  143  144    144  145  147     5
-#>  PO           848  850  862    855  867  892     5
-#>  PO     (2L)  511  516  524    525  533  533     5
-#>  PO     (4L)  352  354  359    355  355  375     5
-#>  probit      1434 1440 1442   1441 1444 1453     5
-#>  probit (2L)  847  849  857    849  850  888     5
-#>  probit (4L)  566  566  574    570  571  598     5
+#>  PH           275  279  280    280  281  287     5
+#>  PH     (2L)  185  186  189    188  189  194     5
+#>  PH     (4L)  145  146  151    151  151  161     5
+#>  PO           843  846  851    852  856  856     5
+#>  PO     (2L)  505  506  511    512  512  521     5
+#>  PO     (4L)  352  354  356    354  356  363     5
+#>  probit      1442 1443 1449   1445 1456 1458     5
+#>  probit (2L)  841  844  847    844  853  854     5
+#>  probit (4L)  574  575  582    577  591  591     5
 ```
 
 ``` r
@@ -613,29 +613,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           454  457  462    461  463  477     5
-#>  PH     (2L)  290  293  295    295  298  300     5
-#>  PH     (4L)  214  214  223    215  223  250     5
-#>  PO          3073 3091 3122   3106 3138 3202     5
-#>  PO     (2L) 1808 1838 1916   1853 1990 2089     5
-#>  PO     (4L) 1197 1199 1210   1208 1219 1228     5
-#>  probit      3247 3249 3274   3267 3286 3322     5
-#>  probit (2L) 1881 1932 1986   2019 2032 2065     5
-#>  probit (4L) 1255 1262 1279   1280 1293 1307     5
+#>  PH           461  461  462    461  461  465     5
+#>  PH     (2L)  282  284  285    284  287  289     5
+#>  PH     (4L)  208  210  213    212  214  218     5
+#>  PO          3091 3095 3101   3099 3107 3112     5
+#>  PO     (2L) 1757 1772 1828   1863 1868 1878     5
+#>  PO     (4L) 1194 1199 1200   1200 1202 1206     5
+#>  probit      3278 3288 3289   3288 3294 3295     5
+#>  probit (2L) 1874 1881 1904   1899 1907 1957     5
+#>  probit (4L) 1259 1264 1272   1267 1285 1287     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           534  544  552    548  565  569     5
-#>  PH     (2L)  369  372  377    375  378  390     5
-#>  PH     (4L)  267  267  271    268  268  285     5
-#>  PO          5664 5738 5830   5779 5899 6071     5
-#>  PO     (2L) 1587 1621 1655   1639 1671 1760     5
-#>  PO     (4L) 1009 1015 1059   1020 1043 1209     5
-#>  probit      5780 5802 5875   5852 5856 6086     5
-#>  probit (2L) 3171 3433 3392   3447 3452 3457     5
-#>  probit (4L) 2224 2231 2340   2329 2428 2488     5
+#>  PH           535  540  543    541  544  552     5
+#>  PH     (2L)  355  359  363    361  369  371     5
+#>  PH     (4L)  256  257  258    258  259  262     5
+#>  PO          5713 5726 5729   5728 5737 5740     5
+#>  PO     (2L) 1562 1588 1614   1604 1631 1687     5
+#>  PO     (4L)  984  992 1245    997 1621 1633     5
+#>  probit      5830 5848 5859   5870 5874 5874     5
+#>  probit (2L) 3178 3238 3256   3271 3274 3317     5
+#>  probit (4L) 2103 2104 2345   2472 2483 2565     5
 ```
 
 References

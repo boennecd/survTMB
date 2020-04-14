@@ -18,3 +18,10 @@ options(width = 80, digits = 4, useFancyQuotes = FALSE,
 test_res_dir <- if(!dir.exists("test-res"))
   file.path("tests", "testthat", "test-res") else
     "test-res"
+
+# if these change then update the man page!
+.MGSM_ADFun_members <- c("laplace", "gva", "snva", "y", "event",
+                         "X", "XD", "Z", "grp", "terms", "link", "cl",
+                         "opt_func", "dense_hess", "sparse_hess")
+.MGSM_fit_members <- c("params", "va_params", "link", "ADFun_cl", "fit_cl",
+                       "method", "optim", "is_va", "fix_names", "rng_names")

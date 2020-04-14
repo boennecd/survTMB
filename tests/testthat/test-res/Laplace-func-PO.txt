@@ -1,0 +1,13 @@
+
+MGSM objective function with link 'PO' from call:
+  make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = eortc, 
+      df = 3L, Z = ~1, cluster = as.factor(center), do_setup = "Laplace", 
+      link = link, n_threads = n_threads)
+
+The following is available:
+Laplace approximation   Yes
+GVA                      No
+SNVA                     No
+Dense Hessian with VA    No
+Sparse Hessian with VA   No
+

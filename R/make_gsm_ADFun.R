@@ -89,38 +89,104 @@ Shat <- function(obj){
   function()
     .use_own_VA_method)
 
-#####
-# Define function to get objective function.
-#
-# Args:
-#   formula: two-sided formula where the left-handside is a `Surv` object
-#            and the right-handside is the fixed effects.
-#   data: `data.frame` with variables used in the model.
-#   df: integer scalar with the degrees of freedom used for the baseline
-#       spline.
-#   Z: one-sided formula where the right-handside are the random effects.
-#   cluster: vector with integers or factors for group identifiers.
-#   do_setup: character vector indicating which approximation to setup.
-#             It is included to test computation time.
-#   n_nodes: number of nodes to use in (adaptive) Gauss–-Hermite quadrature.
-#   param_type: characters for the parameterization used with the SNVA.
-#   skew_start: starting value for the Pearson's moment coefficient of
-#               skewness parameter when a SNVA is used.
-#   link: character specifying the link function.
-#   theta: starting values for covariance matrix.
-#   beta: starting values for fixed effect coefficients.
-#   opt_func: general optimization function to get starting values.
-#
-# Returns:
-#   TODO: what?
-#
+#' Construct Objective Functions with Derivatives for a Mixed Generalized
+#' Survival Model
+#'
+#' @description
+#' Constructs an objective function for a particular generalized survival
+#' model applied to a given data set.
+#'
+#' @param formula two-sided \code{\link{formula}} where the left-hand side is a
+#'                \code{\link{Surv}} object and the right-hand side is the
+#'                fixed effects.
+#' @param data \code{\link{data.frame}} with variables used in the model.
+#' @param df integer with the degrees of freedom used for the baseline
+#'           spline.
+#' @param Z one-sided \code{\link{formula}} where the right-hand side are
+#'          the random effects.
+#' @param cluster vector with integers or factors for group identifiers
+#'                (one for each observation).
+#' @param do_setup character vector indicating which approximation to setup.
+#'                 See 'Details'.
+#' @param n_nodes integer with the number of nodes to use in (adaptive)
+#'                Gauss-Hermite quadrature.
+#' @param link character specifying the link function.
+#' @param param_type characters for the parameterization used with the SNVA.
+#'                   See 'Details'.
+#' @param theta starting values for covariance matrix.
+#' @param beta starting values for fixed effect coefficients.
+#' @param opt_func general optimization function to use. It
+#'                 needs to have an interface like \code{\link{optim}}.
+#' @param skew_start starting value for the Pearson's moment coefficient of
+#'                   skewness parameter when a SNVA is used. Currently,
+#'                   a somewhat arbitrary value.
+#' @param dense_hess logical for whether to make dense Hessian computation
+#'                   available. Memory and computation time is saved if it is
+#'                   \code{FALSE}.
+#' @param sparse_hess logical for whether to make sparse Hessian computation
+#'                    available. Memory and computation time is saved if it is
+#'                    \code{FALSE}.
+#'
+#' @details
+#' Possible link functions for \code{link} are:
+#' \code{"PH"} for proportional hazard,
+#' \code{"PO"} for proportional odds, and \code{"probit"} for a probit link
+#' function.
+#'
+#' The available estimation methods for \code{do_setup} are:
+#' \code{"Laplace"} for a Laplace approximation,
+#' \code{"GVA"} for a Gaussian variational approximation (GVA),
+#' and \code{"SNVA"} for a skew-normal variational approximation (SNVA).
+#'
+#' The parameterizations for the SNVA are selected by \code{param_type}.
+#' Possible arguments are: \code{"DP"} for direct parameterization,
+#' \code{"CP"} for centralized parameterization, and
+#' \code{"CP_trans"} for transformed centralized parameterization where the
+#' skew parameters are transformed by a logistic function to be in the
+#' appropriate range.
+#'
+#' See the README \url{https://github.com/boennecd/survTMB} for
+#' further information and examples.
+#'
+#' @return
+#' An object of class \code{MGSM_ADFun}. The elements are:
+#' \item{laplace}{object to perform a Laplace approximation if \code{do_setup} contains \code{"Laplace"}.}
+#' \item{gva}{object to perform a GVA if \code{do_setup} contains \code{"GVA"} or \code{"SNVA"}.}
+#' \item{snva}{object to perform a SNVA if \code{do_setup} contains \code{"SNVA"}.}
+#' \item{y}{numeric vector with outcomes.}
+#' \item{event}{numeric vector with event indicators.}
+#' \item{X}{fixed effect design matrix.}
+#' \item{XD}{derivative of fixed effect design matrix with respect to time.}
+#' \item{Z}{Random effect design matrix.}
+#' \item{grp}{integer vector with group identifier.}
+#' \item{terms}{\code{\link{list}} with \code{\link{terms.object}}s.}
+#' \item{link}{character with the link function.}
+#' \item{cl}{matched call.}
+#' \item{dense_hess}{dense_hess argument.}
+#' \item{sparse_hess}{sparse_hess argument.}
+#'
+#' @examples
+#' library(survTMB)
+#' if(require(coxme)){
+#'   # construct function with a random intercept and a proportional hazard
+#'   # link function
+#'   func <- make_mgsm_ADFun(
+#'     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
+#'     df = 3L, data = coxme::eortc, link = "PH",
+#'     do_setup = c("Laplace", "GVA", "SNVA"), n_threads = 1L)
+#'   print(func)
+#' }
+#'
+#' @seealso
+#' \code{\link{fit_mgsm}}
+#'
 #' @importFrom TMB MakeADFun
 #' @importFrom stats model.frame model.response terms model.matrix lm lm.fit predict qnorm
 #' @importFrom rstpm2 nsx
 #' @importFrom survival coxph frailty Surv
 #' @importFrom Matrix sparseMatrix
 #' @export
-make_gsm_ADFun <- function(
+make_mgsm_ADFun <- function(
   formula, data, df, Z, cluster, do_setup = c("Laplace", "GVA", "SNVA"),
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
@@ -280,7 +346,38 @@ make_gsm_ADFun <- function(
     eps = .Machine$double.eps^(1/2), kappa = 1e8, b = beta,
     theta = theta)
 
-  if(.laplace_char %in% do_setup){
+  laplace_out <- if(.laplace_char %in% do_setup)
+    .get_laplace_func(data_ad_func, params, n_rng, n_grp, inits)
+  else
+    NULL
+
+  #####
+  # setup ADFun object for the GVA
+  gva_out <- if(.gva_char %in% do_setup || .snva_char %in% do_setup)
+    .get_gva_func(n_rng, n_grp, params, data_ad_func, n_nodes, dense_hess,
+                  sparse_hess, inits, opt_func)
+  else
+    NULL
+
+  #####
+  # setup ADFun object for the SNVA
+  snva_out <- if(.snva_char %in% do_setup)
+    .get_snva_out(n_rng, n_grp, gva_out, params, skew_start, param_type,
+                  skew_boundary, data_ad_func, n_nodes, dense_hess,
+                  sparse_hess, opt_func)
+  else
+    NULL
+
+  structure(
+    list(laplace = laplace_out, gva = gva_out, snva = snva_out, y = y,
+         event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
+           X = mt_X, Z = mt_Z, baseline = mt_b), cl = match.call(),
+         link = link, opt_func = opt_func, dense_hess = dense_hess,
+         sparse_hess = sparse_hess),
+    class = "MGSM_ADFun")
+}
+
+.get_laplace_func <- function(data_ad_func, params, n_rng, n_grp, inits) {
   # get Laplace AD function
   adfunc_laplace <- local({
     data_ad_func <- c(
@@ -294,7 +391,7 @@ make_gsm_ADFun <- function(
 
   # we make a wrapper object to account for the eps and kappa and allow the
   # user to change these
-  laplace_out <- with(new.env(), {
+  with(new.env(), {
     eps <- adfunc_laplace$par["eps"]
     kappa <- adfunc_laplace$par["kappa"]
     fn <- adfunc_laplace$fn
@@ -325,27 +422,25 @@ make_gsm_ADFun <- function(
       }
     ), out)
   })
-  } else
-    laplace_out <- NULL
+}
 
-  # assign util functions for VA
-  get_par_va <- function(params)
-    with(params, {
-      names(b)        <- rep("b", length(b))
-      names(theta)    <- rep("theta", length(theta))
-      names(theta_VA) <- rep("theta_VA", length(theta_VA))
-      c(eps = eps, kappa = kappa, b, theta, theta_VA)
-    })
-  eval_hess_sparse <- function(ptr, par){
-    out <- VA_funcs_eval_hess_sparse(ptr, par)
-    Matrix::sparseMatrix(
-      i = out$row_idx + 1L, j = out$col_idx + 1L, x = out$val,
-      symmetric = TRUE)
-  }
+# VA util funcs
+.get_par_va <- function(params)
+  with(params, {
+    names(b)        <- rep("b", length(b))
+    names(theta)    <- rep("theta", length(theta))
+    names(theta_VA) <- rep("theta_VA", length(theta_VA))
+    c(eps = eps, kappa = kappa, b, theta, theta_VA)
+  })
+.eval_hess_sparse <- function(ptr, par){
+  out <- VA_funcs_eval_hess_sparse(ptr, par)
+  Matrix::sparseMatrix(
+    i = out$row_idx + 1L, j = out$col_idx + 1L, x = out$val,
+    symmetric = TRUE)
+}
 
-  #####
-  # setup ADFun object for the GVA
-  if(.gva_char %in% do_setup || .snva_char %in% do_setup){
+.get_gva_func <- function(n_rng, n_grp, params, data_ad_func, n_nodes,
+                          dense_hess, sparse_hess, inits, opt_func) {
   # set the initial values
   n_mu     <- n_rng
   n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
@@ -383,8 +478,8 @@ make_gsm_ADFun <- function(
           he <- function(par)
             VA_funcs_eval_hess(ptr, par)
           he_sp <- function(par)
-            eval_hess_sparse(ptr, par)
-          par <- get_par_va(params)
+            .eval_hess_sparse(ptr, par)
+          par <- .get_par_va(params)
         })
 
       } else
@@ -454,14 +549,12 @@ make_gsm_ADFun <- function(
     func$gr(get_x(x))[-do_drop]
 
   opt_out <- opt_func(theta_VA, fn = fn, gr = gr)
-  gva_out <- get_gva_out(opt_out$par)
+  get_gva_out(opt_out$par)
+}
 
-  } else
-    gva_out <- NULL
-
-  #####
-  # setup ADFun object for the SNVA
-  if(.snva_char %in% do_setup){
+.get_snva_out <- function(n_rng, n_grp, gva_out, params, skew_start,
+                          param_type, skew_boundary, data_ad_func, n_nodes,
+                          dense_hess, sparse_hess, opt_func) {
   # set the initial values
   n_mu     <- n_rng
   n_rho    <- n_rng
@@ -472,6 +565,8 @@ make_gsm_ADFun <- function(
   #####
   # setup starting values for VA parameters
   # find GVA solution
+  beta <- params$b
+  theta <- params$theta
   gva_opt <- with(gva_out, opt_func(par, fn, gr))
   gva_va_vals <- gva_opt$par[-seq_len(length(beta) + length(theta))]
 
@@ -548,8 +643,8 @@ make_gsm_ADFun <- function(
         he <- function(par)
           VA_funcs_eval_hess(ptr, par)
         he_sp <- function(par)
-          eval_hess_sparse(ptr, par)
-        par <- get_par_va(params)
+          .eval_hess_sparse(ptr, par)
+        par <- .get_par_va(params)
       })
     else
       within(MakeADFun(
@@ -618,15 +713,5 @@ make_gsm_ADFun <- function(
     func$gr(get_x(x))[-do_drop]
 
   opt_out <- opt_func(theta_VA, fn = fn, gr = gr)
-  snva_out <- get_snva_out(opt_out$par)
-
-  } else
-    snva_out <- NULL
-
-  structure(
-    list(laplace = laplace_out, gva = gva_out, snva = snva_out, y = y,
-         event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
-           X = mt_X, Z = mt_Z, baseline = mt_b), cl = match.call(),
-         link = link, opt_func = opt_func),
-    class = "GSM_ADFun")
+  get_snva_out(opt_out$par)
 }

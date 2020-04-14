@@ -16,10 +16,10 @@ options(digits = 3)
 
 This package contains methods to estimated mixed generalized survival 
 models [@Liu16;@Liu17]. All methods use automatic differentiation using 
-the CppAD library [@Bell19] through the TMB package [@Kristensen16]. The 
-estimation methods are 
+the CppAD library [@Bell19] through [the TMB package](https://github.com/kaskr/adcomp) 
+[@Kristensen16]. The estimation methods are 
 
- - a Laplace approximation using TMB. 
+ - a Laplace approximation using [TMB](https://github.com/kaskr/adcomp). 
  - Gaussian variational approximation (GVA) similar to the method shown 
    by @Ormerod12. 
  - Skew-normal variational approximation (SNVA) similar to the method shown
@@ -45,7 +45,7 @@ library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", with_hess = FALSE){
   eval(bquote({
-    adfun <- make_gsm_ADFun(
+    adfun <- make_mgsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
       n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L, 

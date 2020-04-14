@@ -1,6 +1,6 @@
 
-GSM estimated with method 'Laplace' with link 'PO' from call:
-  make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = eortc, 
+MGSM estimated with method 'Laplace' with link 'PO' from call:
+  make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = eortc, 
       df = 3L, Z = ~1, cluster = as.factor(center), do_setup = "Laplace", 
       link = link, n_threads = n_threads)
   fit_mgsm(object = func, method = "Laplace", control = list(reltol = eps))

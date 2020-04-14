@@ -8,7 +8,7 @@ get_par_val_eortc <- function(x){
 
 get_func_eortc <- function(link, n_threads, dense_hess = FALSE,
                            sparse_hess = FALSE)
-  make_gsm_ADFun(
+  make_mgsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
     df = 3L, data = eortc, link = link, do_setup = "GVA",
     n_threads = n_threads, dense_hess = dense_hess,
@@ -24,11 +24,13 @@ for(link in c("PH", "PO", "probit"))
         survTMB:::.set_use_own_VA_method(use_own)
 
         func <- get_func_eortc(link, n_threads)
-        expect_s3_class(func, "GSM_ADFun")
+        expect_s3_class(func, "MGSM_ADFun")
+        expect_setequal(names(func), .MGSM_ADFun_members)
 
         eps <- .Machine$double.eps^(3/5)
         res <- fit_mgsm(func, "GVA", control = list(reltol = eps))
-        expect_s3_class(res, "GSM_ADFit")
+        expect_s3_class(res, "MGSM_ADFit")
+        expect_setequal(names(res), .MGSM_fit_members)
 
         expect_known_value(
           get_par_val_eortc(res),
@@ -49,6 +51,10 @@ for(link in c("PH", "PO", "probit"))
 
       survTMB:::.set_use_own_VA_method(TRUE)
       my_func <- get_func_eortc(link = link, 2L, dense_hess = TRUE)
+      expect_known_output(
+        my_func, sprintf(file.path(test_res_dir, "GVA-func-dense-%s.txt"),
+                         link),
+        print = TRUE)
       sp_func <- get_func_eortc(link = link, 2L, sparse_hess = TRUE)
       survTMB:::.set_use_own_VA_method(FALSE)
       tm_func <- get_func_eortc(link = link, 2L)

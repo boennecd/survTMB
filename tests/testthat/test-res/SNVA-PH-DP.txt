@@ -1,6 +1,6 @@
 
-GSM estimated with method 'SNVA' with link 'PH' from call:
-  make_gsm_ADFun(formula = Surv(y, uncens) ~ trt, data = eortc, 
+MGSM estimated with method 'SNVA' with link 'PH' from call:
+  make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = eortc, 
       df = 3L, Z = ~1, cluster = as.factor(center), do_setup = "SNVA", 
       param_type = param_type, link = link, n_threads = n_threads, 
       dense_hess = dense_hess, sparse_hess = sparse_hess)
