@@ -29,7 +29,7 @@ print.MGSM_ADFit <- function(x, ...){
     "\nEstimated %s is %.2f\n\n",
     if(x$is_va) "lower bound" else "log-likelihood", -x$optim$value))
 
-  invisible(list(fix_par = fix_par, vcov = vcov))
+  invisible(list(fix_par = fix_par, vcov = vcov_m, cor = cor_m))
 }
 
 #' @export

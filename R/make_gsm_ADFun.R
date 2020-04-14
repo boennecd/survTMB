@@ -60,6 +60,7 @@ Shat <- function(obj){
   c(log_sd, lower_tri)
 }
 
+#' @importFrom utils head tail
 .theta_to_cov <- function(theta){
   dim <- .5 * (sqrt(8 * length(theta) + 1) - 1)
   if(dim < 2L)
@@ -117,6 +118,7 @@ Shat <- function(obj){
 #' @param beta starting values for fixed effect coefficients.
 #' @param opt_func general optimization function to use. It
 #'                 needs to have an interface like \code{\link{optim}}.
+#' @param n_threads integer with number of threads to use.
 #' @param skew_start starting value for the Pearson's moment coefficient of
 #'                   skewness parameter when a SNVA is used. Currently,
 #'                   a somewhat arbitrary value.
@@ -172,7 +174,7 @@ Shat <- function(obj){
 #'   # link function
 #'   func <- make_mgsm_ADFun(
 #'     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
-#'     df = 3L, data = coxme::eortc, link = "PH",
+#'     df = 3L, data = eortc, link = "PH",
 #'     do_setup = c("Laplace", "GVA", "SNVA"), n_threads = 1L)
 #'   print(func)
 #' }
@@ -477,8 +479,8 @@ make_mgsm_ADFun <- function(
             drop(VA_funcs_eval_grad(ptr, par))
           he <- function(par)
             VA_funcs_eval_hess(ptr, par)
-          he_sp <- function(par)
-            .eval_hess_sparse(ptr, par)
+          he_sp <- function(x, ...)
+            .eval_hess_sparse(ptr, x)
           par <- .get_par_va(params)
         })
 
@@ -486,7 +488,7 @@ make_mgsm_ADFun <- function(
         within(MakeADFun(
           data = data_ad_func, parameters = params, DLL = "survTMB",
           silent = TRUE),
-          he_sp <- function(...)
+          he_sp <- function(x, ...)
             stop())
     })
 
@@ -642,15 +644,15 @@ make_mgsm_ADFun <- function(
           drop(VA_funcs_eval_grad(ptr, par))
         he <- function(par)
           VA_funcs_eval_hess(ptr, par)
-        he_sp <- function(par)
-          .eval_hess_sparse(ptr, par)
+        he_sp <- function(x, ...)
+          .eval_hess_sparse(ptr, x)
         par <- .get_par_va(params)
       })
     else
       within(MakeADFun(
         data = data_ad_func, parameters = params, DLL = "survTMB",
         silent = TRUE),
-        he_sp <- function(...)
+        he_sp <- function(x, ...)
           stop())
   })
 

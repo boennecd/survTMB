@@ -43,8 +43,8 @@ the random effects.}
 \item{do_setup}{character vector indicating which approximation to setup.
 See 'Details'.}
 
-\item{n_nodes}{integer with of nodes to use in (adaptive) Gauss-Hermite
-quadrature.}
+\item{n_nodes}{integer with the number of nodes to use in (adaptive)
+Gauss-Hermite quadrature.}
 
 \item{param_type}{characters for the parameterization used with the SNVA.
 See 'Details'.}
@@ -56,7 +56,9 @@ See 'Details'.}
 \item{beta}{starting values for fixed effect coefficients.}
 
 \item{opt_func}{general optimization function to use. It
-needs to have an API like \code{\link{optim}}.}
+needs to have an interface like \code{\link{optim}}.}
+
+\item{n_threads}{integer with number of threads to use.}
 
 \item{skew_start}{starting value for the Pearson's moment coefficient of
 skewness parameter when a SNVA is used. Currently,
@@ -88,7 +90,7 @@ An object of class \code{MGSM_ADFun}. The elements are:
 \item{sparse_hess}{sparse_hess argument.}
 }
 \description{
-Construct an objective function for a particular generalized survival
+Constructs an objective function for a particular generalized survival
 model applied to a given data set.
 }
 \details{
@@ -119,7 +121,7 @@ if(require(coxme)){
   # link function
   func <- make_mgsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
-    df = 3L, data = coxme::eortc, link = "PH",
+    df = 3L, data = eortc, link = "PH",
     do_setup = c("Laplace", "GVA", "SNVA"), n_threads = 1L)
   print(func)
 }

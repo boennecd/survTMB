@@ -40,7 +40,7 @@
 #'   # link function
 #'   func <- make_mgsm_ADFun(
 #'     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
-#'     df = 3L, data = coxme::eortc, link = "PH",
+#'     df = 3L, data = eortc, link = "PH",
 #'     do_setup = c("Laplace", "GVA", "SNVA"), n_threads = 1L,
 #'     dense_hess = TRUE, sparse_hess = TRUE)
 #'   print(func)
@@ -64,7 +64,7 @@
 #' }
 #'
 #' @seealso
-#' \code{\link{make_gsm_ADFun}}
+#' \code{\link{make_mgsm_ADFun}}
 #'
 #' @export
 fit_mgsm <- function(object, method, optim = object$opt_func, ...){

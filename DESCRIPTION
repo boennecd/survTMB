@@ -21,7 +21,8 @@ Depends: R (>= 3.6.0)
 SystemRequirements: C++14
 Suggests: 
     testthat, 
-    numDeriv
+    numDeriv, 
+    coxme
 RoxygenNote: 7.0.1
 LinkingTo: 
     Rcpp,

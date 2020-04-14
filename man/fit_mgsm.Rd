@@ -31,17 +31,16 @@ An \code{MGSM_ADFit} object. The elements are
 }
 \description{
 Fits a mixed generalized survival model using an objective function.
-See
 }
 \details{
-The advantage of using this function is that the output is separated
-an named and a \code{MGSM_ADFit} class. Thus, other S3 function in this
-package can be used.
+The advantage of using this function is that the output is separated,
+named, and a \code{MGSM_ADFit} class is returned. Thus, other S3 function
+in this package can be used.
 
 Other functions than \code{\link{optim}} can be used to estimate the
 model as long as the function has a similar interface.
 
-See the README \url{https://github.com/boennecd/survTMB} for
+See the README at \url{https://github.com/boennecd/survTMB} for
 further information and examples.
 }
 \examples{
@@ -51,9 +50,10 @@ if(require(coxme)){
   # link function
   func <- make_mgsm_ADFun(
     Surv(y, uncens) ~ trt, cluster = as.factor(center), Z = ~ 1,
-    df = 3L, data = coxme::eortc, link = "PH",
+    df = 3L, data = eortc, link = "PH",
     do_setup = c("Laplace", "GVA", "SNVA"), n_threads = 1L,
     dense_hess = TRUE, sparse_hess = TRUE)
+  print(func)
 
   lfit <- fit_mgsm(func, "Laplace")
   print(lfit)
@@ -75,5 +75,5 @@ if(require(coxme)){
 
 }
 \seealso{
-\code{\link{make_gsm_ADFun}}
+\code{\link{make_mgsm_ADFun}}
 }

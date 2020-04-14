@@ -2,6 +2,8 @@
 survTMB
 =======
 
+[![Build Status on Travis](https://travis-ci.org/boennecd/survTMB.svg?branch=master,osx)](https://travis-ci.org/boennecd/survTMB) <!-- [![](https://www.r-pkg.org/badges/version/survTMB)](https://www.r-pkg.org/badges/version/survTMB) --> <!-- [![CRAN RStudio mirror downloads](https://cranlogs.r-pkg.org/badges/survTMB)](https://cran.r-project.org/package=survTMB) -->
+
 This package contains methods to estimated mixed generalized survival models (Liu, Pawitan, and Clements 2016; Liu, Pawitan, and Clements 2017). All methods use automatic differentiation using the CppAD library (B. Bell 2019) through [the TMB package](https://github.com/kaskr/adcomp) (Kristensen et al. 2016). The estimation methods are
 
 -   a Laplace approximation using [TMB](https://github.com/kaskr/adcomp).
