@@ -47,14 +47,16 @@ dat <- coxme::eortc
 library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
-                      param_type = "DP", with_hess = FALSE){
+                      param_type = "DP", dense_hess = FALSE, 
+                      sparse_hess = FALSE, do_fit = TRUE){
   eval(bquote({
     adfun <- make_mgsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
       Z = ~ trt, df = 3L, data = dat, link = .(link), do_setup = .(method), 
       n_threads = .(n_threads), param_type = .(param_type), n_nodes = 15L, 
-      dense_hess = .(with_hess), sparse_hess = .(with_hess))
-    fit <- fit_mgsm(adfun, method = .(method))
+      dense_hess = .(dense_hess), sparse_hess = .(sparse_hess))
+    fit <- if(.(do_fit))
+      fit_mgsm(adfun, method = .(method)) else NULL
     list(fit = fit, fun = adfun)
   }), parent.frame())
 }
@@ -87,7 +89,8 @@ library(microbenchmark) # needed for benchmarking
 
 ```{r comp_hess, cache = 1, dependson = "fit_example"}
 # fit model w/ GVA
-fit <- fit_model("PO", method = "GVA", with_hess = TRUE)
+fit <- fit_model("PO", method = "GVA", dense_hess = TRUE, 
+                 sparse_hess = TRUE)
 
 # compute dense Hessian
 par <- with(fit$fit, c(params, va_params))
@@ -150,7 +153,20 @@ microbenchmark(
 ```
 
 The sparse matrix only becomes more favorable for larger data sets
-(that is, in terms of the number of clusters).
+(that is, in terms of the number of clusters). However, 
+[recording](https://www.coin-or.org/CppAD/Doc/independent.htm) takes some 
+time and requires additional memory. We illustrate the additional time 
+below. 
+
+```{r extra_time, cache = 1, dependson = "fit_example"}
+microbenchmark(
+  `W/o Hessians     ` = fit_model("PO", method = "GVA", do_fit = FALSE), 
+  `W/ dense Hessian ` = fit_model("PO", method = "GVA", do_fit = FALSE, 
+                                  dense_hess = TRUE), 
+  `W/ sparse Hessian` = fit_model("PO", method = "GVA", do_fit = FALSE, 
+                                  sparse_hess = TRUE), 
+  times = 10)
+```
 
 ### Other link functions
 We estimate the same model below with other link functions.

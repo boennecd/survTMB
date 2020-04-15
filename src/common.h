@@ -20,7 +20,7 @@
  matrix<TYPE> const &Z, vector<int> const &grp,                \
  TYPE const &eps, TYPE const &kappa, vector<TYPE> const &b,    \
   vector<TYPE> const &theta, std::string const &link,          \
-  vector<int> &grp_size
+  vector<int> const &grp_size
 #endif
 
 #ifndef COMMON_CALL

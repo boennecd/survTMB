@@ -175,7 +175,7 @@ public:
     return ::get_args_va<Tout, Type>(eps, kappa, b, theta, theta_VA);
   }
 
-  Type operator()(vector<Type> &args){
+  Type operator()(vector<Type> &args) const {
     if((unsigned)args.size() != n_para)
       error("VA_worker: invalid args length");
     Type eps = args[0],
@@ -247,6 +247,7 @@ struct VA_func {
       }
     }
 
+    /* TODO: build this on request afterwards */
     DATA_LOGICAL(dense_hess);
     if(dense_hess){
       /* to compute dense Hessian
@@ -283,6 +284,7 @@ struct VA_func {
       }
     }
 
+    /* TODO: build this on request afterwards */
     DATA_LOGICAL(sparse_hess);
     if(sparse_hess){
       /* to compute sparse Hessian
@@ -493,14 +495,14 @@ Rcpp::NumericMatrix VA_funcs_eval_hess
     throw std::invalid_argument(
         "VA_funcs_eval_hess: no ADFun objects to compute the Hessian");
 
+  std::vector<std::unique_ptr<CppAD::ADFun<double> > >
+    &grads = *ptr->grads;
+
   vector<double> parv = get_vec<double>(par);
-  unsigned const n_blocks = ptr->funcs.size(),
+  unsigned const n_blocks = grads.size(),
                  n_vars   = parv.size();
   vector<double> hess(n_vars * n_vars);
   hess.setZero();
-
-  std::vector<std::unique_ptr<CppAD::ADFun<double> > >
-    &grads = *ptr->grads;
 
 #ifdef _OPENMP
 #pragma omp parallel for if(n_blocks > 1L) firstprivate(parv)
