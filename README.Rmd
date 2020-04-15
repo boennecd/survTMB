@@ -67,12 +67,6 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 # w/ GVA
 (gva_fit <- fit_model("PO", method = "GVA"))$fit
 
-# the GVA solution seems to be better. First, we print a log-likelihood 
-# approximation using the Laplace approximation at the GVA solution
-print(-lap_ph$fun$laplace$fn(gva_fit$fit$params), digits = 7)
-# then we print the log-likelihood approximation at the Laplace solution
--lap_ph$fit$optim$value
-
 # w/ SNVA
 fit_model("PO", method = "SNVA", param_type = "DP")$fit
 ```

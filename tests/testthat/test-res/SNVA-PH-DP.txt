@@ -8,9 +8,9 @@ MGSM estimated with method 'SNVA' with link 'PH' from call:
 
 Estimated fixed effects:
                             (Intercept)                                     trt 
-                                -8.7495                                  0.6276 
+                                -8.7496                                  0.6276 
 nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-                                 6.1780                                 13.1244 
+                                 6.1780                                 13.1245 
 nsx(log(y), df = 3, intercept = FALSE)3 
                                  4.7728 
 

@@ -21,14 +21,15 @@
   o / sqrt(2 - pi * mu^2)
 }
 
+.opt_func_quick_control <- list(
+  reltol = .Machine$double.eps^(1/5), maxit = 1000, abstol = 0)
+
 #' @importFrom stats optim
 .opt_default <- function(par, fn, gr, ...){
   cl <- match.call()
   cl[[1L]] <- quote(stats::optim)
   if(is.null(cl$method))
     cl$method <- "BFGS"
-  if(is.null(cl$control))
-    cl$control <- list(reltol = .Machine$double.eps^(1/4), maxit = 1000)
 
   out <- eval(cl, parent.frame())
   stopifnot(out$convergence == 0L)
@@ -550,7 +551,8 @@ make_mgsm_ADFun <- function(
   gr <- function(x)
     func$gr(get_x(x))[-do_drop]
 
-  opt_out <- opt_func(theta_VA, fn = fn, gr = gr)
+  opt_out <- opt_func(theta_VA, fn = fn, gr = gr,
+                      control = .opt_func_quick_control)
   get_gva_out(opt_out$par)
 }
 
@@ -569,7 +571,8 @@ make_mgsm_ADFun <- function(
   # find GVA solution
   beta <- params$b
   theta <- params$theta
-  gva_opt <- with(gva_out, opt_func(par, fn, gr))
+  gva_opt <- with(gva_out, opt_func(par, fn, gr,
+                                    control = .opt_func_quick_control))
   gva_va_vals <- gva_opt$par[-seq_len(length(beta) + length(theta))]
 
   params$b     <- gva_opt$par[1:length(beta)]
@@ -714,6 +717,7 @@ make_mgsm_ADFun <- function(
   gr <- function(x)
     func$gr(get_x(x))[-do_drop]
 
-  opt_out <- opt_func(theta_VA, fn = fn, gr = gr)
+  opt_out <- opt_func(theta_VA, fn = fn, gr = gr,
+                      control = .opt_func_quick_control)
   get_snva_out(opt_out$par)
 }
