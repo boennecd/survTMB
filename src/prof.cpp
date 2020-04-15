@@ -1,10 +1,12 @@
 #include "prof.h"
+#ifdef DO_PROF
 #include <gperftools/profiler.h>
 #include <iostream>
 #include <iomanip>
 #include <ctime>
 #include <sstream>
 #include <Rcpp.h>
+#endif
 
 #ifdef DO_PROF
 std::atomic<bool> profiler::running_profiler(false);
