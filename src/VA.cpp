@@ -397,15 +397,12 @@ template<class Type>
 struct setup_parallel_ad {
 #ifdef _OPENMP
   setup_parallel_ad(std::size_t const nthreads, bool const setup = true) {
-    if(nthreads < 2L)
-      return;
-
-    if(setup)
+    if(setup){
       CppAD::thread_alloc::parallel_setup(
         nthreads, is_in_parallel, get_thread_num);
-    CppAD::parallel_ad<Type>();
-  }
-  ~setup_parallel_ad(){
+      CppAD::thread_alloc::hold_memory(true);
+    }
+
     CppAD::parallel_ad<Type>();
   }
 #else

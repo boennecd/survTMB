@@ -6,6 +6,14 @@
 #include "utils.h"
 #include "gamma-to-nu.h"
 
+namespace atomic {
+namespace Rmath {
+extern "C" {
+  double Rf_dnorm4(double, double, double, int);
+}
+} // namespace Rmath
+} // namespace atomic
+
 namespace GaussHermite {
 namespace SNVA {
 
@@ -72,7 +80,7 @@ mode_n_Hess<Type> get_SNVA_mode_n_Hess
              eps(std::numeric_limits<double>::epsilon()),
            alpha = sigma * rho,
           a_sign = CppAD::CondExpLe(alpha, zero, -one, one),
-              nu = Type(sqrt(M_2_PI)) * alpha / sqrt(1. + alpha * alpha),
+              nu = Type(sqrt(M_2_PI)) * alpha / sqrt(one + alpha * alpha),
            nu_sq = nu * nu,
            gamma = Type((4. - M_PI) / 2.) * nu_sq * nu /
              pow(one - nu_sq, Type(3./2.)),
@@ -85,6 +93,33 @@ mode_n_Hess<Type> get_SNVA_mode_n_Hess
              Phi = pnorm(z),
             Hess = - one / sigma / sigma - rho * rho * phi * (
               z * Phi + phi) / (Phi * Phi + eps);
+
+  return { mode, Hess };
+}
+
+template<> inline
+mode_n_Hess<double> get_SNVA_mode_n_Hess
+  (double const mu, double const sigma, double const rho){
+  constexpr double const one(1),
+                         two(2),
+                        zero(0),
+                         eps(std::numeric_limits<double>::epsilon());
+
+  double const alpha = sigma * rho,
+               a_sign = alpha < 0 ? -one : one,
+                   nu = sqrt(M_2_PI) * alpha / sqrt(one + alpha * alpha),
+                nu_sq = nu * nu,
+                gamma = (4. - M_PI) / 2. * nu_sq * nu /
+                  pow(one - nu_sq, 1.5),
+                 mode = mu + sigma * (
+                   nu - gamma * sqrt(one - nu_sq) / two -
+                     a_sign / two * exp(- 2. * M_PI / (
+                         a_sign * alpha + eps))),
+                    z = rho * (mode - mu),
+                  phi = atomic::Rmath::Rf_dnorm4(z, zero, one, 0L),
+                  Phi = atomic::Rmath::Rf_pnorm5(z, zero, one, 1L, 0L),
+                 Hess = - one / sigma / sigma - rho * rho * phi * (
+                   z * Phi + phi) / (Phi * Phi + eps);
 
   return { mode, Hess };
 }
@@ -120,6 +155,8 @@ struct mlogit_fam {
 template <class Type, class Fam>
 class integral_atomic : public CppAD::atomic_base<Type> {
   unsigned const n;
+  HermiteData<double> const &xw_double = GaussHermiteDataCached<double>(n);
+  HermiteData<Type>   const &xw_type   = GaussHermiteDataCached<Type>  (n);
 
 public:
   integral_atomic(char const *name, unsigned const n):
@@ -160,9 +197,8 @@ public:
     if(q > 0)
       return false;
 
-    HermiteData<double> const &xw = GaussHermiteDataCached<double>(n);
     ty[0] = Type(
-      comp(asDouble(tx[0]), asDouble(tx[1]), asDouble(tx[2]), xw));
+      comp(asDouble(tx[0]), asDouble(tx[1]), asDouble(tx[2]), xw_double));
 
     /* set variable flags */
     if (vx.size() > 0) {
@@ -183,7 +219,6 @@ public:
     if(q > 0)
       return false;
 
-    HermiteData<Type> const &xw = GaussHermiteDataCached<Type>(n);
     Type const mu = tx[0],
               sig = tx[1],
               rho = tx[2];
@@ -197,12 +232,12 @@ public:
     px[0] = Type(0.);
     px[1] = Type(0.);
     px[2] = Type(0.);
-    for(unsigned i = 0; i < xw.x.size(); ++i){
-      Type const xx = xw.x[i],
+    for(unsigned i = 0; i < xw_type.x.size(); ++i){
+      Type const xx = xw_type.x[i],
                  zz = xi + mult * xx,
                 dif = zz - mu,
             dif_std = dif / sig,
-          constants = xw.w[i] * Fam::g(zz) * exp(xx * xx),
+          constants = xw_type.w[i] * Fam::g(zz) * exp(xx * xx),
                dnrm = exp(- dif_std * dif_std / 2),
               ddnrm = -dnrm,
                pnrm =         pnorm (rho * dif),

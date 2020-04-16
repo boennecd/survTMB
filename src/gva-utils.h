@@ -55,6 +55,8 @@ struct mlogit_fam {
 template <class Type, class Fam>
 class integral_atomic : public CppAD::atomic_base<Type> {
   unsigned const n;
+  HermiteData<double> const &xw_double = GaussHermiteDataCached<double>(n);
+  HermiteData<Type>   const &xw_type   = GaussHermiteDataCached<Type>  (n);
 
 public:
   integral_atomic(char const *name, unsigned const n):
@@ -84,9 +86,8 @@ public:
     if(q > 0)
       return false;
 
-    HermiteData<double> const &xw = GaussHermiteDataCached<double>(n);
     ty[0] = Type(
-      comp(asDouble(tx[0]), M_SQRT2 * asDouble(tx[1]), xw));
+      comp(asDouble(tx[0]), M_SQRT2 * asDouble(tx[1]), xw_double));
 
     /* set variable flags */
     if (vx.size() > 0) {
@@ -107,17 +108,16 @@ public:
     if(q > 0)
       return false;
 
-    HermiteData<Type> const &xw = GaussHermiteDataCached<Type>(n);
     Type const mu = tx[0],
              mult = Type(M_SQRT2),
               sig = mult * tx[1];
     px[0] = Type(0.);
     px[1] = Type(0.);
-    for(unsigned i = 0; i < xw.x.size(); ++i){
-      Type const node = mu + sig * xw.x[i],
-                 term = xw.w[i] * Fam::gp(node);
+    for(unsigned i = 0; i < xw_type.x.size(); ++i){
+      Type const node = mu + sig * xw_type.x[i],
+                 term = xw_type.w[i] * Fam::gp(node);
       px[0] +=                  term;
-      px[1] += mult * xw.x[i] * term;
+      px[1] += mult * xw_type.x[i] * term;
 
     }
 

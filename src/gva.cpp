@@ -132,12 +132,13 @@ void GVA_comp(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
                      etaD_fix = XD * b;
 
   /* handle terms from conditional density of observed outcomes */
+  bool const is_in_parallel = CppAD::thread_alloc::in_parallel();
   auto main_loop = [&](auto const &func){
     unsigned i = 0;
     for(unsigned g = 0; g < grp_size.size(); ++g){
       unsigned const n_members = grp_size[g];
       /* is this our cluster? */
-      if(!is_my_region(*result.obj)){
+      if(is_in_parallel and !is_my_region(*result.obj)){
         i += n_members;
         result.obj->parallel_region();
         continue;

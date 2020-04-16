@@ -3,8 +3,10 @@
 #include <gperftools/profiler.h>
 #include <iostream>
 #include <iomanip>
+#include <chrono>
 #include <ctime>
 #include <sstream>
+#include <string>
 #include <Rcpp.h>
 #endif
 
@@ -20,9 +22,15 @@ profiler::profiler(const std::string &name)
   running_profiler = true;
 
   std::stringstream ss;
-  auto t = std::time(nullptr);
-  auto tm = *std::localtime(&t);
-  ss << "profile-" << name << std::put_time(&tm, "-%d-%m-%Y-%H-%M-%S.log");
+  using namespace std::chrono;
+  auto now = system_clock::now();
+  auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
+  auto timer = system_clock::to_time_t(now);
+  std::tm bt = *std::localtime(&timer);
+
+  ss << "profile-" << name << std::put_time(&bt, "-%d-%m-%Y-%H-%M-%S-")
+     << std::setfill('0') << std::setw(3) << ms.count()
+     << ".log";
   Rcpp::Rcout << "Saving profile output to '" << ss.str() << "'" << std::endl;
   const std::string s = ss.str();
   ProfilerStart(s.c_str());

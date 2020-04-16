@@ -73,12 +73,18 @@ bool is_my_region(objective_function<Type> const &o){
 }
 
 /* mock class to use instead when not using the TMB framework */
-struct objective_mock {
+class objective_mock {
+#ifdef _OPENMP
+  int const my_num = omp_get_thread_num(),
+         n_regions = omp_get_num_threads();
+#endif
+
+public:
   int selected_parallel_region = 0;
 
   inline bool is_my_region() const {
 #ifdef _OPENMP
-    return omp_get_thread_num() == selected_parallel_region;
+    return my_num == selected_parallel_region;
 #else
     return true;
 #endif
@@ -88,7 +94,7 @@ struct objective_mock {
     bool const ans = is_my_region();
 #ifdef _OPENMP
     ++selected_parallel_region;
-    if(selected_parallel_region >= omp_get_num_threads())
+    if(selected_parallel_region >= n_regions)
       selected_parallel_region = 0L;
 #endif
     return ans;
