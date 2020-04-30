@@ -67,6 +67,17 @@ RcppExport SEXP _survTMB_VA_funcs_eval_hess_sparse(SEXP pSEXP, SEXP parSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
+// get_gl_rule
+Rcpp::List get_gl_rule(unsigned const n);
+RcppExport SEXP _survTMB_get_gl_rule(SEXP nSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::RNGScope rcpp_rngScope_gen;
+  Rcpp::traits::input_parameter< unsigned const >::type n(nSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_gl_rule(n));
+  return rcpp_result_gen;
+  END_RCPP
+}
 
 RcppExport SEXP run_testthat_tests();
 
@@ -79,6 +90,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_VA_funcs_eval_grad", (DL_FUNC) &_survTMB_VA_funcs_eval_grad, 2},
   {"_survTMB_VA_funcs_eval_hess", (DL_FUNC) &_survTMB_VA_funcs_eval_hess, 2},
   {"_survTMB_VA_funcs_eval_hess_sparse", (DL_FUNC) &_survTMB_VA_funcs_eval_hess_sparse, 2},
+  {"_survTMB_get_gl_rule", (DL_FUNC) &_survTMB_get_gl_rule, 1},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };

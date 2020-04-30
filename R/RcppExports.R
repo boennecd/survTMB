@@ -21,3 +21,7 @@ VA_funcs_eval_hess_sparse <- function(p, par) {
     .Call(`_survTMB_VA_funcs_eval_hess_sparse`, p, par)
 }
 
+get_gl_rule <- function(n) {
+    .Call(`_survTMB_get_gl_rule`, n)
+}
+
