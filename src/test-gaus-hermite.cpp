@@ -31,4 +31,17 @@ context("gaus-hermite unit tests") {
       expect_equal(w[i], asDouble(xw_AD.w[i]));
     }
   }
+
+  test_that("GaussHermiteData yields correct value of a integral") {
+    /* int x phi(x, 2, 1) dx =  int (2 + sqrt(2) x) phi(x, 0, 2) dx = 2*/
+    for(unsigned n = 10L; n < 30L; ++n){
+      auto xw = GaussHermite::GaussHermiteData(n);
+      double out(0.);
+      for(unsigned i = 0; i < n; ++i)
+        out += xw.w[i] * (2 + sqrt(2) * xw.x[i]);
+      out /= sqrt(M_PI);
+
+      expect_equal(out, 2.);
+    }
+  }
 }

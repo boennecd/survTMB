@@ -30,7 +30,7 @@ template<class Type>
 HermiteData<Type> const& GaussHermiteDataCached(unsigned const);
 
 constexpr std::size_t GaussHermiteDataCachedMaxArg(){
-  return 1000L;
+  return 100L;
 }
 
 } // namespace GaussHermite

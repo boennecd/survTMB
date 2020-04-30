@@ -10,6 +10,8 @@ Authors@R: c(person("Benjamin", "Christoffersen",
              person("Kasper", "Kristensen", 
                     role = "cph"),
              person("Alexander", "Blocker", 
+                    role = "cph"), 
+             person("Ignace", "Bogaert", 
                     role = "cph"))
 Maintainer: Benjamin Christoffersen <boennecd@gmail.com>
 Description: More about what it does (maybe more than one line)
