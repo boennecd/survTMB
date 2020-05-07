@@ -29,6 +29,7 @@ RoxygenNote: 7.0.1
 LinkingTo: 
     Rcpp,
     RcppEigen,
+    RcppArmadillo,
     TMB, 
     testthat
 Imports: 

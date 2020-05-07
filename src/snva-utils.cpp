@@ -13,7 +13,7 @@ integral_atomic<Type, Fam>&
 integral_atomic<Type, Fam>::get_cached(unsigned const n){
   using output_T = integral_atomic<Type, Fam>;
 
-  constexpr std::size_t n_cache = GaussHermiteDataCachedMaxArg();
+  constexpr std::size_t const n_cache = GaussHermiteDataCachedMaxArg();
   if(n > n_cache or n == 0l)
     throw std::invalid_argument(
         "integral_atomic<Type, Fam>: invalid n (too large or zero)");

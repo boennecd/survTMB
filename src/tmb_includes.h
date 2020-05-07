@@ -3,7 +3,7 @@
 
 #ifdef INCLUDE_RCPP
 /* Rcpp */
-#include <Rcpp.h>
+#include <RcppArmadillo.h>
 
 /* Rcpp defines `R_NO_REMAP` which causes errors when using TMB. Thus, we
 * define a few macros. */

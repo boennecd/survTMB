@@ -5,3 +5,4 @@
 ^rstudio-build-script\.sh$
 ^cache
 ^.travis.yml
+^src/test-join-utils\.R
