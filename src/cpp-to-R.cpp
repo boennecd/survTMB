@@ -1,7 +1,7 @@
 #include <Rcpp.h>
 #include "fastgl.h"
 
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::List get_gl_rule(unsigned const n){
   if(n == 0L)
     throw std::invalid_argument("get_gl_rule: n is zero");

@@ -411,7 +411,7 @@ struct setup_parallel_ad {
 #endif
 };
 
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 SEXP get_VA_funcs
   (Rcpp::List data, Rcpp::List parameters){
   shut_up();
@@ -425,7 +425,7 @@ SEXP get_VA_funcs
   return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
 }
 
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 double VA_funcs_eval_lb
   (SEXP p, SEXP par){
   shut_up();
@@ -445,7 +445,7 @@ double VA_funcs_eval_lb
   return out;
 }
 
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::NumericVector VA_funcs_eval_grad
   (SEXP p, SEXP par){
   shut_up();
@@ -482,7 +482,7 @@ Rcpp::NumericVector VA_funcs_eval_grad
   return out;
 }
 
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::NumericMatrix VA_funcs_eval_hess
   (SEXP p, SEXP par){
   shut_up();
@@ -523,7 +523,7 @@ Rcpp::NumericMatrix VA_funcs_eval_hess
   return out;
 }
 
-// [[Rcpp::export]]
+// [[Rcpp::export(rng = false)]]
 Rcpp::List VA_funcs_eval_hess_sparse
   (SEXP p, SEXP par){
   using Rcpp::Named;

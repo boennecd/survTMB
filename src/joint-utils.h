@@ -111,7 +111,7 @@ public:
                  d2 = (ub + lb) / 2.;
 
     double out(0.);
-    for(auto xwi : xw){
+    for(auto const &xwi : xw){
       /* evalutes splines and related objects */
       {
         double const node = d1 * xwi.x + d2;
