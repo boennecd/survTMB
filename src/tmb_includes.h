@@ -75,4 +75,64 @@ inline double Value(double const x){
 }
 }
 
+template<class Type>
+Type vec_dot(vector<Type> const &x, vector<Type> const &y){
+#ifdef DO_CHECKS
+  if(x.size() != y.size())
+    throw std::invalid_argument("vec_dot<Type>: dimension do not match");
+#endif
+  Type out(0.);
+  for(int i = 0; i < x.size(); ++i)
+    out += x[i] * y[i];
+  return out;
+}
+
+template<class Type>
+Type quad_form
+  (vector<Type> const &x, matrix<Type> const &A, vector<Type> const &y){
+#ifdef DO_CHECKS
+  if(x.size() != A.rows() or y.size() != A.cols())
+    throw std::invalid_argument("quad_form<Type>: dimension do not match");
+#endif
+  Type out(0.);
+  for(int j = 0; j < A.cols(); ++j)
+    for(int i = 0; i < A.rows(); ++i)
+      out += A(i, j) * x[i] * y[j];
+
+  return out;
+}
+
+template<class Type>
+Type quad_form_sym(vector<Type> const &x, matrix<Type> const &A){
+#ifdef DO_CHECKS
+  if(x.size() != A.rows() or x.size() != A.cols())
+    throw std::invalid_argument(
+        "quad_form_sym<Type>: dimension do not match");
+#endif
+  Type out(0.);
+  Type const TWO(2.);
+  for(int j = 0; j < A.cols(); ++j){
+    for(int i = 0; i < j; ++i)
+      out += TWO * A(i, j) * x[i] * x[j];
+    out += A(j, j) * x[j] * x[j];
+  }
+
+  return out;
+}
+
+template<class Type>
+Type mat_mult_trace(matrix<Type> const &X, matrix<Type> const &Y){
+#ifdef DO_CHECKS
+  if(X.rows() != Y.cols() or X.cols() != Y.rows())
+    throw std::invalid_argument(
+        "mat_mult_trace<Type>: dimension do not match");
+#endif
+  Type out(0.);
+  for(int j = 0; j < X.cols(); ++j)
+    for(int i = 0; i < X.rows(); ++i)
+      out += X(i, j) * Y(i, j);
+
+  return out;
+}
+
 #endif

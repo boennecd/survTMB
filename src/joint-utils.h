@@ -60,15 +60,15 @@ class snva_integral : public CppAD::atomic_base<Type> {
   mutable matrix<double> fLambda = matrix<double>(dim_U, dim_U);
 
   /* objects needed for reverse evaluation */
-  mutable vector<double> rbi = vector<double>(b.get_n_basis()),
-                         rmi = vector<double>(m.get_n_basis()),
-                         rma = vector<double>(dim_U),
-                      romega = vector<double>(dim_omega),
-                      ralpha = vector<double>(dim_alpha),
-                   alpha_rhs = vector<double>(dim_U),
-                          rU = vector<double>(dim_U),
-                          rk = vector<double>(dim_U);
-  mutable matrix<double> rLambda = matrix<double>(dim_U, dim_U);
+  mutable vector<Type> rbi = vector<Type>(b.get_n_basis()),
+                       rmi = vector<Type>(m.get_n_basis()),
+                       rma = vector<Type>(dim_U),
+                    romega = vector<Type>(dim_omega),
+                    ralpha = vector<Type>(dim_alpha),
+                 alpha_rhs = vector<Type>(dim_U),
+                        rU = vector<Type>(dim_U),
+                        rk = vector<Type>(dim_U);
+  mutable matrix<Type> rLambda = matrix<Type>(dim_U, dim_U);
 
 public:
   snva_integral(char const *name, size_t const n_nodes,
@@ -321,6 +321,6 @@ public:
 };
 
 } // namespace joint
-} // fastgl
+} // namespace fastgl
 
 #endif

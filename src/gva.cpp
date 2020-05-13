@@ -153,8 +153,8 @@ void GVA_comp(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
       Type terms(0);
       for(; i < end; ++i){
         vecT const z = Z.row(i);
-        Type const err_mean = (z * va_mu).sum(),
-                   err_var  = (z * vecT(va_var * z)).sum(),
+        Type const err_mean = vec_dot(z, va_mu),
+                   err_var  = quad_form_sym(z, va_var),
                    err_sd   = sqrt(err_var);
 
         terms += func(
@@ -191,13 +191,13 @@ void GVA_comp(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
     va_cov_sum.setZero();
 
     for(unsigned g = 0; g < n_groups; ++g){
-      lb_term += atomic::logdet(va_vcovs[g]) -
-        (va_means[g] * vecT(vcov_inv * va_means[g])).sum();
+      lb_term +=
+        atomic::logdet(va_vcovs[g]) - quad_form_sym(va_means[g], vcov_inv);
       va_cov_sum += va_vcovs[g];
 
     }
-    matrix<Type> const mat_prod = va_cov_sum * vcov_inv;
-    lb_term -= mat_prod.trace();
+
+    lb_term -= mat_mult_trace(va_cov_sum, vcov_inv);
   }
 
   /* add final log determinant term and constants */

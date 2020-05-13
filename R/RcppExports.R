@@ -29,3 +29,15 @@ joint_start_baseline <- function(Y, tstart, tstop, omega, offsets, n_nodes, boun
     .Call(`_survTMB_joint_start_baseline`, Y, tstart, tstop, omega, offsets, n_nodes, bound_knots, inter_knots, grad)
 }
 
+get_joint_funcs <- function(data, parameters) {
+    .Call(`_survTMB_get_joint_funcs`, data, parameters)
+}
+
+joint_funcs_eval_lb <- function(p, par) {
+    .Call(`_survTMB_joint_funcs_eval_lb`, p, par)
+}
+
+joint_funcs_eval_grad <- function(p, par) {
+    .Call(`_survTMB_joint_funcs_eval_grad`, p, par)
+}
+

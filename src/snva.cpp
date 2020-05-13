@@ -165,10 +165,10 @@ void SNVA_comp
       for(; i < end; ++i){
         vecT const z = Z.row(i);
 
-        Type const mu = (z * va_mu          ).sum(),
-                sd_sq = (z * (va_lambda * z)).sum(),
+        Type const mu = vec_dot(z, va_mu),
+                sd_sq = quad_form_sym(z, va_lambda),
                    sd = sqrt(sd_sq),
-                    d = (z * va_d           ).sum(),
+                    d = vec_dot(z, va_d),
                   rho = d / sd_sq / sqrt(one - d * d / sd_sq),
              d_scaled = sqrt_2_pi * d,
             dist_mean = mu + d_scaled,
@@ -209,19 +209,19 @@ void SNVA_comp
     va_lambda_sum.setZero();
     Type lb_t_mult_half(0.), lb_t_mult_other(0.);
     for(unsigned g = 0; g < n_groups; ++g){
-      lb_t_mult_half += atomic::logdet(va_lambdas[g]) -
-        (va_mus[g] * (vcov_inv * va_mus[g])).sum();
+      lb_t_mult_half +=
+        atomic::logdet(va_lambdas[g]) - quad_form_sym(va_mus[g], vcov_inv);
       va_lambda_sum += va_lambdas[g];
-      lb_t_mult_other -= (va_mus[g] * (vcov_inv * va_ds[g])).sum();
+      lb_t_mult_other -= quad_form(va_mus[g], vcov_inv, va_ds[g]);
 
       auto const llt_mat = va_lambdas[g].llt();
       vecT va_rho_scaled =
         (llt_mat.matrixU() * va_rhos[g].matrix()).array() + small;
-      Type const r_L_r = (va_rho_scaled * va_rho_scaled).sum();
+      Type const r_L_r = vec_dot(va_rho_scaled, va_rho_scaled);
       last_terms -= entropy_term(r_L_r, xw);
 
     }
-    lb_t_mult_half -= (va_lambda_sum * vcov_inv).trace();
+    lb_t_mult_half -= mat_mult_trace(va_lambda_sum, vcov_inv);
 
     last_terms += lb_t_mult_half / Type(2.) + lb_t_mult_other * sqrt_2_pi;
   }
@@ -252,7 +252,8 @@ void SNVA(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
             theta_VA.size(), expe_size);
   }
 
-  HermiteData<Type> xw = GaussHermite::GaussHermiteData(n_nodes);
+  HermiteData<Type> const &xw =
+    GaussHermite::GaussHermiteDataCached<Type>(n_nodes);
 
   return SNVA_comp(COMMON_CALL, theta_VA, xw, param_type, rng_dim);
 }

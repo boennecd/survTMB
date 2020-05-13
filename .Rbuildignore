@@ -6,3 +6,4 @@
 ^cache
 ^.travis.yml
 ^src/test-join-utils\.R
+^tmp

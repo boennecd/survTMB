@@ -90,6 +90,39 @@ RcppExport SEXP _survTMB_joint_start_baseline(SEXP YSEXP, SEXP tstartSEXP, SEXP 
   return rcpp_result_gen;
   END_RCPP
 }
+// get_joint_funcs
+SEXP get_joint_funcs(Rcpp::List data, Rcpp::List parameters);
+RcppExport SEXP _survTMB_get_joint_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+  Rcpp::traits::input_parameter< Rcpp::List >::type parameters(parametersSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_joint_funcs(data, parameters));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// joint_funcs_eval_lb
+double joint_funcs_eval_lb(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_joint_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
+  rcpp_result_gen = Rcpp::wrap(joint_funcs_eval_lb(p, par));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// joint_funcs_eval_grad
+Rcpp::NumericVector joint_funcs_eval_grad(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_joint_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
+  rcpp_result_gen = Rcpp::wrap(joint_funcs_eval_grad(p, par));
+  return rcpp_result_gen;
+  END_RCPP
+}
 
 RcppExport SEXP run_testthat_tests();
 
@@ -104,6 +137,9 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_VA_funcs_eval_hess_sparse", (DL_FUNC) &_survTMB_VA_funcs_eval_hess_sparse, 2},
   {"_survTMB_get_gl_rule", (DL_FUNC) &_survTMB_get_gl_rule, 1},
   {"_survTMB_joint_start_baseline", (DL_FUNC) &_survTMB_joint_start_baseline, 9},
+  {"_survTMB_get_joint_funcs", (DL_FUNC) &_survTMB_get_joint_funcs, 2},
+  {"_survTMB_joint_funcs_eval_lb", (DL_FUNC) &_survTMB_joint_funcs_eval_lb, 2},
+  {"_survTMB_joint_funcs_eval_grad", (DL_FUNC) &_survTMB_joint_funcs_eval_grad, 2},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };
