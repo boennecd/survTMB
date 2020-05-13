@@ -12,7 +12,7 @@ eortc <- if(file.exists("eortc.RDS"))
 
 formals(expect_known_value) $update <- FALSE
 formals(expect_known_output)$update <- FALSE
-options(width = 80, digits = 4, useFancyQuotes = FALSE,
+options(width = 80, digits = 3, useFancyQuotes = FALSE,
         setWidthOnResize = FALSE)
 
 test_res_dir <- if(!dir.exists("test-res"))

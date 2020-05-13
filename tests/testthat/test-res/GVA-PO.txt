@@ -16,7 +16,7 @@ nsx(log(y), df = 3, intercept = FALSE)3
 
 Estimated random effect covariance matrix (correlation matrix) is:
             (Intercept)       (Intercept)
-(Intercept)      0.1294            0.3597
+(Intercept)       0.129              0.36
 (standard deviations are in the diagonal of the correlation matrix)
 
 Estimated lower bound is -3629.28

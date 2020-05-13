@@ -41,5 +41,5 @@ Imports:
     rstpm2, 
     Matrix, 
     lme4, 
-    reshape2
-
+    reshape2,
+    lbfgs

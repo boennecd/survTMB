@@ -22,17 +22,33 @@
 }
 
 .opt_func_quick_control <- list(
-  reltol = .Machine$double.eps^(1/5), maxit = 1000, abstol = 0)
+  reltol = .Machine$double.eps^(1/5), maxit = 100, abstol = 0)
 
-#' @importFrom stats optim
-.opt_default <- function(par, fn, gr, ...){
+#' @importFrom lbfgs lbfgs
+.opt_default <- function(
+  par, fn, gr, ..., control = list(
+    reltol = sqrt(.Machine$double.eps), maxit = 100L, trace = 0L)){
+  if(length(par) > 1000L){
+    delta <- if(!is.null(control$reltol))
+      control$reltol else sqrt(.Machine$double.eps)
+    max_iterations <- if(!is.null(control$maxit))
+      control$maxit else formals(lbfgs)$max_iterations
+    invisible <- if(!is.null(control$trace))
+      as.integer(control$trace == 0) else 1L
+    out <- lbfgs(
+      call_eval = fn, call_grad = gr, vars = par, invisible = invisible,
+      m = 6L, epsilon = 0, delta = delta, past = 1L,
+      max_iterations = max_iterations)
+    names(out$par) <- names(par)
+    return(out)
+  }
+
   cl <- match.call()
   cl[[1L]] <- quote(stats::optim)
   if(is.null(cl$method))
     cl$method <- "BFGS"
 
   out <- eval(cl, parent.frame())
-  stopifnot(out$convergence == 0L)
   out
 }
 
@@ -194,7 +210,7 @@ make_mgsm_ADFun <- function(
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
   opt_func = .opt_default, n_threads = 1L,
-  skew_start = .alpha_to_gamma(-1), dense_hess = FALSE,
+  skew_start = .alpha_to_gamma(-.75), dense_hess = FALSE,
   sparse_hess = FALSE){
   link <- link[1]
   param_type <- param_type[1]
@@ -542,6 +558,8 @@ make_mgsm_ADFun <- function(
   # find initial VA params
   func <- get_gva_out(theta_VA)
   coefs_start <- c(params$b, params$theta)
+
+  # find parameters for each group
   do_drop <- seq_along(coefs_start)
   get_x <- function(x)
     c(coefs_start, x)
@@ -605,7 +623,8 @@ make_mgsm_ADFun <- function(
       Omega <- Sig + outer(dnu, dnu)
 
       xi <- gva_par[1:n_mu] - dnu
-      c(xi, .cov_to_theta(Omega), alpha)
+      rho <- alpha / sqrt(diag(Omega))
+      c(xi, .cov_to_theta(Omega), rho)
     }, numeric(n_p_grp), USE.NAMES = FALSE)
   } else {
     stopifnot(param_type == "CP_trans")
@@ -705,7 +724,7 @@ make_mgsm_ADFun <- function(
     })
   }
 
-  # find initial VA params
+  # find initial va parameters
   func <- get_snva_out(theta_VA)
   coefs_start <- c(params$b, params$theta)
   do_drop <- seq_along(coefs_start)

@@ -15,12 +15,17 @@ make_joint_ADFun(
   mknots,
   sknots,
   n_nodes = 20L,
+  skew_start = .alpha_to_gamma(-1),
+  opt_func = .opt_default_CG,
+  n_threads = 1L,
+  sparse_hess = FALSE,
   B = NULL,
   Psi = NULL,
   Sigma = NULL,
   omega = NULL,
   alpha = NULL,
-  delta = NULL
+  delta = NULL,
+  va_par = NULL
 )
 }
 \arguments{
@@ -45,7 +50,21 @@ more than one marker.}
 knots to use.}
 
 \item{n_nodes}{number of nodes to use with Gauss-Legendre quadrature for
-the cumulative hazard.}
+the cumulative hazard and nodes to use with Gauss-Hermite
+quadrature for the entropy term.}
+
+\item{skew_start}{starting value for the Pearson's moment coefficient of
+skewness parameter when a SNVA is used. Currently, a
+somewhat arbitrary value.}
+
+\item{opt_func}{general optimization function to use. It
+needs to have an interface like \code{\link{optim}}.}
+
+\item{n_threads}{integer with number of threads to use.}
+
+\item{sparse_hess}{logical for whether to make sparse Hessian computation
+available. Memory and computation time is saved if it is
+\code{FALSE}.}
 
 \item{B}{staring value for B.}
 
@@ -58,6 +77,8 @@ the cumulative hazard.}
 \item{alpha}{staring value for alpha.}
 
 \item{delta}{staring value for delta.}
+
+\item{va_par}{staring value for variational parameters.}
 }
 \description{
 Construct Objective Functions with Derivatives for a Joint Survival and

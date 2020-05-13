@@ -15,7 +15,7 @@ nsx(log(y), df = 3, intercept = FALSE)3
 
 Estimated random effect covariance matrix (correlation matrix) is:
             (Intercept)       (Intercept)
-(Intercept)      0.1291            0.3592
+(Intercept)       0.129             0.359
 (standard deviations are in the diagonal of the correlation matrix)
 
 Estimated log-likelihood is -3629.29

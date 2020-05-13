@@ -7,15 +7,15 @@ MGSM estimated with method 'Laplace' with link 'PH' from call:
 
 Estimated fixed effects:
                             (Intercept)                                     trt 
-                                -8.7496                                  0.6276 
+                                 -8.750                                   0.628 
 nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-                                 6.1781                                 13.1245 
+                                  6.178                                  13.125 
 nsx(log(y), df = 3, intercept = FALSE)3 
-                                 4.7728 
+                                  4.773 
 
 Estimated random effect covariance matrix (correlation matrix) is:
             (Intercept)       (Intercept)
-(Intercept)     0.06794            0.2607
+(Intercept)      0.0679             0.261
 (standard deviations are in the diagonal of the correlation matrix)
 
 Estimated log-likelihood is -3629.76

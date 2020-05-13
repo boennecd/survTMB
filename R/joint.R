@@ -189,7 +189,7 @@ get_surv_start_params <- function(
     Omega <- Psi + outer(dnu, dnu)
 
     xi <- - dnu
-    c(xi = xi, .cov_to_theta(Omega), alpha = alpha)
+    c(xi = xi, .cov_to_theta(Omega), rho = alpha / sqrt(diag(Omega)))
   })
 
   va_pars <- structure(
@@ -198,14 +198,39 @@ get_surv_start_params <- function(
                   function(x, y) paste0("g", y, ":", x)))
 }
 
-#' @importFrom stats optim
-.opt_default_CG <- function(par, fn, gr, ...){
-  cl <- match.call()
-  cl[[1L]] <- quote(stats::optim)
-  if(is.null(cl$method))
-    cl$method <- "CG"
+.opt_sub <- function(par, which_par, extract_name, replacement, fn, gr,
+                     opt_func, control){
+  is_sub_par <- which(grepl(which_par, names(par), perl = TRUE))
+  nam_par <- gsub(extract_name, replacement, names(par)[is_sub_par],
+                  perl = TRUE)
 
-  out <- eval(cl, parent.frame())
+  nams <- unique(nam_par)
+  va_map <- vapply(nams, function(z) is_sub_par[which(z == nam_par)],
+                   integer(length(nam_par) / length(nams)))
+  if(!is.matrix(va_map))
+    va_map <- as.matrix(va_map)
+
+  get_par <- function(x){
+    out <- par
+    for(i in 1:NCOL(va_map))
+      out[va_map[, i]] <- x[i]
+    out
+  }
+  fn_sub <- function(x, ...){
+    fn(get_par(x))
+  }
+  gr_sub <- function(x, ...){
+    grad <- gr(get_par(x))
+    apply(va_map, 2L, function(indices) sum(grad[indices]))
+  }
+  par_sub <- apply(
+    va_map, 2L, function(indices) mean(par[indices]))
+
+  opt_out <- opt_func(
+    par_sub, fn_sub, gr_sub, control = control)
+  out <- par
+  for(i in seq_len(NCOL(va_map)))
+    out[va_map[, i]] <- opt_out$par[i]
   out
 }
 
@@ -250,8 +275,8 @@ get_surv_start_params <- function(
 #' @export
 make_joint_ADFun <- function(
   sformula, mformula, sdata, mdata, id_var, time_var, mknots, sknots,
-  n_nodes = 20L, skew_start = .alpha_to_gamma(-1),
-  opt_func = .opt_default_CG, n_threads = 1L, sparse_hess = FALSE, B = NULL,
+  n_nodes = 20L, skew_start = .alpha_to_gamma(-.75),
+  opt_func = .opt_default, n_threads = 1L, sparse_hess = FALSE, B = NULL,
   Psi = NULL, Sigma = NULL, omega = NULL, alpha = NULL, delta = NULL,
   va_par = NULL){
   # checks
@@ -387,57 +412,20 @@ make_joint_ADFun <- function(
     },
     he = function(x, ...){
       stop("he not implemented")
-    })
+    },
+    get_params = function(x)
+      stop("get_params not implemented"))
 
   if(missed_va){
-    ctrl_use <- list(
-      reltol = .Machine$double.eps^(1/5), maxit = 100L, abstol = 0)
-
-    # find better starting values for the VA parameters
-    is_va    <- which(grepl("^g\\d+:", names(par)))
-    is_alpha <- which(grepl("^g\\d+:alpha", names(par)))
-    is_xi    <- which(grepl("^g\\d+:xi", names(par)))
-    is_psi   <- which(grepl("^g\\d+:(log_sd|L)", names(par), perl = TRUE))
-    stopifnot(length(is_va) > 0,
-              length(is_alpha) > 0,
-              length(is_xi) > 0,
-              length(is_psi) > 0)
-
     # make a quick search where we set all VA parameters to the same value
-    va_par_start <- local({
-      nam_par <- gsub("^(g\\d+:)(.+)", "\\2", names(par), perl = TRUE)
-      . <- function(x_idx){
-        nams <- unique(nam_par[x_idx])
-        sapply(nams, function(z) x_idx[z == nam_par[x_idx]])
-      }
-
-      va_map <- .(is_va)
-      par_sub <- apply(va_map, 2L, function(indices) mean(par[indices]))
-
-      get_par <- function(x){
-        out <- par
-        for(i in 1:NCOL(va_map))
-          out[va_map[, i]] <- x[i]
-        out
-      }
-
-      fn_va <- function(x, ...){
-        out$fn(get_par(x))
-      }
-      gr_va <- function(x, ...){
-        grad <- out$gr(get_par(x))
-        apply(va_map, 2L, function(indices) sum(grad[indices]))
-      }
-
-      opt_va <- opt_func(
-        par_sub, fn_va, gr_va, control = ctrl_use)
-
-      opt_va$par
-    })
+    is_va_regex <- "^g\\d+"
+    par <- .opt_sub(
+      par = par, which_par = is_va_regex, extract_name = "^(g\\d+:)(.+)",
+      replacement = "\\2", fn = out$fn, gr = out$gr,
+      opt_func = opt_func, control = .opt_func_quick_control)
 
     # refine by optimizing each individually
-    par[is_va] <- va_par_start
-
+    is_va <- which(grepl(is_va_regex, names(par)))
     fn_va <- function(x, ...){
       par[is_va] <- x
       out$fn(par)
@@ -447,7 +435,8 @@ make_joint_ADFun <- function(
       out$gr(par)[is_va]
     }
 
-    opt_va <- opt_func(par[is_va], fn_va, gr_va, control = ctrl_use)
+    opt_va <- opt_func(
+      par[is_va], fn_va, gr_va, control = .opt_func_quick_control)
     par[is_va] <- opt_va$par
   }
 
