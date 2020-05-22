@@ -6,6 +6,7 @@
 
 #include "fastgl.h"
 #include "pnorm-log.h"
+#include "memory.h"
 
 namespace fastgl {
 namespace joint {
@@ -17,24 +18,28 @@ namespace joint {
  y &= \int_l^u g(o; \vec g) d o \\
  g(o; \vec g) &= 2\exp(
  \vec\omega^\top\vec b(o)
+ + G_{\vec\alpha}(o)\vec b
  + M_{\vec\alpha}(o)\vec U
  +\frac 12 M_{\vec\alpha}(o)\Lambda_i
  M_{\vec\alpha}(o)^\top)\Phi(
  M_{\vec\alpha}(o)
  \vec k) \\
- \vec g &= (\vec \omega^\top, \vec\alpha^\top, \vec U^\top,
- \vec k^\top,  (\text{vec} \Lambda)^\top
- )^\top\in\mathbb{R}^{e + r + K(2 + K)} \\
- \vec\omega &\in\mathbb{R}^e \\
- \vec\alpha &\in\mathbb{R}^r \\
- \vec U,\vec k &\in\mathbb{R}^K \\
- \Lambda &\in \mathbb{R}^{K\times K} \\
+ \vec g &= (\vec \omega^\top, \vec\alpha^\top, \vec b^\top,
+ \vec U^\top, \vec k^\top,  (\text{vec} \Lambda)^\top
+ )^\top\in\mathbb{R}^{e + r + c + K(2 + K)} \                     \
+ \vec\omega &\in\mathbb{R}^e \                                    \
+ \vec\alpha &\in\mathbb{R}^r \                                    \
+ \vec B &\in\mathbb{R}^c \                                        \
+ \vec U,\vec k &\in\mathbb{R}^K \                                 \
+ \Lambda &\in \mathbb{R}^{K\times K} \                            \
+ G_{\vec\alpha}(t) &= \vec\alpha^\top (I \otimes \vec g(t)^\top) \\
  M_{\vec\alpha}(t) &= \vec\alpha^\top (I \otimes \vec m(t)^\top) \\
- \vec m(t) &:\, (0,\infty) \rightarrow \mathbb{R}^s \\
- \vec b(t) &:\, (0,\infty) \rightarrow \mathbb{R}^e
+ \vec b(t) &:\, (0,\infty) \rightarrow \mathbb{R}^e \             \
+ \vec g(t) &:\, (0,\infty) \rightarrow \mathbb{R}^l \             \
+ \vec m(t) &:\, (0,\infty) \rightarrow \mathbb{R}^s \             \
  \end{align*}
  */
-template<class Type, class B, class M>
+template<class Type, class B, class G, class M>
 class snva_integral : public CppAD::atomic_base<Type> {
   size_t const n_nodes;
   std::vector<QuadPair<double> > const& xw =
@@ -42,38 +47,55 @@ class snva_integral : public CppAD::atomic_base<Type> {
   std::vector<QuadPair<Type> > const& xw_type =
     GLPairsCached<Type>(n_nodes);
 
-  B const b;
-  M const m;
+  std::unique_ptr<B> const b;
+  std::unique_ptr<G> const g;
+  std::unique_ptr<M> const m;
 
-  size_t const dim_omega = b.get_n_basis(),
+  bool const has_b = (bool)b,
+             has_g = (bool)g,
+             has_m = (bool)m;
+
+  size_t const dim_omega = has_b ? b->get_n_basis() : 0L,
                dim_alpha,
-               dim_m     = m.get_n_basis(),
+               dim_g     = has_g ? g->get_n_basis() : 0L,
+               dim_B     = dim_g * dim_alpha,
+               dim_m     = has_m ? m->get_n_basis() : 0L,
                dim_U     = dim_alpha * dim_m;
   /* objects needed for function evaluation */
-  mutable arma::vec fbi = arma::vec(b.get_n_basis()),
-                    fmi = arma::vec(m.get_n_basis());
+  mutable arma::vec fbi = arma::vec(dim_omega),
+                    fgi = arma::vec(dim_g),
+                    fmi = arma::vec(dim_m);
   mutable vector<double> fma = vector<double>(dim_U),
+                         fga = vector<double>(dim_B),
                       fomega = vector<double>(dim_omega),
                       falpha = vector<double>(dim_alpha),
+                          fB = vector<double>(dim_B),
                           fU = vector<double>(dim_U),
                           fk = vector<double>(dim_U);
   mutable matrix<double> fLambda = matrix<double>(dim_U, dim_U);
 
   /* objects needed for reverse evaluation */
-  mutable vector<Type> rbi = vector<Type>(b.get_n_basis()),
-                       rmi = vector<Type>(m.get_n_basis()),
+  mutable vector<Type> rbi = vector<Type>(dim_omega),
+                       rgi = vector<Type>(dim_g),
+                       rmi = vector<Type>(dim_m),
                        rma = vector<Type>(dim_U),
+                       rga = vector<Type>(dim_B),
                     romega = vector<Type>(dim_omega),
                     ralpha = vector<Type>(dim_alpha),
                  alpha_rhs = vector<Type>(dim_U),
+                        rB = vector<Type>(dim_B),
                         rU = vector<Type>(dim_U),
                         rk = vector<Type>(dim_U);
   mutable matrix<Type> rLambda = matrix<Type>(dim_U, dim_U);
 
 public:
   snva_integral(char const *name, size_t const n_nodes,
-                B const &b, M const &m, size_t const dim_alpha):
-  CppAD::atomic_base<Type>(name), n_nodes(n_nodes), b(b), m(m),
+                B const *b_in, G const *g_in, M const *m_in,
+                size_t const dim_alpha):
+  CppAD::atomic_base<Type>(name), n_nodes(n_nodes),
+  b(b_in ? new B(*b_in) : nullptr),
+  g(g_in ? new G(*g_in) : nullptr),
+  m(m_in ? new M(*m_in) : nullptr),
   dim_alpha(dim_alpha) {
     this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
@@ -93,14 +115,17 @@ public:
       lb = asDouble(tx[i++]),
       ub = asDouble(tx[i++]);
 
-      for(size_t j = 0; j < dim_omega; ++j)
-        fomega[j] = asDouble(tx[i++]);
-      for(size_t j = 0; j < dim_alpha; ++j)
-        falpha[j] = asDouble(tx[i++]);
-      for(size_t j = 0; j < dim_U; ++j)
-        fU[j] = asDouble(tx[i++]);
-      for(size_t j = 0; j < dim_U; ++j)
-        fk[j] = asDouble(tx[i++]);
+      auto set_vec = [&](vector<double> &x){
+        for(int j = 0; j < x.size(); ++j)
+          x[j] = asDouble(tx[i++]);
+      };
+
+      set_vec(fomega);
+      set_vec(falpha);
+      set_vec(fB);
+      set_vec(fU);
+      set_vec(fk);
+
       for(size_t j = 0; j < dim_U; ++j)
         for(size_t k = 0; k < dim_U; ++k)
           fLambda(k, j) = asDouble(tx[i++]);
@@ -113,32 +138,40 @@ public:
     double out(0.);
     for(auto const &xwi : xw){
       /* evalutes splines and related objects */
-      {
-        double const node = d1 * xwi.x + d2;
-        m(fmi, node);
-        b(fbi, log(node));
+      double const node = d1 * xwi.x + d2;
+      if(has_m){
+        m->operator()(fmi, node);
 
-        {
-          size_t i(0L);
-          for(size_t j = 0; j < dim_alpha; ++j)
-            for(size_t k = 0; k < m.get_n_basis(); ++k)
-              fma[i++] = falpha[j] * fmi[k];
-        }
+        size_t i(0L);
+        for(size_t j = 0; j < dim_alpha; ++j)
+          for(size_t k = 0; k < dim_m; ++k)
+            fma[i++] = falpha[j] * fmi[k];
       }
 
-      /* evalute integrand */
-      double dot_o_b(0.);
-      for(size_t i = 0; i < dim_omega; ++i)
-        dot_o_b += fomega[i] * fbi[i];
+      if(has_g){
+        g->operator()(fgi, node);
 
-      double const v1 = pnorm_log((fma * fk).sum()),
-                   v2 = dot_o_b +
-                     (fma * fU).sum() + .5 * (fma * (fLambda * fma)).sum();
+        size_t i(0L);
+        for(size_t j = 0; j < dim_alpha; ++j)
+          for(size_t k = 0; k < dim_g; ++k)
+            fga[i++] = falpha[j] * fgi[k];
+      }
+
+      if(has_b)
+        b->operator()(fbi, log(node));
+
+      /* evalute integrand */
+      double const v1 = pnorm_log(vec_dot(fma, fk)),
+                   v2 = vec_dot(fomega, fbi) +
+                     vec_dot(fga, fB) +
+                     vec_dot(fma, fU) +
+                     .5 * quad_form_sym(fma, fLambda);
 
       out += xwi.weight * exp(v1 + v2);
     }
 
-    out *= d1 * 2;
+    out *= has_m ? d1 * 2 : d1 * 4;
+
     ty[0L] = Type(out);
 
     /* set variable flags */
@@ -167,14 +200,17 @@ public:
       lb = asDouble(tx[i++]),
       ub = asDouble(tx[i++]);
 
-      for(size_t j = 0; j < dim_omega; ++j)
-        romega[j] = tx[i++];
-      for(size_t j = 0; j < dim_alpha; ++j)
-        ralpha[j] = tx[i++];
-      for(size_t j = 0; j < dim_U; ++j)
-        rU[j] = tx[i++];
-      for(size_t j = 0; j < dim_U; ++j)
-        rk[j] = tx[i++];
+      auto set_vec = [&](vector<Type> &x){
+        for(int j = 0; j < x.size(); ++j)
+          x[j] = tx[i++];
+      };
+
+      set_vec(romega);
+      set_vec(ralpha);
+      set_vec(rB);
+      set_vec(rU);
+      set_vec(rk);
+
       for(size_t j = 0; j < dim_U; ++j)
         for(size_t k = 0; k < dim_U; ++k)
           rLambda(k, j) = tx[i++];
@@ -191,32 +227,45 @@ public:
 
     for(auto xwi : xw_type){
       /* evalutes splines and related objects */
-      {
-        double const node = asDouble(d1 * xwi.x) + d2;
-        m(fmi, node);
-        b(fbi, log(node));
-
-        for(size_t i = 0; i < fbi.size(); ++i)
-          rbi[i] = Type(fbi[i]);
+      double const node = asDouble(d1 * xwi.x) + d2;
+      if(has_m){
+        m->operator()(fmi, node);
         for(size_t i = 0; i < fmi.size(); ++i)
           rmi[i] = Type(fmi[i]);
 
-        {
-          size_t i(0L);
-          for(size_t j = 0; j < dim_alpha; ++j)
-            for(size_t k = 0; k < dim_m; ++k)
-              rma[i++] = ralpha[j] * rmi[k];
-        }
+        size_t i(0L);
+        for(size_t j = 0; j < dim_alpha; ++j)
+          for(size_t k = 0; k < dim_m; ++k)
+            rma[i++] = ralpha[j] * rmi[k];
+      }
+
+      if(has_g){
+        g->operator()(fgi, node);
+        for(size_t i = 0; i < fgi.size(); ++i)
+          rgi[i] = Type(fgi[i]);
+
+        size_t i(0L);
+        for(size_t j = 0; j < dim_alpha; ++j)
+          for(size_t k = 0; k < dim_g; ++k)
+            rga[i++] = ralpha[j] * rgi[k];
+      }
+
+      if(has_b){
+        b->operator()(fbi, log(node));
+        for(size_t i = 0; i < fbi.size(); ++i)
+          rbi[i] = Type(fbi[i]);
       }
 
       /* evaluate intermediary constants */
       vector<Type> lambda_ma = rLambda * rma;
-      Type const ma_k = (rma * rk).sum(),
+      Type const ma_k = vec_dot(rma, rk),
                    v1 = pnorm_log(ma_k),
-                   v2 = (romega * rbi).sum() + (rma * rU).sum() +
-                     HALF * (rma * lambda_ma).sum(),
+                   v2 = vec_dot(romega, rbi) +
+                     vec_dot(rga, rB) +
+                     vec_dot(rma, rU) +
+                     HALF * vec_dot(rma, lambda_ma),
                    v3 = dnorm(ma_k, ZERO, ONE, 1L),
-                    g = xwi.weight * exp(v1 + v2),
+            integrand = xwi.weight * exp(v1 + v2),
                     h = xwi.weight * exp(v3 + v2);
 
       /* add terms to gradient */
@@ -224,31 +273,40 @@ public:
         size_t i(2L);
         /* omega */
         for(size_t j = 0; j < dim_omega; ++j)
-          px[i++] += g * rbi[j];
+          px[i++] += integrand * rbi[j];
         /* alpha */
         for(size_t j = 0; j < dim_U; ++j){
           alpha_rhs[j]  = rU[j];
           alpha_rhs[j] += lambda_ma[j];
-          alpha_rhs[j] *= g;
+          alpha_rhs[j] *= integrand;
           alpha_rhs[j] += h * rk[j];
         }
         {
-          size_t s(0L);
+          size_t sm(0L), sg(0L);
           for(size_t j = 0; j < dim_alpha; ++j){
-            Type term(0.);
+            Type term_m(0.);
             for(size_t k = 0; k < dim_m; ++k)
-              term += rmi[k] * alpha_rhs[s++];
-            px[i++] += term;
+              term_m += rmi[k] * alpha_rhs[sm++];
+
+            Type term_g(0.);
+            for(size_t k = 0; k < dim_g; ++k)
+              term_g += rgi[k] * rB[sg++];
+            term_g *= integrand;
+
+            px[i++] += term_m + term_g;
           }
         }
+        /* B */
+        for(size_t j = 0; j < dim_B; ++j)
+          px[i++] += integrand * rga[j];
         /* U */
         for(size_t j = 0; j < dim_U; ++j)
-          px[i++] += g * rma[j];
+          px[i++] += integrand * rma[j];
         /* K */
         for(size_t j = 0; j < dim_U; ++j)
           px[i++] += h * rma[j];
         /* Lambda */
-        Type const mult = HALF * g;
+        Type const mult = HALF * integrand;
         for(size_t j = 0; j < dim_U; ++j){
           size_t const dj = j * dim_U;
           size_t dk(0L);
@@ -263,7 +321,8 @@ public:
       }
     }
 
-    Type const mult = Type(ub - lb) * py[0L];
+    Type const mult =
+      has_m ? Type(ub - lb) * py[0L] : 2 * Type(ub - lb) * py[0L];
     for(size_t i = 2L; i < px.size(); ++i)
       px[i] *= mult;
 
@@ -284,14 +343,17 @@ public:
   CppAD::vector<AD<T> > get_x
     (AD<T> const lb, AD<T> const ub,
      vector<AD<T> > const &omega, vector<AD<T> > const &alpha,
-     vector<AD<T> > const &U, vector<AD<T> > const &k,
-     matrix<AD<T> > const &Lambda) const {
-    size_t const n_ele = 2L + dim_omega + dim_alpha + dim_U * (2L + dim_U);
+     matrix<AD<T> > const &b_arg, vector<AD<T> > const &U,
+     vector<AD<T> > const &k, matrix<AD<T> > const &Lambda) const {
+    size_t const n_ele =
+      2L + dim_omega + dim_alpha + dim_B + dim_U * (2L + dim_U);
 #ifdef DO_CHECKS
     if(omega.size() != (int)dim_omega)
       throw std::runtime_error("get_x: invalid omega");
     if(alpha.size() != (int)dim_alpha)
       throw std::runtime_error("get_x: invalid alpha");
+    if(b_arg.cols() != (int)dim_alpha or b_arg.rows() != (int)dim_g)
+      throw std::runtime_error("get_x: invalid b_arg");
     if(U.size() != (int)dim_U)
       throw std::runtime_error("get_x: invalid U");
     if(k.size() != (int)dim_U)
@@ -304,17 +366,22 @@ public:
     size_t i(0L);
     tx[i++] = lb;
     tx[i++] = ub;
-    for(int j = 0; j < omega.size(); ++j)
-      tx[i++] = omega[j];
-    for(int j = 0; j < alpha.size(); ++j)
-      tx[i++] = alpha[j];
-    for(int j = 0; j < U.size(); ++j)
-      tx[i++] = U[j];
-    for(int j = 0; j < k.size(); ++j)
-      tx[i++] = k[j];
-    for(int j = 0; j < Lambda.cols(); ++j)
-      for(int k = 0; k < Lambda.rows(); ++k)
-        tx[i++] = Lambda(k, j);
+    auto add_vec = [&](vector<AD<T> > const &x){
+      for(int j = 0; j < x.size(); ++j)
+        tx[i++] = x[j];
+    };
+    auto add_mat = [&](matrix<AD<T> > const &X){
+      for(int j = 0; j < X.cols(); ++j)
+        for(int k = 0; k < X.rows(); ++k)
+          tx[i++] = X(k, j);
+    };
+
+    add_vec(omega);
+    add_vec(alpha);
+    add_mat(b_arg);
+    add_vec(U);
+    add_vec(k);
+    add_mat(Lambda);
 
     return tx;
   }

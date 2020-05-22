@@ -87,6 +87,19 @@ Type vec_dot(vector<Type> const &x, vector<Type> const &y){
   return out;
 }
 
+#ifdef INCLUDE_RCPP
+inline double vec_dot(vector<double> const &x, arma::vec const &y){
+#ifdef DO_CHECKS
+  if(x.size() != y.n_elem)
+    throw std::invalid_argument("vec_dot: dimension do not match");
+#endif
+  double out(0.);
+  for(int i = 0; i < x.size(); ++i)
+    out += x[i] * y[i];
+  return out;
+}
+#endif
+
 template<class Type>
 Type quad_form
   (vector<Type> const &x, matrix<Type> const &A, vector<Type> const &y){
