@@ -25,6 +25,10 @@ get_gl_rule <- function(n) {
     .Call(`_survTMB_get_gl_rule`, n)
 }
 
+get_commutation <- function(n, m) {
+    .Call(`_survTMB_get_commutation`, n, m)
+}
+
 joint_start_baseline <- function(Y, tstart, tstop, omega, offsets, n_nodes, bound_knots, inter_knots, grad) {
     .Call(`_survTMB_joint_start_baseline`, Y, tstart, tstop, omega, offsets, n_nodes, bound_knots, inter_knots, grad)
 }

@@ -18,6 +18,7 @@ class VA_worker {
   const DATA_VECTOR(m_time);
   const DATA_VECTOR(mknots);
   const DATA_VECTOR(gknots);
+  const DATA_MATRIX(X);
 
   const DATA_VECTOR(tstart);
   const DATA_VECTOR(tstop);
@@ -29,6 +30,7 @@ class VA_worker {
   const DATA_LOGICAL(sparse_hess);
   const DATA_INTEGER(n_nodes);
 
+  const PARAMETER_MATRIX(gamma);
   const PARAMETER_MATRIX(B);
   const PARAMETER_VECTOR(Psi);
   const PARAMETER_VECTOR(Sigma);
@@ -48,13 +50,15 @@ private:
   std::size_t const n_y = markers.rows(),
                   dim_m = mknots.size(),
                   dim_g = gknots.size(),
+                  n_fix = gamma.rows(),
                   dim_b = sknots.size(),
                       K = n_y * dim_m,
                     n_Z = Z.rows(),
+           n_obs_marker = markers.cols(),
                n_groups = outcomes.size(),
-                 n_pars = B.rows() * B.cols() + Psi.size() + Sigma.size() +
-                   delta.size() + omega.size() + alpha.size() +
-                   va_par.size();
+                 n_pars = gamma.rows() * gamma.cols() + B.rows() * B.cols() +
+                   Psi.size() + Sigma.size() + delta.size() + omega.size() +
+                   alpha.size() + va_par.size();
 
 public:
   using cum_integral =
@@ -148,16 +152,22 @@ public:
         throw std::invalid_argument("VA_worker: invalid number of markers");
     }
 
-    if(m_time.size() != markers.cols())
+    if((size_t)m_time.size() != n_obs_marker)
       throw std::invalid_argument("VA_worker: invalid m_time");
 
-    else if(mknots.size() < 2L)
+    else if(mknots.size() < 2L && mknots.size() != 0L)
       throw std::invalid_argument("VA_worker: invalid mknots");
-    else if(sknots.size() < 2L)
+    else if(sknots.size() < 2L && sknots.size() != 0L)
+      throw std::invalid_argument("VA_worker: invalid sknots");
+    else if(sknots.size() < 2L && sknots.size() != 0L)
       throw std::invalid_argument("VA_worker: invalid sknots");
 
     else if((size_t)B.cols() != n_y or (size_t)B.rows() != dim_g)
       throw std::invalid_argument("VA_worker: invalid B");
+    else if(gamma.rows() != X.rows() or (size_t)gamma.cols() != n_y)
+      throw std::invalid_argument("VA_worker: invalid gamma");
+    else if((size_t)X.cols() != n_obs_marker)
+      throw std::invalid_argument("VA_worker: invalid X");
     else if(survTMB::get_rng_dim(Psi) != K)
       throw std::invalid_argument("VA_worker: invalid Psi");
     else if(survTMB::get_rng_dim(Sigma) != n_y)
@@ -175,14 +185,19 @@ public:
     vector<Tout> out(n_pars);
 
     Type *o = &out[0];
-    for(size_t j = 0; j < (size_t)B.cols(); ++j)
-      for(size_t i = 0; i < (size_t)B.rows(); ++i)
-        *o++ = Tout(B(i, j));
-
+    auto add_mat = [&](matrix<Type> const &X){
+      for(size_t j = 0; j < (size_t)X.cols(); ++j)
+        for(size_t i = 0; i < (size_t)X.rows(); ++i)
+          *o++ = Tout(X(i, j));
+    };
     auto add_vec = [&](vector<Type> const &x){
       for(size_t i = 0; i < (size_t)x.size(); ++i)
         *o++ = Tout(x[i]);
     };
+
+    add_mat(gamma);
+    add_mat(B);
+
     add_vec(Psi);
     add_vec(Sigma);
     add_vec(delta);
@@ -203,11 +218,13 @@ public:
     /* assign the parameters from args */
     Type *a = &args[0];
 
-    matrix<Type> aB(B.rows(), B.cols());
-    for(size_t j = 0; j < (size_t)B.cols(); ++j)
-      for(size_t i = 0; i < (size_t)B.rows(); ++i)
-        aB(i, j) = *a++;
-
+    auto set_mat = [&](size_t const nr, size_t const nc){
+      matrix<Type> out(nr, nc);
+      for(size_t j = 0; j < nc; ++j)
+        for(size_t i = 0; i < nr; ++i)
+          out(i, j) = *a++;
+      return out;
+    };
     auto set_vec = [&](size_t const n){
       vector<Type> out(n);
       for(size_t i = 0; i < n; ++i)
@@ -217,15 +234,18 @@ public:
     auto set_vcov = [&](size_t const n){
       return survTMB::get_vcov_from_trian(set_vec((n * (n + 1L)) / 2L));
     };
-    matrix<Type> aPsi = set_vcov(K),
-               aSigma = set_vcov(n_y);
+
+    matrix<Type> agamma = set_mat(gamma.rows(), gamma.cols()),
+                     aB = set_mat(B.rows(), B.cols()),
+                   aPsi = set_vcov(K),
+                 aSigma = set_vcov(n_y);
     vector<Type> adelta = set_vec(delta.size()),
                  aomega = set_vec(omega.size()),
                  aalpha = set_vec(alpha.size());
 
     auto const ava_par = ([&](){
       vector<Type> theta_va = set_vec(va_par.size());
-      return  GaussHermite::SNVA::SNVA_MD_theta_DP_to_DP(theta_va, K);
+      return GaussHermite::SNVA::SNVA_MD_theta_DP_to_DP(theta_va, K);
     })();
 
     /* get the cumulative hazard integral object */
@@ -247,8 +267,7 @@ public:
       cum_int_arg[0L] = lb;
       cum_int_arg[1L] = ub;
 
-      Type *x = &cum_int_arg[
-      2L + omega.size() + alpha.size() + aB.cols() * aB.rows()];
+      Type *x = &cum_int_arg[2L + dim_b + n_y + dim_g * n_y];
       for(size_t i = 0; i < K; ++i)
         *x++ = U[i];
       for(size_t i = 0; i < K; ++i)
@@ -269,9 +288,10 @@ public:
     matrix<Type> psi_inv = atomic::matinvpd(aPsi, log_det_psi);
 
     Type const one(1.),
-       sqrt_two_pi(sqrt(2. / M_PI)),
+              zero(0.),
               half(.5),
             two_pi(2. / M_PI),
+       sqrt_two_pi(sqrt(two_pi)),
              small(std::numeric_limits<double>::epsilon());
 
     GaussHermite::HermiteData<Type> const &xw =
@@ -283,9 +303,9 @@ public:
                         has_b = my_int.b,
                         has_g = my_int.g,
                         has_m = my_int.m;
-    arma::vec b_wrk(has_b ? my_int.b->get_n_basis() : 0L),
-              g_wrk(has_g ? my_int.g->get_n_basis() : 0L),
-              m_wrk(has_m ? my_int.m->get_n_basis() : 0L);
+    arma::vec b_wrk(has_b ? dim_b : 0L),
+              g_wrk(has_g ? dim_g : 0L),
+              m_wrk(has_m ? dim_m : 0L);
     size_t marker_idx(0L);
     for(size_t g = 0; g < n_groups; ++g){
       /* is this our cluster? */
@@ -319,6 +339,14 @@ public:
         return vec_eigen_arma<Type>(wrk);
       };
 
+      /* evaluate fixed time-invariant effect */
+      vector<Type> fix_invariant(n_y);
+      for(size_t j = 0; j < n_y; ++j){
+        fix_invariant[j] = zero;
+        for(size_t i = 0; i < n_fix; i++)
+          fix_invariant[j] += X(i, marker_idx) * agamma(i, j);
+      }
+
       /* terms from the survival outcome */
       {
         Type surv_term(0.);
@@ -328,9 +356,11 @@ public:
         for(int j = 0; j < Z.rows(); ++j)
           z_dot_d += Z(j, g) * adelta[j];
 
+        Type const alpha_fix_invariant = vec_dot(aalpha, fix_invariant);
+
         if(asDouble(outcomes[g]) > 0.){
           /* add the jump term */
-          surv_term += z_dot_d;
+          surv_term += z_dot_d + alpha_fix_invariant;
 
           double const double_ub = asDouble(tstop [g]);
           if(has_b){
@@ -343,8 +373,8 @@ public:
           if(has_g){
             vector<Type> const type_g_wrk =
               eval_basis(*my_int.g, g_wrk, double_ub);
-            for(int j = 0; j < B.cols(); ++j)
-              for(int i = 0; i < B.rows(); ++i)
+            for(size_t j = 0; j < n_y; ++j)
+              for(size_t i = 0; i < dim_g; ++i)
                 surv_term += aalpha[j] * type_g_wrk[i] * aB(i, j);
           }
 
@@ -353,14 +383,14 @@ public:
               eval_basis(*my_int.m, m_wrk, double_ub);
 
             Type const *u_ptr = &U_mean[0L];
-            for(int j = 0; j < aalpha.size(); ++j)
-              for(int i = 0; i < type_m_wrk.size(); ++i, ++u_ptr)
+            for(size_t j = 0; j < n_y; ++j)
+              for(size_t i = 0; i < dim_m; ++i, ++u_ptr)
                 surv_term += aalpha[j] * type_m_wrk[i] * *u_ptr;
           }
         }
 
         /* add term from survival probability */
-        Type const f1 = exp(z_dot_d),
+        Type const f1 = exp(z_dot_d + alpha_fix_invariant),
                    f2 = comp_cum_haz(lb, ub, va_mu, k, Lambda);
         surv_term -= f1 * f2;
         term += surv_term;
@@ -373,7 +403,7 @@ public:
         for(; marker_idx < marker_end; ++marker_idx){
           vector<Type> residual(n_y);
           for(size_t i = 0; i < n_y; ++i)
-            residual[i] = markers(i, marker_idx);
+            residual[i] = markers(i, marker_idx) - fix_invariant[i];
 
           double const obs_time_i = asDouble(m_time[marker_idx]);
           if(has_g){
@@ -389,10 +419,12 @@ public:
             vector<Type> const type_m_wrk =
               eval_basis(*my_int.m, m_wrk, obs_time_i);
 
-            Type const *mu_i = &U_mean[0L];
-            for(size_t j = 0; j < n_y; ++j)
-              for(size_t i = 0; i < dim_m; ++i, ++mu_i)
-                residual[j] -= *mu_i * type_m_wrk[i];
+            {
+              Type const *mu_i = &U_mean[0L];
+              for(size_t j = 0; j < n_y; ++j)
+                for(size_t i = 0; i < dim_m; ++i, ++mu_i)
+                  residual[j] -= *mu_i * type_m_wrk[i];
+            }
 
             /* TODO: Do something smarter... */
             matrix<Type> M(n_y, K);
@@ -400,11 +432,11 @@ public:
             for(size_t i = 0; i < n_y; ++i){
               Type const *m_i = &type_m_wrk[0L];
               size_t const j_end =  (i + 1L) * dim_m;
-              for(size_t j = i * dim_m; j < j_end; ++j)
-                M(i, j) = *m_i++;
+              for(size_t j = i * dim_m; j < j_end; ++j, ++m_i)
+                M(i, j) = *m_i;
             }
 
-            matrix<Type> tmp_mat = M * Lambda * M.transpose();
+            matrix<Type> tmp_mat = M *  Lambda * M.transpose();
             vector<Type> tmp_vec = M * k;
             marker_term -=
               half * (mat_mult_trace(tmp_mat, sigma_inv)
@@ -412,13 +444,13 @@ public:
           }
 
           marker_term -= half * quad_form_sym(residual, sigma_inv);
-
-          term += marker_term;
         }
 
-        /* terms from the random effect prior*/
+        term += marker_term;
+
+        /* terms from the random effect prior */
         /* TODO: can be done smarter */
-        Type prior_term = -half * (
+        Type prior_term = - half * (
           quad_form_sym(U_mean, psi_inv)
           + mat_mult_trace(Lambda, psi_inv)
           - two_pi * quad_form_sym(k, psi_inv));
@@ -445,9 +477,9 @@ public:
       return result;
 
     Type norm_constant =
-      - Type(double(markers.cols() * n_y) / 2. * log(2 * M_PI))
+      - Type(double(n_obs_marker * n_y) / 2. * log(2 * M_PI))
       - Type(double(n_groups) / 2.) * log_det_psi
-      - Type(double(markers.cols()) / 2.) * log_det_sigma
+      - Type(double(n_obs_marker) / 2.) * log_det_sigma
       + Type(double(K * n_groups) / 2.)
       - Type(double(n_groups) * M_LN2);
 

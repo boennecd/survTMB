@@ -1,5 +1,7 @@
 ---
-output: github_document
+output: 
+  github_document: 
+    pandoc_args: --webtex=https://latex.codecogs.com/svg.latex?
 bibliography: README.bib
 ---
 
@@ -32,6 +34,10 @@ the CppAD library [@Bell19] through [the TMB package](https://github.com/kaskr/a
 The [example](#example) section shows an example of how to use the package
 with different methods. The [benchmark](#benchmark) section shows a 
 comparison of the computation time of the methods.
+
+Joint marker and survival models are also available in the package. We show 
+an example of estimating a joint model in the 
+[joint models](#joint-models) section.
 
 ## Example
 
@@ -236,6 +242,180 @@ for(param_type in c("DP", "CP_trans")){
     `probit (4L)` = fit_model("probit", 4L, mth, param_type = param_type),
     times = 5))
 }
+```
+
+## Joint Models
+We will use one of the test data sets in the 
+[inst/test-data](inst/test-data) directory. The data is 
+generated with the 
+[inst/test-data/gen-test-data.R](inst/test-data/gen-test-data.R) file which 
+is available on Github. The file uses the 
+[SimSurvNMarker](https://github.com/boennecd/SimSurvNMarker) package 
+to simulate a data set. The model is simulated from 
+
+<!-- $$\begin{align*} -->
+<!-- \vec Y_{ij} \mid \vec U_i = \vec u_i -->
+<!--   &\sim N^{(r)}(\vec \mu_i(s_{ij}, \vec u_i), \Sigma) -->
+<!--   \\ -->
+<!-- \vec\mu(s, \vec u) &= -->
+<!--   \Gamma^\top \vec x_i + B^\top\vec g(s) + U^\top\vec m(s) -->
+<!--   \\ -->
+<!-- &= \left(I \otimes \vec x_i^\top\right)\text{vec}\Gamma -->
+<!--      + \left(I \otimes \vec g(s)^\top\right)\text{vec} B -->
+<!--      + \left(I \otimes \vec m(s)^\top\right) \vec u -->
+<!--   \\ -->
+<!-- \vec U_i &\sim N^{(K)}(\vec 0, \Psi) -->
+<!--   \\ -->
+<!-- h(t\mid \vec u) &= \exp\left( -->
+<!--   \vec\omega^\top\vec b(t) + -->
+<!--   \vec z_i^\top\vec\delta + -->
+<!--   \vec\alpha^\top\vec\mu(t, \vec u) -->
+<!--   \right) -->
+<!--   \\ -->
+<!-- &= \exp\Bigg( -->
+<!--   \vec\omega^\top\vec b(t) + -->
+<!--   \vec z_i^\top\vec\delta -->
+<!--   + \vec 1^\top\left( -->
+<!--   \text{diag}(\vec \alpha) \otimes \vec x_i^\top\right)\text{vec}\Gamma -->
+<!--   + \vec 1^\top\left( -->
+<!--   \text{diag}(\vec \alpha) \otimes \vec g(t)^\top\right)\text{vec} B \\ -->
+<!-- &\hspace{50pt}+ \vec 1^\top\left( -->
+<!--   \text{diag}(\vec \alpha) \otimes \vec m(t)^\top\right)\vec u -->
+<!--   \Bigg) -->
+<!-- \end{align*}$$ -->
+
+$$\begin{align*}  \vec Y_{ij} \mid \vec U_i = \vec u_i    &\sim N^{(r)}(\vec \mu_i(s_{ij}, \vec u_i), \Sigma)    \\  \vec\mu(s, \vec u) &=    \Gamma^\top \vec x_i + B^\top\vec g(s) + U^\top\vec m(s)    \\  &= \left(I \otimes \vec x_i^\top\right)\text{vec}\Gamma       + \left(I \otimes \vec g(s)^\top\right)\text{vec} B       + \left(I \otimes \vec m(s)^\top\right) \vec u    \\  \vec U_i &\sim N^{(K)}(\vec 0, \Psi)    \\  h(t\mid \vec u) &= \exp\left(    \vec\omega^\top\vec b(t) +    \vec z_i^\top\vec\delta +    \vec\alpha^\top\vec\mu(t, \vec u)    \right)    \\  &= \exp\Bigg(    \vec\omega^\top\vec b(t) +    \vec z_i^\top\vec\delta    + \vec 1^\top\left(    \text{diag}(\vec \alpha) \otimes \vec x_i^\top\right)\text{vec}\Gamma    + \vec 1^\top\left(    \text{diag}(\vec \alpha) \otimes \vec g(t)^\top\right)\text{vec} B \\  &\hspace{50pt}+ \vec 1^\top\left(    \text{diag}(\vec \alpha) \otimes \vec m(t)^\top\right)\vec u    \Bigg)  \end{align*}$$
+
+where $\vec Y_{ij}\in\mathbb R^{n_y}$ is individual $i$'s 
+$j$th observed marker at time $s_{ij}$, 
+$U_i\in\mathbb R^K$ is individual $i$'s random effect, and 
+$h$ is the instantaneous hazard rate for the time-to-event outcome. 
+$\vec\alpha$ is the so-called
+association parameter. It shows the strength of the relation between the 
+latent mean function, $\vec\mu(t,\vec u)$, and the log of the 
+instantaneous rate, $h(t\mid \vec u)$. $\vec m(t)$, $\vec g(t)$ 
+and $\vec b(t)$ are 
+basis expansions of time. As an example, these can be a polynomial, 
+a B-spline, or a natural cubic spline. The expansion for the baseline
+hazard, $\vec b(t)$, is typically made on $\log t$ instead of $t$. 
+One reason is that the model reduces to a Weibull distribution
+when a first polynomial is used and $\vec\alpha = \vec 0$. $\vec x_i$ and 
+$\vec z_i$ are individual specific known covariates.
+
+We start by loading the simulated data set.
+
+```{r read_joint}
+dat <- readRDS(file.path("inst", "test-data", "large-joint-all.RDS"))
+
+# the marker data
+m_data <- dat$marker_data
+head(m_data, 10)
+
+# the survival data
+s_data <- dat$survival_data
+head(s_data, 10)
+```
+
+There is 
+
+```{r joint_show_n_ids}
+length(unique(s_data$id))
+length(unique(s_data$id)) == NROW(s_data) # one row per id
+```
+
+individuals who each has an average of 
+
+```{r joint_avg_markers}
+NROW(m_data) / length(unique(s_data$id))
+```
+
+observed markers. The data is simulated. Thus, we know the true parameters. 
+These are
+
+```{r joint_show_true_params}
+dat$params[c("gamma", "B", "Psi", "omega", "delta", "alpha", "sigma")]
+```
+
+We start by constructing the objective function in order to estimate 
+the model. 
+
+```{r joint_get_ptr, cache = 1}
+system.time(
+  out <- make_joint_ADFun(
+    sformula =  Surv(left_trunc, y, event) ~ Z1 + Z2, 
+    mformula = cbind(Y1, Y2) ~ X1, 
+    id_var = id, time_var = obs_time, 
+    sdata = s_data, mdata = m_data, mknots = dat$params$m_attr$knots,
+    sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
+    n_nodes = 30L, n_threads = 6L))
+```
+
+Next, we fit the model using the `lbfgs` function from the `lbfgs` package 
+using the non-exported `.opt_default` function.
+
+```{r joint_fit, cache = 1, dependson = "joint_get_ptr"}
+system.time(
+  opt_out <- survTMB:::.opt_default(
+    out$par, out$fn, out$gr, control = list(maxit = 10000L)))
+```
+
+The estimated lower bound of the log marginal likelihood at the optimum is
+shown below.
+
+```{r joint_show_lb}
+-opt_out$value
+```
+
+Further, we can compare the estimated model parameters with the true 
+model parameters as follows.
+
+```{r joint_compare_param_est}
+names(opt_out$par) <- names(out$par)
+true_params <- with(dat$params, c(
+  gamma, B, survTMB:::.cov_to_theta(Psi), survTMB:::.cov_to_theta(sigma),
+  delta, omega, alpha))
+n_params <- length(true_params)
+names(true_params) <- names(out$par)[seq_along(true_params)]
+rbind(Estimate = opt_out$par[1:n_params], 
+      `True value` = true_params)
+```
+
+Next, we compare the estimated covariance matrix of the random effects with 
+the true values.
+
+```{r joint_show_psi}
+# random effect covariance matrix (first estimated and then the true values)
+is_psi <- which(grepl("Psi", names(true_params)))
+survTMB:::.theta_to_cov(opt_out$par[is_psi]) 
+dat$params$Psi
+cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_psi]))
+cov2cor(dat$params$Psi)
+```
+
+Further, we compare the estimated covariance matrix of the noise with 
+the true values.
+
+```{r joint_show_sigma}
+# noise covariance matrix (first estimated and then the true values)
+is_sigma <- which(grepl("Sigma", names(true_params)))
+survTMB:::.theta_to_cov(opt_out$par[is_sigma])
+dat$params$sigma
+cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_sigma]))
+cov2cor(dat$params$sigma)
+```
+
+```{r check_va, echo = FALSE, eval = FALSE}
+is_grp_x <- which(grepl("^g2:", names(opt_out$par)))
+x_va_pars <- opt_out$par[is_grp_x]
+xi <- x_va_pars[grepl(":xi", names(x_va_pars))]
+Lambda <- survTMB:::.theta_to_cov(
+  x_va_pars[grepl(":(log_sd|L)", names(x_va_pars))])
+rho <- x_va_pars[grepl(":rho", names(x_va_pars))]
+
+k <- Lambda %*% rho
+k <- drop(k / sqrt(drop(1 + rho %*% k)))
+Lambda - 2 / pi * outer(k, k)
+cov2cor(Lambda - 2 / pi * outer(k, k))
 ```
 
 ## References

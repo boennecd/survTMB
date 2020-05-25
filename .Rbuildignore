@@ -7,3 +7,6 @@
 ^.travis.yml
 ^src/test-join-utils\.R
 ^tmp
+^inst/test-data/gen-test-data\.R
+^inst/test-data/large-joint-all\.RDS
+^inst/test-data/README\.md
