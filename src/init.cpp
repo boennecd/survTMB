@@ -92,21 +92,22 @@ RcppExport SEXP _survTMB_get_commutation(SEXP nSEXP, SEXP mSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
-// joint_start_baseline
-arma::vec joint_start_baseline(arma::vec const& Y, arma::vec const& tstart, arma::vec const& tstop, arma::vec const& omega, arma::vec const& offsets, unsigned const n_nodes, arma::vec const& bound_knots, arma::vec const& inter_knots, bool const grad);
-RcppExport SEXP _survTMB_joint_start_baseline(SEXP YSEXP, SEXP tstartSEXP, SEXP tstopSEXP, SEXP omegaSEXP, SEXP offsetsSEXP, SEXP n_nodesSEXP, SEXP bound_knotsSEXP, SEXP inter_knotsSEXP, SEXP gradSEXP) {
+// joint_start_ll
+arma::vec joint_start_ll(arma::vec const& Y, arma::vec const& tstart, arma::vec const& tstop, arma::vec const& omega, arma::vec const& delta, arma::mat const& Z, unsigned const n_nodes, arma::vec const& bound_knots, arma::vec const& inter_knots, bool const grad);
+RcppExport SEXP _survTMB_joint_start_ll(SEXP YSEXP, SEXP tstartSEXP, SEXP tstopSEXP, SEXP omegaSEXP, SEXP deltaSEXP, SEXP ZSEXP, SEXP n_nodesSEXP, SEXP bound_knotsSEXP, SEXP inter_knotsSEXP, SEXP gradSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< arma::vec const& >::type Y(YSEXP);
   Rcpp::traits::input_parameter< arma::vec const& >::type tstart(tstartSEXP);
   Rcpp::traits::input_parameter< arma::vec const& >::type tstop(tstopSEXP);
   Rcpp::traits::input_parameter< arma::vec const& >::type omega(omegaSEXP);
-  Rcpp::traits::input_parameter< arma::vec const& >::type offsets(offsetsSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type delta(deltaSEXP);
+  Rcpp::traits::input_parameter< arma::mat const& >::type Z(ZSEXP);
   Rcpp::traits::input_parameter< unsigned const >::type n_nodes(n_nodesSEXP);
   Rcpp::traits::input_parameter< arma::vec const& >::type bound_knots(bound_knotsSEXP);
   Rcpp::traits::input_parameter< arma::vec const& >::type inter_knots(inter_knotsSEXP);
   Rcpp::traits::input_parameter< bool const >::type grad(gradSEXP);
-  rcpp_result_gen = Rcpp::wrap(joint_start_baseline(Y, tstart, tstop, omega, offsets, n_nodes, bound_knots, inter_knots, grad));
+  rcpp_result_gen = Rcpp::wrap(joint_start_ll(Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad));
   return rcpp_result_gen;
   END_RCPP
 }
@@ -157,7 +158,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_VA_funcs_eval_hess", (DL_FUNC) &_survTMB_VA_funcs_eval_hess, 2},
   {"_survTMB_VA_funcs_eval_hess_sparse", (DL_FUNC) &_survTMB_VA_funcs_eval_hess_sparse, 2},
   {"_survTMB_get_gl_rule", (DL_FUNC) &_survTMB_get_gl_rule, 1},
-  {"_survTMB_joint_start_baseline", (DL_FUNC) &_survTMB_joint_start_baseline, 9},
+  {"_survTMB_joint_start_ll", (DL_FUNC) &_survTMB_joint_start_ll, 10},
   {"_survTMB_get_joint_funcs", (DL_FUNC) &_survTMB_get_joint_funcs, 2},
   {"_survTMB_joint_funcs_eval_lb", (DL_FUNC) &_survTMB_joint_funcs_eval_lb, 2},
   {"_survTMB_joint_funcs_eval_grad", (DL_FUNC) &_survTMB_joint_funcs_eval_grad, 2},

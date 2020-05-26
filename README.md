@@ -905,7 +905,7 @@ system.time(
     sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  13.502   0.061   4.550
+#>  20.193   0.072   5.786
 ```
 
 Next, we fit the model using the `lbfgs` function from the `lbfgs`
@@ -916,11 +916,14 @@ system.time(
   opt_out <- survTMB:::.opt_default(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#> 800.638   0.604 133.887
+#> 1002.38    0.32  167.49
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
-is shown below.
+is shown
+below.
+
+<!-- with(environment(out$fn), c(mark$ll, sr_dat$ll, mark$ll + sr_dat$ll)) -->
 
 ``` r
 -opt_out$value
@@ -940,20 +943,20 @@ names(true_params) <- names(out$par)[seq_along(true_params)]
 rbind(Estimate = opt_out$par[1:n_params], 
       `True value` = true_params)
 #>            gamma:X1.Y1 gamma:X1.Y2 B:g1.Y1 B:g2.Y1 B:g3.Y1 B:g1.Y2 B:g2.Y2
-#> Estimate         0.139      -0.776  -0.996   0.136   0.581   0.248  -0.696
-#> True value       0.140      -0.800  -0.960   0.330   0.390   0.260  -0.760
+#> Estimate         0.139      -0.776  -0.996   0.134    0.58   0.248  -0.694
+#> True value       0.140      -0.800  -0.960   0.330    0.39   0.260  -0.760
 #>            B:g3.Y2 Psi:log_sd1 Psi:log_sd2 Psi:log_sd3 Psi:log_sd4 Psi:L2.1
-#> Estimate     0.181       0.269     -0.0237     -0.1221     -0.0657   -0.306
+#> Estimate     0.183       0.269     -0.0224     -0.1233     -0.0662   -0.306
 #> True value   0.190       0.226     -0.0567     -0.0751     -0.0942   -0.313
 #>            Psi:L3.1 Psi:L4.1 Psi:L3.2 Psi:L4.2 Psi:L4.3 Sigma:log_sd1
-#> Estimate    -0.1624   -0.153  -0.1480   0.0400    0.536         -1.75
+#> Estimate    -0.1634   -0.154  -0.1494   0.0380    0.534         -1.75
 #> True value  -0.0688   -0.149  -0.0785   0.0581    0.622         -1.75
 #>            Sigma:log_sd2 Sigma:L2.1 delta:Z1 delta:Z2 omega:b1 omega:b2
-#> Estimate           -1.49  -0.000882   0.0677   -0.248    -2.44    -1.16
+#> Estimate           -1.49  -0.000625   0.0685   -0.248    -2.44    -1.16
 #> True value         -1.50   0.000000   0.2000   -0.170    -2.60    -1.32
 #>            alpha:Y1 alpha:Y2
-#> Estimate       0.31   -0.362
-#> True value     0.32   -0.310
+#> Estimate      0.311   -0.361
+#> True value    0.320   -0.310
 ```
 
 Next, we compare the estimated covariance matrix of the random effects
@@ -965,10 +968,10 @@ values.
 is_psi <- which(grepl("Psi", names(true_params)))
 survTMB:::.theta_to_cov(opt_out$par[is_psi]) 
 #>        [,1]    [,2]   [,3]    [,4]
-#> [1,]  1.714 -0.3913 -0.188 -0.1876
-#> [2,] -0.391  1.0430 -0.085  0.0794
-#> [3,] -0.188 -0.0850  0.821  0.4601
-#> [4,] -0.188  0.0794  0.460  1.1510
+#> [1,]  1.713 -0.3911 -0.189 -0.1886
+#> [2,] -0.391  1.0455 -0.086  0.0779
+#> [3,] -0.189 -0.0860  0.820  0.4575
+#> [4,] -0.189  0.0779  0.458  1.1474
 dat$params$Psi
 #>       [,1]  [,2]  [,3]  [,4]
 #> [1,]  1.57 -0.37 -0.08 -0.17
@@ -977,10 +980,10 @@ dat$params$Psi
 #> [4,] -0.17  0.09  0.53  1.17
 cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_psi]))
 #>        [,1]    [,2]    [,3]    [,4]
-#> [1,]  1.000 -0.2926 -0.1586 -0.1336
-#> [2,] -0.293  1.0000 -0.0918  0.0725
-#> [3,] -0.159 -0.0918  1.0000  0.4733
-#> [4,] -0.134  0.0725  0.4733  1.0000
+#> [1,]  1.000 -0.2922 -0.1595 -0.1345
+#> [2,] -0.292  1.0000 -0.0929  0.0711
+#> [3,] -0.160 -0.0929  1.0000  0.4718
+#> [4,] -0.135  0.0711  0.4718  1.0000
 cov2cor(dat$params$Psi)
 #>         [,1]    [,2]    [,3]   [,4]
 #> [1,]  1.0000 -0.2983 -0.0685 -0.125
@@ -997,16 +1000,16 @@ the true values.
 is_sigma <- which(grepl("Sigma", names(true_params)))
 survTMB:::.theta_to_cov(opt_out$par[is_sigma])
 #>           [,1]      [,2]
-#> [1,]  3.04e-02 -3.47e-05
-#> [2,] -3.47e-05  5.10e-02
+#> [1,]  3.03e-02 -2.46e-05
+#> [2,] -2.46e-05  5.10e-02
 dat$params$sigma
 #>      [,1] [,2]
 #> [1,] 0.03 0.00
 #> [2,] 0.00 0.05
 cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_sigma]))
 #>           [,1]      [,2]
-#> [1,]  1.000000 -0.000882
-#> [2,] -0.000882  1.000000
+#> [1,]  1.000000 -0.000625
+#> [2,] -0.000625  1.000000
 cov2cor(dat$params$sigma)
 #>      [,1] [,2]
 #> [1,]    1    0

@@ -26,7 +26,7 @@ get_marker_start_params <- function(
   mf <- model.frame(formula, data)
   X <- model.matrix(terms(mf), mf)
   X <- X[, colnames(X) != "(Intercept)", drop = FALSE]
-  out <- list(Y = model.response(mf), X = X,
+  out <- list(Y = t(model.response(mf)), X = t(X),
               id = eval(id_var, data),
               time = eval(time_var, data))
 
@@ -78,7 +78,7 @@ get_marker_start_params <- function(
   fit <- lmer(frm, data, control = lmerControl(
     check.conv.grad = .makeCC("ignore", tol = 1e-3, relTol = NULL)))
 
-  n_y <- NCOL(out$Y)
+  n_y <- NROW(out$Y)
   d_x <- length(X_names)
 
   gamma <- t(matrix(fixef(fit)[seq_len(d_x * n_y)], nr = n_y))
@@ -118,8 +118,8 @@ get_surv_start_params <- function(
 
     outcome <- .trunc_counting(outcome)
     keep <- outcome$keep
-    list(Y = outcome$Y[keep, ], Z = Z[keep, , drop = FALSE], id = id[keep],
-         keep = keep)
+    list(Y = t(outcome$Y[keep, ]), Z = t(Z[keep, , drop = FALSE]),
+         id = id[keep], keep = keep)
   })
 
   if(is.integer(knots) && length(knots) == 1L)
@@ -145,7 +145,7 @@ get_surv_start_params <- function(
       ev = event(dtstop, devent)),
       list(tstart = dtstart, dtstop = dtstop, devent = devent,
            id = id_var))
-    out <- eval(tcall, parent.frame())
+    out <- eval(tcall, environment())
 
     add_Y_call <- substitute(tmerge(out, mdata, id = id),
                              list(id = id_var))
@@ -175,8 +175,7 @@ get_surv_start_params <- function(
   # fit parameteric baseline
   mf <- model.frame(cformula, tdat)
   Sy <- .trunc_counting(model.response(mf))
-  SZ <- model.matrix(terms(mf), mf)[Sy$keep, ]
-  offsets <- drop(SZ %*% c(delta, alpha))
+  SZ <- t(model.matrix(terms(mf), mf)[Sy$keep, , drop = FALSE])
   bk <- knots[ c(1L, length(knots))]
   ik <- knots[-c(1L, length(knots))]
   omega <- rep(0, length(knots))
@@ -185,20 +184,27 @@ get_surv_start_params <- function(
   tstop  <- Sy$Y[, 2]
   Y      <- Sy$Y[, 3]
 
-  func <- function(omega, ..., grad)
-    -drop(joint_start_baseline(
-      Y = Y, tstart = tstart, tstop = tstop, omega = omega,
-      offsets = offsets, n_nodes = n_nodes, bound_knots = bk,
+  func <- function(par, ..., grad){
+    o <- par[ seq_along(omega)]
+    d <- par[-seq_along(omega)]
+    -drop(joint_start_ll(
+      Y = Y, tstart = tstart, tstop = tstop, omega = o,
+      delta = d, Z = SZ, n_nodes = n_nodes, bound_knots = bk,
       inter_knots = ik, grad = grad))
+  }
   fn <- func
   formals(fn)$grad <- FALSE
   gr <- func
   formals(gr)$grad <- TRUE
 
-  opt_out <- optim(omega, fn, gr, method = "BFGS")
-  stopifnot(opt_out$convergence == 0L)
+  opt_out <- optim(c(omega, delta, alpha), fn, gr, method = "BFGS")
+  omega <- opt_out$par[seq_along(omega)]
+  delta <- opt_out$par[seq_along(delta) + length(omega)]
+  alpha <- opt_out$par[seq_along(alpha) + length(omega) + length(delta)]
 
-  omega <- opt_out$par
+  stopifnot(opt_out$convergence == 0L,
+            all(is.finite(omega)), all(is.finite(delta)),
+            all(is.finite(alpha)))
   out[c("delta", "alpha", "omega", "ll")] <- list(
     delta, alpha, omega, -opt_out$value)
   out
@@ -379,7 +385,8 @@ make_joint_ADFun <- function(
   m_time <- mark$time
 
   m_order <- order(m_id)
-  markers <- markers[m_order, , drop = FALSE]
+  markers <- markers[, m_order, drop = FALSE]
+  X       <- X[, m_order, drop = FALSE]
   m_id    <- m_id   [m_order]
   m_time  <- m_time [m_order]
 
@@ -388,16 +395,16 @@ make_joint_ADFun <- function(
   Z <- sr_dat$Z
 
   s_order  <- order(s_id)
-  outcomes <- outcomes[s_order, ]
+  outcomes <- outcomes[, s_order]
   s_id     <- s_id    [s_order]
-  Z        <- Z       [s_order, , drop = FALSE]
+  Z        <- Z       [, s_order, drop = FALSE]
 
   # checks
-  n_y <- NCOL(mark$Y)
+  n_y <- NROW(mark$Y)
   dim_m <- length(mknots)
   dim_g <- length(gknots)
   K <- n_y * dim_m
-  n_Z <- NCOL(Z)
+  n_Z <- NROW(Z)
   n_groups <- length(unique(s_id))
 
   c_num <- function(x)
@@ -411,7 +418,7 @@ make_joint_ADFun <- function(
     c_num(delta), length(delta) == n_Z,
     c_num(omega), length(omega) == length(sknots),
     c_num(markers), is.matrix(markers),
-    c_num(X), is.matrix(X), NROW(X) == NROW(markers),
+    c_num(X), is.matrix(X), NCOL(X) == NCOL(markers),
     setequal(unique(s_id), unique(m_id)),
     n_groups == length(s_id),
     check_knots_num(mknots),
@@ -427,14 +434,11 @@ make_joint_ADFun <- function(
 
   # make AD func
   n_markers <- table(m_id)
-  markers <- t(markers)
-  Z <- t(Z)
-  X <- t(X)
 
   data <- list(
     markers = markers, n_markers = n_markers, m_time = m_time, X = X,
     mknots = mknots, gknots = gknots,
-    tstart = outcomes[, 1], tstop = outcomes[, 2], outcomes = outcomes[, 3],
+    tstart = outcomes[1, ], tstop = outcomes[2, ], outcomes = outcomes[3, ],
     sknots = sknots, Z = Z,
     n_threads = n_threads, sparse_hess = sparse_hess, n_nodes = n_nodes)
   parameters <- list(
@@ -448,15 +452,15 @@ make_joint_ADFun <- function(
   par <- c(gamma, B, .cov_to_theta(Psi), .cov_to_theta(Sigma), delta,
            omega, alpha, va_par)
   names(par) <- c(
-    outer(paste0("gamma:", rownames(X)), colnames(mark$Y),
+    outer(paste0("gamma:", rownames(X)), rownames(mark$Y),
           function(x, y) paste0(x, ".", y)),
-    outer(paste0("B:g", seq_len(NROW(B))), colnames(mark$Y),
+    outer(paste0("B:g", seq_len(NROW(B))), rownames(mark$Y),
           function(x, y) paste0(x, ".", y)),
     paste0("Psi:", names(.cov_to_theta(Psi))),
     paste0("Sigma:", names(.cov_to_theta(Sigma))),
     paste0("delta:", rownames(Z)),
     paste0("omega:b", seq_along(omega)),
-    paste0("alpha:", colnames(mark$Y)),
+    paste0("alpha:", rownames(mark$Y)),
     names(va_par))
 
   out <- list(
@@ -497,6 +501,9 @@ make_joint_ADFun <- function(
   }
 
   out$par <- par
+
+  # clean up enviroment
+  rm(list = ls()[!ls() %in% c("func", "out")])
   out
 }
 

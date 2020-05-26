@@ -29,8 +29,8 @@ get_commutation <- function(n, m) {
     .Call(`_survTMB_get_commutation`, n, m)
 }
 
-joint_start_baseline <- function(Y, tstart, tstop, omega, offsets, n_nodes, bound_knots, inter_knots, grad) {
-    .Call(`_survTMB_joint_start_baseline`, Y, tstart, tstop, omega, offsets, n_nodes, bound_knots, inter_knots, grad)
+joint_start_ll <- function(Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad) {
+    .Call(`_survTMB_joint_start_ll`, Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad)
 }
 
 get_joint_funcs <- function(data, parameters) {

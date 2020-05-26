@@ -362,6 +362,8 @@ system.time(
 The estimated lower bound of the log marginal likelihood at the optimum is
 shown below.
 
+<!-- with(environment(out$fn), c(mark$ll, sr_dat$ll, mark$ll + sr_dat$ll)) -->
+
 ```{r joint_show_lb}
 -opt_out$value
 ```
