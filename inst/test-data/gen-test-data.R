@@ -1,7 +1,7 @@
 # install package
 if(FALSE)
   devtools::install_github("boennecd/SimSurvNMarker",
-                           ref = "544b7d9f9a98ab5972704fd3f3d9e52175455d51")
+                           ref = "cb2f777e065b229e5739c372460f88b18b5f5d38")
 
 #####
 # x-all
@@ -24,17 +24,17 @@ d_b <- length(omega)
 d_z <- length(delta)
 d_x <- NROW(gamma)
 
-r_n_marker <- function()
+r_n_marker <- function(id)
   rpois(1, 10) + 1L
-r_obs_time <- function(n_markes)
+r_obs_time <- function(id, n_markes)
   sort(runif(n_markes, 0, 10))
-r_z <- function()
+r_z <- function(id)
   as.numeric(runif(d_z) > .5)
-r_x <- function()
+r_x <- function(id)
   as.numeric(runif(d_x) > .5)
-r_left_trunc <- function()
+r_left_trunc <- function(id)
   rbeta(1, 1, 2) * 3
-r_right_cens <- function()
+r_right_cens <- function(id)
   rbeta(1, 2, 1) * 6 + 4
 
 b_ks <- seq(log(1e-1), log(10), length.out = d_b)
@@ -58,7 +58,7 @@ saveRDS(dat, file.path("inst", "test-data", "large-joint-all.RDS"))
 
 set.seed(95002011L)
 dat <- sim_joint_data_set(
-  n_obs = 200L, B = B, Psi = Psi, omega = omega, delta = delta,
+  n_obs = 50L, B = B, Psi = Psi, omega = omega, delta = delta,
   alpha = alpha, sigma = sig, gamma = gamma, b_func = b_func,
   m_func = m_func, g_func = g_func, gl_dat = gl_dat, r_z = r_z,
   r_left_trunc = r_left_trunc, r_right_cens = r_right_cens,

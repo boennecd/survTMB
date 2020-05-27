@@ -51,9 +51,9 @@ class snva_integral : public CppAD::atomic_base<Type> {
   std::unique_ptr<G> const g;
   std::unique_ptr<M> const m;
 
-  bool const has_b = (bool)b,
-             has_g = (bool)g,
-             has_m = (bool)m;
+  bool const has_b = static_cast<bool>(b),
+             has_g = static_cast<bool>(g),
+             has_m = static_cast<bool>(m);
 
   size_t const dim_omega = has_b ? b->get_n_basis() : 0L,
                dim_alpha,

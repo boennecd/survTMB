@@ -300,9 +300,9 @@ public:
     /* evaluate the lower bound */
     survTMB::accumulator_mock<Type> result;
     bool const is_in_parallel = CppAD::thread_alloc::in_parallel(),
-                        has_b = my_int.b,
-                        has_g = my_int.g,
-                        has_m = my_int.m;
+                        has_b = static_cast<bool>(my_int.b),
+                        has_g = static_cast<bool>(my_int.g),
+                        has_m = static_cast<bool>(my_int.m);
     arma::vec b_wrk(has_b ? dim_b : 0L),
               g_wrk(has_g ? dim_g : 0L),
               m_wrk(has_m ? dim_m : 0L);
@@ -535,7 +535,7 @@ SEXP get_joint_funcs
   shut_up();
 
   unsigned const n_threads(data["n_threads"]);
-  setup_parallel_ad<          double  > setup_ADd(n_threads);
+  setup_parallel_ad<double> setup_ADd(n_threads);
   return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
 }
 

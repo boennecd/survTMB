@@ -17,7 +17,7 @@
 .get_joint_knots <- function(n_knots, times)
   stop(".get_joint_knots not implemented")
 
-#' @importFrom stats model.response model.frame terms model.matrix
+#' @importFrom stats model.response model.frame terms model.matrix logLik
 #' @importFrom reshape2 melt
 #' @importFrom splines ns
 #' @importFrom lme4 lmer lmerControl fixef VarCorr .makeCC
@@ -81,9 +81,9 @@ get_marker_start_params <- function(
   n_y <- NROW(out$Y)
   d_x <- length(X_names)
 
-  gamma <- t(matrix(fixef(fit)[seq_len(d_x * n_y)], nr = n_y))
+  gamma <- t(matrix(fixef(fit)[seq_len(d_x * n_y)], nrow = n_y))
 
-  B <- matrix(fixef(fit)[-seq_along(gamma)], nc = n_y)
+  B <- matrix(fixef(fit)[-seq_along(gamma)], ncol = n_y)
 
   vc <- VarCorr(fit)
   Psi <- vc$id

@@ -13,7 +13,7 @@
       expect_true(std::abs((TARGET) - (CURRENT)) /             \
                     std::abs((TARGET)) < eps);                 \
     else                                                       \
-      expect_true(std::abs((TARGET) - (CURRENT) < eps));       \
+      expect_true(std::abs((TARGET) - (CURRENT)) < eps);       \
   }
 
 #define expect_equal_eps(TARGET, CURRENT, EPS)                 \
@@ -22,7 +22,7 @@
     expect_true(std::abs((TARGET) - (CURRENT)) /               \
       std::abs((TARGET)) < (EPS));                             \
   else                                                         \
-    expect_true(std::abs((TARGET) - (CURRENT) < (EPS)));       \
+    expect_true(std::abs((TARGET) - (CURRENT)) < (EPS));       \
 }
 
 #endif

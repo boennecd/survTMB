@@ -25,7 +25,7 @@ Type get_fastgl_testval(size_t const n){
 
 context("Gauss-Legendre unit tests") {
   test_that("GLPairsCached yields correct value of a integral") {
-    constexpr double const expect_val = exp(2) - exp(-2);
+    double const expect_val = exp(2) - exp(-2);
 
     for(unsigned n = 10L; n < 30L; ++n){
       double out = get_fastgl_testval<double>(n);

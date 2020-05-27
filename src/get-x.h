@@ -148,8 +148,7 @@ struct setup_parallel_ad {
     CppAD::parallel_ad<Type>();
   }
 #else
-  setup_parallel_ad(unsigned const nthreads, bool const setup = true):
-    setup_parallel_ad() { }
+  setup_parallel_ad(unsigned const nthreads, bool const setup = true) { }
 #endif
 };
 

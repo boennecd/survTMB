@@ -281,10 +281,8 @@ SEXP get_VA_funcs
   shut_up();
 
   unsigned const n_threads(data["n_threads"]);
-  setup_parallel_ad<double>
-    setup_ADd (n_threads);
-  setup_parallel_ad<CppAD::AD<double> >
-    setup_ADdd(n_threads, false);
+  setup_parallel_ad<double> setup_ADd(n_threads);
+  setup_parallel_ad<CppAD::AD<double> > setup_ADdd(n_threads, false);
 
   return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
 }

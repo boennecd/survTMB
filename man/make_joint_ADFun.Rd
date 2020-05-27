@@ -14,9 +14,10 @@ make_joint_ADFun(
   time_var,
   mknots,
   sknots,
+  gknots,
   n_nodes = 20L,
-  skew_start = .alpha_to_gamma(-1),
-  opt_func = .opt_default_CG,
+  skew_start = .alpha_to_gamma(-0.75),
+  opt_func = .opt_default,
   n_threads = 1L,
   sparse_hess = FALSE,
   B = NULL,
@@ -25,6 +26,7 @@ make_joint_ADFun(
   omega = NULL,
   alpha = NULL,
   delta = NULL,
+  gamma = NULL,
   va_par = NULL
 )
 }
@@ -46,8 +48,14 @@ more than one marker.}
 
 \item{time_var}{name of the time variable in \code{mdata}.}
 
-\item{mknots}{vector with knots for the baseline hazard or number of
-knots to use.}
+\item{mknots}{numeric vector with knots for the processes' random mean
+term or number of knots to use.}
+
+\item{sknots}{numeric vector with knots for the baseline hazard
+or number of knots to use.}
+
+\item{gknots}{numeric vector with knots for the processes' fixed mean
+term or number of knots to use.}
 
 \item{n_nodes}{number of nodes to use with Gauss-Legendre quadrature for
 the cumulative hazard and nodes to use with Gauss-Hermite
@@ -77,6 +85,8 @@ available. Memory and computation time is saved if it is
 \item{alpha}{staring value for alpha.}
 
 \item{delta}{staring value for delta.}
+
+\item{gamma}{staring value for gamma.}
 
 \item{va_par}{staring value for variational parameters.}
 }
