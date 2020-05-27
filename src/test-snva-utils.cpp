@@ -5,6 +5,15 @@
 using namespace GaussHermite;
 using namespace GaussHermite::SNVA;
 
+namespace {
+template<class C1, class C2>
+void do_test(C1 const &ex, C2 const &re){
+  expect_true(ex.size() == (unsigned)re.size());
+  for(unsigned i = 0; i < ex.size(); ++i)
+    expect_equal(ex[i], *(re.data() + i));
+}
+} // namespace
+
 context("snva-utils unit tests") {
   test_that("entropy_term gives the correct result") {
     /*
@@ -247,12 +256,6 @@ context("snva-utils unit tests") {
 
     expect_true(input.va_mus.size() == 1L);
 
-    auto do_test = [&](auto &ex, auto &re){
-      expect_true(ex.size() == (unsigned)re.size());
-      for(unsigned i = 0; i < ex.size(); ++i)
-        expect_equal(ex[i], *(re.data() + i));
-    };
-
     do_test(mu , input.va_mus[0]);
     do_test(Sig, input.va_lambdas[0]);
     do_test(rho, input.va_rhos[0]);
@@ -301,12 +304,6 @@ context("snva-utils unit tests") {
       rho = { -0.592481457389101, 0.458273315832141, 0 };
 
     expect_true(input.va_mus.size() == 1L);
-
-    auto do_test = [&](auto &ex, auto &re){
-      expect_true(ex.size() == (unsigned)re.size());
-      for(unsigned i = 0; i < ex.size(); ++i)
-        expect_equal(ex[i], *(re.data() + i));
-    };
 
     do_test(mu , input.va_mus[0]);
     do_test(Sig, input.va_lambdas[0]);

@@ -145,58 +145,60 @@ void SNVA_comp
 
   /* handle terms from conditional density of observed outcomes */
   bool const is_in_parallel = CppAD::thread_alloc::in_parallel();
-  auto main_loop = [&](auto const &func){
-    unsigned i = 0;
-    for(unsigned g = 0; g < grp_size.size(); ++g){
-      unsigned const n_members = grp_size[g];
-      /* is this our cluster? */
-      if(is_in_parallel and !is_my_region(*result.obj)){
-        i += n_members;
-        result.obj->parallel_region();
-        continue;
-      }
-
-      vecT const &va_mu = va_mus[g],
-                  &va_d = va_ds [g];
-      matrix<Type> const &va_lambda = va_lambdas[g];
-
-      Type term(0.);
-      unsigned const end = n_members + i;
-      for(; i < end; ++i){
-        vecT const z = Z.row(i);
-
-        Type const mu = vec_dot(z, va_mu),
-                sd_sq = quad_form_sym(z, va_lambda),
-                   sd = sqrt(sd_sq),
-                    d = vec_dot(z, va_d),
-                  rho = d / sd_sq / sqrt(one - d * d / sd_sq),
-             d_scaled = sqrt_2_pi * d,
-            dist_mean = mu + d_scaled,
-             dist_var = sd_sq - d_scaled * d_scaled;
-
-        term += func(
-          eta_fix[i], etaD_fix[i], event[i],
-          mu, sd, rho, d, sd_sq, dist_mean, dist_var);
-      }
-
-      result -= term;
-    }
-  };
+#define MAIN_LOOP(func)                                        \
+  {                                                            \
+    unsigned i = 0;                                            \
+    for(unsigned g = 0; g < grp_size.size(); ++g){             \
+      unsigned const n_members = grp_size[g];                  \
+      /* is this our cluster? */                               \
+      if(is_in_parallel and !is_my_region(*result.obj)){       \
+        i += n_members;                                        \
+        result.obj->parallel_region();                         \
+        continue;                                              \
+      }                                                        \
+                                                               \
+      vecT const &va_mu = va_mus[g],                           \
+                  &va_d = va_ds [g];                           \
+      matrix<Type> const &va_lambda = va_lambdas[g];           \
+                                                               \
+      Type term(0.);                                           \
+      unsigned const end = n_members + i;                      \
+      for(; i < end; ++i){                                     \
+        vecT const z = Z.row(i);                               \
+                                                               \
+        Type const mu = vec_dot(z, va_mu),                     \
+                sd_sq = quad_form_sym(z, va_lambda),           \
+                   sd = sqrt(sd_sq),                           \
+                    d = vec_dot(z, va_d),                      \
+                  rho = d / sd_sq / sqrt(one - d * d / sd_sq), \
+             d_scaled = sqrt_2_pi * d,                         \
+            dist_mean = mu + d_scaled,                         \
+             dist_var = sd_sq - d_scaled * d_scaled;           \
+                                                               \
+        term += func(                                          \
+          eta_fix[i], etaD_fix[i], event[i],                   \
+          mu, sd, rho, d, sd_sq, dist_mean, dist_var);         \
+      }                                                        \
+                                                               \
+      result -= term;                                          \
+    }                                                          \
+  }
 
   if(link == "PH"){
     ph<Type>     func(eps, kappa, xw.x.size());
-    main_loop(func);
+    MAIN_LOOP(func);
 
   } else if (link == "PO"){
     po<Type>     func(eps, kappa, xw.x.size());
-    main_loop(func);
+    MAIN_LOOP(func);
 
   } else if (link == "probit"){
     probit<Type> func(eps, kappa, xw.x.size());
-    main_loop(func);
+    MAIN_LOOP(func);
 
   } else
     error("'%s' not implemented", link.c_str());
+#undef MAIN_LOOP
 
   if(!is_my_region(*result.obj))
     /* only have to add one more term so just return */

@@ -3,4 +3,7 @@ language: r
 r: release
 cache: packages
 sudo: required
-dist: bionic
+
+after_failure:
+  - "cat /home/travis/build/boennecd/survTMB/survTMB.Rcheck/00install.out"
+  - "cat /home/travis/build/boennecd/survTMB/survTMB.Rcheck/tests/testthat.Rout"

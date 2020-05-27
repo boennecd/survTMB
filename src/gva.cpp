@@ -133,52 +133,56 @@ void GVA_comp(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
 
   /* handle terms from conditional density of observed outcomes */
   bool const is_in_parallel = CppAD::thread_alloc::in_parallel();
-  auto main_loop = [&](auto const &func){
-    unsigned i = 0;
-    for(unsigned g = 0; g < grp_size.size(); ++g){
-      unsigned const n_members = grp_size[g];
-      /* is this our cluster? */
-      if(is_in_parallel and !is_my_region(*result.obj)){
-        i += n_members;
-        result.obj->parallel_region();
-        continue;
-      }
-
-      /* get VA parameters */
-      vecT const &va_mu          = va_means[g];
-      matrix<Type> const &va_var = va_vcovs[g];
-
-      /* compute conditional density terms from outcomes */
-      unsigned const end = n_members + i;
-      Type terms(0);
-      for(; i < end; ++i){
-        vecT const z = Z.row(i);
-        Type const err_mean = vec_dot(z, va_mu),
-                   err_var  = quad_form_sym(z, va_var),
-                   err_sd   = sqrt(err_var);
-
-        terms += func(
-          eta_fix[i], etaD_fix[i], event[i], err_mean, err_sd, err_var);
-      }
-
-      result -= terms;
-    }
-  };
+#define MAIN_LOOP(func)                                        \
+  {                                                            \
+    unsigned i = 0;                                            \
+    for(unsigned g = 0; g < grp_size.size(); ++g){             \
+      unsigned const n_members = grp_size[g];                  \
+      /* is this our cluster? */                               \
+      if(is_in_parallel and !is_my_region(*result.obj)){       \
+        i += n_members;                                        \
+        result.obj->parallel_region();                         \
+        continue;                                              \
+      }                                                        \
+                                                               \
+      /* get VA parameters */                                  \
+      vecT const &va_mu          = va_means[g];                \
+      matrix<Type> const &va_var = va_vcovs[g];                \
+                                                               \
+      /* compute conditional density terms from outcomes */    \
+      unsigned const end = n_members + i;                      \
+      Type terms(0);                                           \
+      for(; i < end; ++i){                                     \
+        vecT const z = Z.row(i);                               \
+        Type const err_mean = vec_dot(z, va_mu),               \
+                   err_var  = quad_form_sym(z, va_var),        \
+                   err_sd   = sqrt(err_var);                   \
+                                                               \
+        terms += func(                                         \
+          eta_fix[i], etaD_fix[i], event[i], err_mean, err_sd, \
+          err_var);                                            \
+      }                                                        \
+                                                               \
+      result -= terms;                                         \
+    }                                                          \
+  }
 
   if(link == "PH"){
     ph<Type> const func(eps, kappa, n_nodes);
-    main_loop(func);
+    MAIN_LOOP(func);
 
   } else if (link == "PO"){
     po<Type> const func(eps, kappa, n_nodes);
-    main_loop(func);
+    MAIN_LOOP(func);
 
   } else if (link == "probit"){
     probit<Type> const func(eps, kappa, n_nodes);
-    main_loop(func);
+    MAIN_LOOP(func);
 
   } else
     error("'%s' not implemented", link.c_str());
+
+#undef MAIN_LOOP
 
   if(!is_my_region(*result.obj))
     /* only have to add one more term so just return */

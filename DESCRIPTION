@@ -23,7 +23,7 @@ Depends:
     R (>= 3.6.0),
     splines,
     survival
-SystemRequirements: C++14
+SystemRequirements: C++11
 Suggests: 
     testthat, 
     numDeriv, 
