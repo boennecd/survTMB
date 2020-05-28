@@ -249,7 +249,7 @@ context("snva-utils unit tests") {
              0.577350269189626,
              1.54919333848297, 0.447213595499958, 5, 7, 9;
 
-    auto input = SNVA_MD_theta_DP_to_DP(theta, 3L);
+    auto input = SNVA_MD_theta_DP_to_DP(&theta[0], theta.size(), 3L);
     std::vector<double> const mu = { 4, 3, 8 },
                              Sig = { 1, 1, 2, 1, 4, 3, 2, 3, 6 },
                              rho = { 5, 7, 9 };
@@ -262,31 +262,19 @@ context("snva-utils unit tests") {
   }
   {
     /*
-     cp_to_dp <- function(mu, Sigu, gamma){
-     Sig <- matrix(0., length(mu), length(mu))
+     Sigu <- c(4, 2, 1, 1, 2, 3)
+     Sig <- matrix(0., 3L, 3L)
      Sig[upper.tri(Sig, TRUE)] <- Sigu
      Sig <- crossprod(Sig)
+     gamma_trans <- c(0.01, -0.01, 0)
+     skew_boundary <- 0.99527
+     gam <- 2 * skew_boundary / (1 + exp(-gamma_trans)) - skew_boundary
 
-     gamma <- 2 * 0.99527 / (1 + exp(-gamma)) - 0.99527
-     cv <- 2 * abs(gamma) / (4 - pi)
-     nu <- ifelse(gamma < 0, -1, 1) * cv^(1/3) / sqrt(1 + cv^(2/3))
-     omegas <- sqrt(diag(Sig) / (1 - nu^2))
-     rhos <- sqrt(pi) * nu / sqrt(2 - pi * nu * nu) / omegas
-     onu <- omegas * nu
-     Lambda <- Sig + onu %o% onu
-
-     list(xi = mu - onu, Lambda = Lambda, rhos = rhos)
-     }
-     dput(cp_to_dp(
+     dput(survTMB:::.cov_to_theta(Sig),  control = c("keepNA", "keepInteger"))
+     dput(out <- survTMB:::.cp_to_dp(
      mu = c(-1, 0, 1),
-     Sigu = Sigu <- c(4, 2, 1, 1, 2, 3),
-     gamma = c(-2, .5, 0)))
-
-     ch <- matrix(0., 3L, 3L)
-     ch[lower.tri(ch, TRUE)] <- Sigu
-     log_sig <- log(diag(ch))
-     L <- diag(diag(ch)^(-1)) %*% ch
-     dput(c(log_sig, L[lower.tri(L)]))
+     Sigma = Sig,
+     gamma = gam))
      */
 
     using Type = double;
@@ -294,14 +282,16 @@ context("snva-utils unit tests") {
     theta << -1., 0., 1.,
              1.38629436111989, 0, 1.09861228866811, 2, 0.333333333333333,
              0.666666666666667,
-             -2., .5, 0.;
+             0.01, -0.01, 0;
 
-    auto input = SNVA_MD_theta_CP_trans_to_DP(theta, 3L);
+    auto input = SNVA_MD_theta_CP_trans_to_DP(&theta[0], theta.size(), 3L);
     std::vector<double> const
-      mu  = { 3.83496892053337, -1.85176038792831, 1 },
-      Sig = { 39.3769244625236, -0.953203923908205, 4, -0.953203923908205,
-              8.42901653430041, 4, 4, 4, 14 },
-      rho = { -0.592481457389101, 0.458273315832141, 0 };
+      mu  = { -1.90533215899427, 0.506096062431957, 1 },
+      Sig = { 16.8196263181092,
+              7.54181495913998, 4, 7.54181495913998, 5.25613322440913, 4, 4,
+              4, 14 },
+      rho = { 1.09012077024187, -2.14930211613867,
+              0.302623241684799 };
 
     expect_true(input.va_mus.size() == 1L);
 

@@ -244,8 +244,8 @@ public:
                  aalpha = set_vec(alpha.size());
 
     auto const ava_par = ([&](){
-      vector<Type> theta_va = set_vec(va_par.size());
-      return GaussHermite::SNVA::SNVA_MD_theta_DP_to_DP(theta_va, K);
+      return GaussHermite::SNVA::SNVA_MD_theta_DP_to_DP(
+        a, va_par.size(), K);
     })();
 
     /* get the cumulative hazard integral object */

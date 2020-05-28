@@ -3,6 +3,10 @@ library(survTMB)
 library(survival)
 
 get_test_file_name <- function(f_name){
+  f_name_use <- system.file("test-data", f_name, package = "survTMB")
+  if(nchar(f_name_use) > 0 && file.exists(f_name_use))
+    return(f_name_use)
+
   f_name <- file.path("test-data", paste0(f_name))
   f_name_use <- file.path("..", "..", "survTMB", f_name)
 
@@ -16,7 +20,8 @@ get_test_file_name <- function(f_name){
       file.path("inst", f_name)
   }
 
-  stopifnot(file.exists(out))
+  qu <- bquote(stopifnot(file.exists(.(out))))
+  eval(qu, environment())
   out
 }
 

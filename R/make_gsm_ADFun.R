@@ -2,23 +2,48 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
-.alpha_to_gamma <- function(alpha){
-  mu <- sqrt(2 / pi) * alpha / sqrt(1 + alpha^2)
-  (4 - pi) / 2 * mu^3 / (1 - mu^2)^(3/2)
+# maps from direct parameters to centralized parameters
+.dp_to_cp <- function(xi, Psi, rho){
+  k <- drop(Psi %*% rho)
+  k <- k / sqrt(drop(1 + rho %*% k))
+
+  mu <- xi + sqrt(2 / pi) * k
+
+  Sigma <- Psi - 2 / pi * outer(k, k)
+
+  gamma <-  sqrt(2 / pi) * k / sqrt(diag(Psi))
+  gamma <- (4 - pi) / 2 * gamma^3 / (1 - gamma^2)^(3 / 2)
+
+  list(mu = mu, Sigma = Sigma, gamma = gamma)
 }
-.gamma_to_alpha <- function(gamma){
-  cf <- 2 * gamma / (4 - pi)
-  v1 <- local({
-    cf <- ( cf)^(1/3)
-    cf / sqrt(1 + cf^(2))
-  })
-  v2 <- local({
-    cf <- (-cf)^(1/3)
-    -cf / sqrt(1 + cf^(2))
-  })
-  mu <- ifelse(gamma > 0, v1, v2)
-  o <- sqrt(pi) * mu
-  o / sqrt(2 - pi * mu^2)
+
+# maps from centralized parameters to direct parameters
+.cp_to_dp <- function(mu, Sigma, gamma){
+  sign_gamma <- ifelse(gamma > 0, 1, -1)
+  gamma <- abs(gamma)
+  cf <- (2 * gamma / (4 - pi))^(1/3)
+
+  delta <- sign_gamma * cf / sqrt(1 + cf^2) * sqrt(pi / 2)
+  sig_bar <- sqrt(1 - 2 / pi  * delta^2)
+  if(is.matrix(Sigma))
+    psi <- sqrt(diag(Sigma)) / sig_bar
+  else if(is.vector(Sigma) && length(Sigma) == 1L)
+    psi <- sqrt(Sigma) / sig_bar
+
+  k <- delta * psi
+  xi <- mu - sqrt(2 / pi) * k
+  Psi <- Sigma + 2 / pi * outer(k, k)
+  rho <- solve(Psi, k)
+  denom <- drop(1 - k %*% rho)
+  if(denom > 0.){
+    rho <- rho / sqrt(denom)
+  } else {
+    warning(".cp_to_dp: invalid gamma parameter")
+    alpha_max <- 20. # TODO: some better value?
+    rho <- sign(rho) * alpha_max / psi
+  }
+
+  list(xi = xi, Psi = Psi, rho = rho)
 }
 
 .opt_func_quick_control <- list(
@@ -210,7 +235,7 @@ make_mgsm_ADFun <- function(
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
   opt_func = .opt_default, n_threads = 1L,
-  skew_start = .alpha_to_gamma(-.75), dense_hess = FALSE,
+  skew_start = -0.02, dense_hess = FALSE,
   sparse_hess = FALSE){
   link <- link[1]
   param_type <- param_type[1]
@@ -601,39 +626,37 @@ make_mgsm_ADFun <- function(
   n_p_grp_gva <-  n_p_grp - n_rho
 
   theta_VA <- if(param_type == "DP"){
-    alpha <- .gamma_to_alpha(skew_start)
-    nu <- sqrt(2 / pi) * alpha / sqrt(1 + alpha^2)
-    omega_denom <- sqrt(1 - nu^2)
     n_lower_tri <- (n_rng * (n_rng - 1L)) / 2L
 
     vapply(1:n_grp, function(i){
       # setup mean and VA variance
       gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
-      sds <- exp(gva_par[1:n_mu + n_mu])
+      Sig <- .theta_to_cov(gva_par[-seq_len(n_mu)])
 
-      Sig <- diag(n_rng)
-      if(n_rng > 1L)
-        Sig[lower.tri(Sig)] <- tail(gva_par, n_lower_tri)
-      Sig <- diag(sds, n_rng) %*% Sig
-      Sig <- tcrossprod(Sig)
+      dp_pars <- .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
+                           gamma = skew_start)
 
-      # compute VA parameters and return
-      omega <- sds / omega_denom
-      dnu <- omega * nu
-      Omega <- Sig + outer(dnu, dnu)
-
-      xi <- gva_par[1:n_mu] - dnu
-      rho <- alpha / sqrt(diag(Omega))
-      c(xi, .cov_to_theta(Omega), rho)
+      c(dp_pars$xi, .cov_to_theta(dp_pars$Psi), dp_pars$rho)
     }, numeric(n_p_grp), USE.NAMES = FALSE)
+
   } else {
     stopifnot(param_type == "CP_trans")
-    skew_trans <-
-      log((skew_boundary + skew_start) / (skew_boundary - skew_start))
+    get_skew_trans <- function(x)
+      log((skew_boundary + x) / (skew_boundary - x))
+
     vapply(1:n_grp, function(i){
       # setup mean and VA variance
       gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
-      c(gva_par, skew_trans)
+
+      Sig <- .theta_to_cov(gva_par[-seq_len(n_mu)])
+      dp_pars <- .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
+                           gamma = skew_start)
+
+      cp_pars <- .dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
+                           rho = dp_pars$rho)
+
+      out <- c(cp_pars$mu, .cov_to_theta(cp_pars$Sigma),
+               get_skew_trans(cp_pars$gamma))
     }, numeric(n_p_grp), USE.NAMES = FALSE)
   }
 

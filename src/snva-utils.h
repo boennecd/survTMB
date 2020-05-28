@@ -379,13 +379,15 @@ public:
 
 /* maps from direct parameters vector to direct parameters. See
  * get_vcov_from_trian. */
+
 template<class Type>
 SNVA_MD_input<Type> SNVA_MD_theta_DP_to_DP
-  (vector<Type> const &theta_VA, unsigned const rng_dim){
+  (Type const * const theta_VA, size_t const n_params,
+   size_t const rng_dim){
   using survTMB::get_vcov_from_trian;
   using vecT = vector<Type>;
   using std::move;
-  unsigned const n_groups = theta_VA.size() / (
+  unsigned const n_groups = n_params / (
     rng_dim * 2L + (rng_dim * (rng_dim + 1L)) / 2L);
 
   SNVA_MD_input<Type> out;
@@ -397,7 +399,7 @@ SNVA_MD_input<Type> SNVA_MD_theta_DP_to_DP
   va_rhos   .reserve(n_groups);
   va_lambdas.reserve(n_groups);
 
-  Type const *t = &theta_VA[0];
+  Type const *t = theta_VA;
   for(unsigned g = 0; g < n_groups; ++g){
     /* insert new mu vector */
     vecT mu_vec(rng_dim);
@@ -424,14 +426,15 @@ SNVA_MD_input<Type> SNVA_MD_theta_DP_to_DP
  * get_vcov_from_trian */
 template<class Type>
 SNVA_MD_input<Type> SNVA_MD_theta_CP_trans_to_DP
-  (vector<Type> const &theta_VA, unsigned const rng_dim){
+  (Type const * const theta_VA, size_t const n_params,
+   size_t const rng_dim){
   using survTMB::get_vcov_from_trian;
   using vecT = vector<Type>;
   using std::move;
   unsigned const n_mu = rng_dim,
              n_lambda = (rng_dim * (rng_dim + 1L)) / 2L,
               n_per_g = n_mu + n_lambda + rng_dim,
-             n_groups = theta_VA.size() / n_per_g;
+             n_groups = n_params / n_per_g;
 
   SNVA_MD_input<Type> out;
   std::vector<vecT > &va_mus = out.va_mus,
@@ -443,48 +446,50 @@ SNVA_MD_input<Type> SNVA_MD_theta_CP_trans_to_DP
   va_lambdas.reserve(n_groups);
 
   get_gamma<Type> trans_g;
-  Type const *t = &theta_VA[0],
+  Type const *t = theta_VA,
             one(1.),
-            two(2.),
-            Tpi(M_PI),
-        sqrt_pi(sqrt(M_PI));
+      sqrt_2_pi(sqrt(2. / M_PI));
 
   /* intermediaries */
-  vecT gamma(rng_dim),
-          nu(rng_dim),
-       omega(rng_dim);
+  vecT psi(rng_dim),
+     gamma(rng_dim);
 
   for(unsigned g = 0; g < n_groups; ++g, t += n_per_g){
     /* get gamma parameters */
-    Type const *gi = t + n_mu + n_lambda;
-    for(unsigned i = 0; i < rng_dim; ++i)
-      gamma[i] = trans_g(*gi++);
+    {
+      Type const *gi = t + n_mu + n_lambda;
+      for(unsigned i = 0; i < rng_dim; ++i)
+        gamma[i] = trans_g(*gi++);
+    }
 
     /* Compute intermediaries and rho */
-    vecT rhos(rng_dim);
     matrix<Type> Sigma = get_vcov_from_trian(t + n_mu, rng_dim);
+    vecT k(rng_dim);
     for(unsigned i = 0; i < rng_dim; ++i){
-      Type const &gv = gamma[i];
-      nu[i]    = gamma_to_nu(gv);
-      omega[i] = sqrt(Sigma(i, i) / (one - nu[i] * nu[i]));
-      rhos[i]  =
-        sqrt_pi * nu[i] / omega[i] / sqrt(two - Tpi * nu[i] * nu[i]);
-
-      /* replace nu by nu * omega */
-      nu[i] *= omega[i];
+      Type const nu = gamma_to_nu(gamma[i]);
+      psi[i] = sqrt(Sigma(i, i) / (one - nu * nu));
+      k  [i] = nu * psi[i] / sqrt_2_pi;
     }
-    va_rhos.emplace_back(move(rhos));
 
     /* assign mu and Lambda */
+    vecT const k_sqrt_2_pi = k * sqrt_2_pi;
     vecT mu(rng_dim);
-    Type const *mi = t;
-    for(unsigned i = 0; i < rng_dim; ++i)
-      mu[i] = *mi++;
-    mu -= nu;
+    {
+      Type const *mi = t;
+      for(unsigned i = 0; i < rng_dim; ++i, ++mi)
+        mu[i] = *mi;
+      mu -= k_sqrt_2_pi;
+    }
     va_mus.emplace_back(move(mu));
 
-    auto const nu_vec = nu.matrix();
-    Sigma += nu_vec * nu_vec.transpose();
+    auto const k_sqrt_2_pi_mat = k_sqrt_2_pi.matrix();
+    Sigma += k_sqrt_2_pi_mat * k_sqrt_2_pi_mat.transpose();
+
+    vecT tmp = atomic::matinv(Sigma) * k;
+    Type const denom = sqrt(one - vec_dot(k, tmp));
+
+    tmp /= denom;
+    va_rhos.emplace_back(move(tmp));
     va_lambdas.emplace_back(move(Sigma));
   }
 

@@ -228,7 +228,7 @@ for(param_type in c("DP", "CP_trans")){
   msg <- sprintf("Method: %s (%s)", mth, param_type)
   cat(sprintf("\n%s\n%s\n", msg, 
               paste0(rep("-", nchar(msg)), collapse = "")))
-  print(microbenchmark(
+  print(suppressWarnings(microbenchmark(
     `PH         ` = fit_model("PH"    , 1L, mth, param_type = param_type),
     `PH     (2L)` = fit_model("PH"    , 2L, mth, param_type = param_type),
     `PH     (4L)` = fit_model("PH"    , 4L, mth, param_type = param_type),
@@ -240,7 +240,7 @@ for(param_type in c("DP", "CP_trans")){
     `probit     ` = fit_model("probit", 1L, mth, param_type = param_type),
     `probit (2L)` = fit_model("probit", 2L, mth, param_type = param_type),
     `probit (4L)` = fit_model("probit", 4L, mth, param_type = param_type),
-    times = 5))
+    times = 5)))
 }
 ```
 
@@ -407,7 +407,7 @@ cov2cor(dat$params$sigma)
 ```
 
 ```{r check_va, echo = FALSE, eval = FALSE}
-is_grp_x <- which(grepl("^g2:", names(opt_out$par)))
+is_grp_x <- which(grepl("^g20:", names(opt_out$par)))
 x_va_pars <- opt_out$par[is_grp_x]
 xi <- x_va_pars[grepl(":xi", names(x_va_pars))]
 Lambda <- survTMB:::.theta_to_cov(
@@ -418,6 +418,8 @@ k <- Lambda %*% rho
 k <- drop(k / sqrt(drop(1 + rho %*% k)))
 Lambda - 2 / pi * outer(k, k)
 cov2cor(Lambda - 2 / pi * outer(k, k))
+
+survTMB:::.dp_to_cp(xi = xi, Psi = Lambda, rho = rho)
 ```
 
 ## References

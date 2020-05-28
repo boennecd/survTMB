@@ -210,24 +210,20 @@ get_surv_start_params <- function(
   out
 }
 
-.get_joint_va_start <- function(skew_start, K, Psi, n_groups) {
+.get_joint_va_start <- function(skew_start, Psi, n_groups) {
   va_pars <- local({
-    alpha <- .gamma_to_alpha(skew_start)
-    if(length(alpha) == 1L)
-      alpha <- rep(alpha, K)
-    stopifnot(length(alpha) == K)
+    K <- NCOL(Psi)
+    if(length(skew_start) == 1L)
+      skew_start <- rep(skew_start, K)
+    stopifnot(length(skew_start) == K)
 
-    nu <- sqrt(2 / pi) * alpha / sqrt(1 + alpha^2)
-    omega_denom <- sqrt(1 - nu^2)
+    out <- .cp_to_dp(mu = numeric(K), Sigma = Psi, gamma = skew_start)
 
-    sds <- sqrt(diag(Psi))
+    xi <- out$xi
+    Omega <- out$Psi
+    rho <- out$rho
 
-    omega <- sds / omega_denom
-    dnu <- omega * nu
-    Omega <- Psi + outer(dnu, dnu)
-
-    xi <- - dnu
-    c(xi = xi, .cov_to_theta(Omega), rho = alpha / sqrt(diag(Omega)))
+    c(xi = xi, .cov_to_theta(Omega), rho = rho)
   })
 
   va_pars <- structure(
@@ -316,7 +312,7 @@ get_surv_start_params <- function(
 #' @export
 make_joint_ADFun <- function(
   sformula, mformula, sdata, mdata, id_var, time_var, mknots, sknots,
-  gknots, n_nodes = 20L, skew_start = .alpha_to_gamma(-.75),
+  gknots, n_nodes = 20L, skew_start = -0.02,
   opt_func = .opt_default, n_threads = 1L, sparse_hess = FALSE, B = NULL,
   Psi = NULL, Sigma = NULL, omega = NULL, alpha = NULL, delta = NULL,
   gamma = NULL, va_par = NULL){
@@ -427,7 +423,7 @@ make_joint_ADFun <- function(
 
   # prepare VA parameters
   if(missed_va <- is.null(va_par))
-    va_par <- .get_joint_va_start(skew_start = skew_start, K = K, Psi = Psi,
+    va_par <- .get_joint_va_start(skew_start = skew_start, Psi = Psi,
                                   n_groups = n_groups)
   stopifnot(length(va_par) == n_groups * (2L * K + (K * (K + 1L)) / 2L),
             all(is.finite(va_par)))

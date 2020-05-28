@@ -110,7 +110,8 @@ void SNVA_comp
   std::vector<matrix<Type> > va_lambdas;
 
 #define SET_PARAMS(meth_use)                                   \
-  auto const input = meth_use(theta_VA, rng_dim);              \
+  auto const input = meth_use(                                 \
+    &theta_VA[0], theta_VA.size(), rng_dim);                   \
   va_mus     = move(input.va_mus);                             \
   va_rhos    = move(input.va_rhos);                            \
   va_lambdas = move(input.va_lambdas)
