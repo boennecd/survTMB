@@ -217,13 +217,13 @@ get_surv_start_params <- function(
       skew_start <- rep(skew_start, K)
     stopifnot(length(skew_start) == K)
 
-    out <- .cp_to_dp(mu = numeric(K), Sigma = Psi, gamma = skew_start)
+    out <- cp_to_dp(mu = numeric(K), Sigma = Psi, gamma = skew_start)
 
     xi <- out$xi
     Omega <- out$Psi
     alpha <- out$alpha
 
-    c(xi = xi, .cov_to_theta(Omega), alpha = alpha)
+    c(xi = xi, cov_to_theta(Omega), alpha = alpha)
   })
 
   va_pars <- structure(
@@ -438,22 +438,22 @@ make_joint_ADFun <- function(
     sknots = sknots, Z = Z,
     n_threads = n_threads, sparse_hess = sparse_hess, n_nodes = n_nodes)
   parameters <- list(
-    gamma = gamma, B = B, Psi = .cov_to_theta(Psi),
-    Sigma = .cov_to_theta(Sigma), delta = delta, omega = omega,
+    gamma = gamma, B = B, Psi = cov_to_theta(Psi),
+    Sigma = cov_to_theta(Sigma), delta = delta, omega = omega,
     alpha = alpha, va_par = va_par)
 
   func <- get_joint_funcs(data = data, parameters = parameters)
 
   # create parameter vector and return
-  par <- c(gamma, B, .cov_to_theta(Psi), .cov_to_theta(Sigma), delta,
+  par <- c(gamma, B, cov_to_theta(Psi), cov_to_theta(Sigma), delta,
            omega, alpha, va_par)
   names(par) <- c(
     outer(paste0("gamma:", rownames(X)), rownames(mark$Y),
           function(x, y) paste0(x, ".", y)),
     outer(paste0("B:g", seq_len(NROW(B))), rownames(mark$Y),
           function(x, y) paste0(x, ".", y)),
-    paste0("Psi:", names(.cov_to_theta(Psi))),
-    paste0("Sigma:", names(.cov_to_theta(Sigma))),
+    paste0("Psi:", names(cov_to_theta(Psi))),
+    paste0("Sigma:", names(cov_to_theta(Sigma))),
     paste0("delta:", rownames(Z)),
     paste0("omega:b", seq_along(omega)),
     paste0("alpha:", rownames(mark$Y)),

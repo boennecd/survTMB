@@ -272,8 +272,8 @@ context("snva-utils unit tests") {
      skew_boundary <- 0.99527
      gam <- 2 * skew_boundary / (1 + exp(-gamma_trans)) - skew_boundary
 
-     dput(survTMB:::.cov_to_theta(Sig),  control = c("keepNA", "keepInteger"))
-     dput(out <- survTMB:::.cp_to_dp(
+     dput(cov_to_theta(Sig),  control = c("keepNA", "keepInteger"))
+     dput(out <- survTMB:::cp_to_dp(
      mu = c(-1, 0, 1),
      Sigma = Sig,
      gamma = gam))

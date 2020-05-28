@@ -2,9 +2,13 @@
 
 S3method(print,MGSM_ADFit)
 S3method(print,MGSM_ADFun)
+export(cov_to_theta)
+export(cp_to_dp)
+export(dp_to_cp)
 export(fit_mgsm)
 export(make_joint_ADFun)
 export(make_mgsm_ADFun)
+export(theta_to_cov)
 importFrom(Matrix,sparseMatrix)
 importFrom(Rcpp,evalCpp)
 importFrom(TMB,MakeADFun)

@@ -19,7 +19,7 @@ make_mgsm_ADFun(
   beta = NULL,
   opt_func = .opt_default,
   n_threads = 1L,
-  skew_start = .alpha_to_gamma(-0.75),
+  skew_start = -0.02,
   dense_hess = FALSE,
   sparse_hess = FALSE
 )

@@ -74,14 +74,14 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 (gva_fit <- fit_model("PO", method = "GVA"))$fit
 
 # w/ SNVA
-fit_model("PO", method = "SNVA", param_type = "DP")$fit
+(snva_fit <- fit_model("PO", method = "SNVA", param_type = "DP"))$fit
 ```
 
 ### Computing the Hessian
 
 The Hessian using a variational approximation (VA) can be computed as both 
-a dense and as sparse matrix. We show an example below where we compare the
-two approaches. 
+a dense matrix and as a sparse matrix. We show an example below where
+we compare the two approaches. 
 
 ```{r load_micro}
 library(microbenchmark) # needed for benchmarking
@@ -167,6 +167,67 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 ```
+
+### Approximation of the Conditional Distribution
+The variational parameters provide an approximation of the conditional 
+distribution given the data and parameters or the posterior in a Bayesian 
+view. As an example, we can look at the multivariate normal distribution 
+approximation which is made by the GVA for the first group below.
+
+```{r GVA_look_approx}
+va_params <- gva_fit$fit$va_params
+is_this_group <- which(grepl("^g1:", names(va_params)))
+n_random_effects <- 2L
+
+# conditional mean of random effects
+va_params[is_this_group][seq_len(n_random_effects)]
+
+# conditional covariance matrix of random effects
+theta_to_cov(va_params[is_this_group][-seq_len(n_random_effects)])
+```
+
+We can compare this with the  multivariate skew-normal distribution 
+approximation from the SNVA.
+
+```{r snva_look_approx}
+va_params <- snva_fit$fit$va_params
+is_this_group <- which(grepl("^g1:", names(va_params)))
+n_random_effects <- 2L
+
+xi <- va_params[is_this_group][seq_len(n_random_effects)]
+Psi <- head(tail(va_params[is_this_group], -n_random_effects), 
+            -n_random_effects)
+Psi <- theta_to_cov(Psi)
+alpha <- tail(va_params[is_this_group], n_random_effects)
+
+# conditional mean, covariance matrix, and Pearson's moment coefficient of 
+# skewness
+dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)
+```
+
+There is a slight bit of skewness for this cluster. Since one of the main 
+differences between the GVA and SNVA is the skewness, we compare the 
+quantiles of all the skewness parameters below.
+
+```{r snva_check_skew}
+skews <- sapply(1:37, function(id){
+  va_params <- snva_fit$fit$va_params
+  is_this_group <- which(grepl(paste0("^g", id, ":"), names(va_params)))
+  
+  xi <- va_params[is_this_group][seq_len(n_random_effects)]
+  Psi <- head(tail(va_params[is_this_group], -n_random_effects), 
+              -n_random_effects)
+  Psi <- theta_to_cov(Psi)
+  alpha <- tail(va_params[is_this_group], n_random_effects)
+  dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)$gamma
+})
+
+apply(skews, 1L, quantile, probs = seq(0, 1, by = .25))
+```
+
+There does not seem to be much skewness for any of the clusters which is 
+likely also why the lower bound with the SNVA is almost identical to the 
+lower bound from the GVA (a special case of the SNVA).
 
 ### Other link functions
 We estimate the same model below with other link functions.
@@ -374,7 +435,7 @@ model parameters as follows.
 ```{r joint_compare_param_est}
 names(opt_out$par) <- names(out$par)
 true_params <- with(dat$params, c(
-  gamma, B, survTMB:::.cov_to_theta(Psi), survTMB:::.cov_to_theta(sigma),
+  gamma, B, cov_to_theta(Psi), cov_to_theta(sigma),
   delta, omega, alpha))
 n_params <- length(true_params)
 names(true_params) <- names(out$par)[seq_along(true_params)]
@@ -388,9 +449,9 @@ the true values.
 ```{r joint_show_psi}
 # random effect covariance matrix (first estimated and then the true values)
 is_psi <- which(grepl("Psi", names(true_params)))
-survTMB:::.theta_to_cov(opt_out$par[is_psi]) 
+theta_to_cov(opt_out$par[is_psi]) 
 dat$params$Psi
-cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_psi]))
+cov2cor(theta_to_cov(opt_out$par[is_psi]))
 cov2cor(dat$params$Psi)
 ```
 
@@ -400,30 +461,44 @@ the true values.
 ```{r joint_show_sigma}
 # noise covariance matrix (first estimated and then the true values)
 is_sigma <- which(grepl("Sigma", names(true_params)))
-survTMB:::.theta_to_cov(opt_out$par[is_sigma])
+theta_to_cov(opt_out$par[is_sigma])
 dat$params$sigma
-cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_sigma]))
+cov2cor(theta_to_cov(opt_out$par[is_sigma]))
 cov2cor(dat$params$sigma)
 ```
 
-```{r check_va, echo = FALSE, eval = FALSE}
+We can look at quantiles of mean, standard deviations, and 
+Pearson's moment coefficient of skewness for each individuals
+estimated variational distribution as follows.
+
+```{r joint_check_va}
 va_stats <- lapply(1:1000, function(id){
   is_grp_x <- which(grepl(paste0("^g", id, ":"), names(opt_out$par)))
   x_va_pars <- opt_out$par[is_grp_x]
   xi <- x_va_pars[grepl(":xi", names(x_va_pars))]
-  Lambda <- survTMB:::.theta_to_cov(
+  Lambda <- theta_to_cov(
     x_va_pars[grepl(":(log_sd|L)", names(x_va_pars))])
   alpha <- x_va_pars[grepl(":alpha", names(x_va_pars))]
   
-  survTMB:::.dp_to_cp(xi = xi, Psi = Lambda, alpha = alpha)
+  dp_to_cp(xi = xi, Psi = Lambda, alpha = alpha)
 })
 
 sum_func <- function(x)
   apply(x, 2L, quantile, probs = seq(0, 1, by = .1))
+
+# mean 
 sum_func(do.call(rbind, lapply(va_stats, `[[`, "mu")))
+
+# standard deviation
 sum_func(do.call(rbind, lapply(va_stats, 
                                function(x) sqrt(diag(x[["Sigma"]])))))
-sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
+
+# skewness
+skews <-  sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
+skews[] <- sprintf("%8.4f", skews)
+print(skews, quote = FALSE)
 ```
+
+We only see some skewness in the first random variable. 
 
 ## References

@@ -39,8 +39,6 @@ dat <- coxme::eortc
 
 # assign function to estimate the model
 library(survTMB)
-#> Loading required package: splines
-#> Loading required package: survival
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", dense_hess = FALSE, 
@@ -110,7 +108,7 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> Estimated lower bound is -13031.10
 
 # w/ SNVA
-fit_model("PO", method = "SNVA", param_type = "DP")$fit
+(snva_fit <- fit_model("PO", method = "SNVA", param_type = "DP"))$fit
 #> 
 #> MGSM estimated with method 'SNVA' with link 'PO' from call:
 #>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
@@ -139,8 +137,8 @@ fit_model("PO", method = "SNVA", param_type = "DP")$fit
 ### Computing the Hessian
 
 The Hessian using a variational approximation (VA) can be computed as
-both a dense and as sparse matrix. We show an example below where we
-compare the two approaches.
+both a dense matrix and as a sparse matrix. We show an example below
+where we compare the two approaches.
 
 ``` r
 library(microbenchmark) # needed for benchmarking
@@ -226,12 +224,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 304.90 306.24 310.64 306.66 308.45 328.16
-#>               Compute sparse Hessian  18.79  19.06  19.31  19.10  19.36  20.83
-#>         Invert dense Hessian (naive)   5.27   5.31   5.34   5.33   5.35   5.47
-#>        Invert sparse Hessian (naive)   1.03   1.07   1.18   1.16   1.29   1.37
-#>   Invert dense Hessian (alternative)   1.32   1.33   1.37   1.36   1.41   1.45
-#>  Invert sparse Hessian (alternative)   2.83   2.91   3.12   3.22   3.26   3.38
+#>                Compute dense Hessian 305.97 306.64 309.94 307.36 315.76 317.81
+#>               Compute sparse Hessian  18.95  19.08  19.35  19.40  19.49  19.73
+#>         Invert dense Hessian (naive)   5.27   5.33   5.41   5.36   5.38   5.67
+#>        Invert sparse Hessian (naive)   1.04   1.15   1.30   1.30   1.33   1.70
+#>   Invert dense Hessian (alternative)   1.31   1.36   1.41   1.37   1.44   1.74
+#>  Invert sparse Hessian (alternative)   2.91   2.96   3.11   3.02   3.23   3.65
 #>  neval
 #>     10
 #>     10
@@ -256,11 +254,96 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 #> Unit: milliseconds
-#>               expr    min   lq mean median   uq  max neval
-#>  W/o Hessians        98.7  101  101    101  101  108    10
-#>  W/ dense Hessian   201.5  203  204    204  205  209    10
-#>  W/ sparse Hessian 1384.0 1385 1388   1387 1392 1394    10
+#>               expr  min   lq mean median   uq  max neval
+#>  W/o Hessians       100  101  103    102  105  107    10
+#>  W/ dense Hessian   202  203  211    207  214  233    10
+#>  W/ sparse Hessian 1387 1404 1418   1413 1422 1495    10
 ```
+
+### Approximation of the Conditional Distribution
+
+The variational parameters provide an approximation of the conditional
+distribution given the data and parameters or the posterior in a
+Bayesian view. As an example, we can look at the multivariate normal
+distribution approximation which is made by the GVA for the first group
+below.
+
+``` r
+va_params <- gva_fit$fit$va_params
+is_this_group <- which(grepl("^g1:", names(va_params)))
+n_random_effects <- 2L
+
+# conditional mean of random effects
+va_params[is_this_group][seq_len(n_random_effects)]
+#> g1:mu1 g1:mu2 
+#>  0.370  0.611
+
+# conditional covariance matrix of random effects
+theta_to_cov(va_params[is_this_group][-seq_len(n_random_effects)])
+#>         [,1]    [,2]
+#> [1,] 0.01517 0.00389
+#> [2,] 0.00389 0.03171
+```
+
+We can compare this with the multivariate skew-normal distribution
+approximation from the SNVA.
+
+``` r
+va_params <- snva_fit$fit$va_params
+is_this_group <- which(grepl("^g1:", names(va_params)))
+n_random_effects <- 2L
+
+xi <- va_params[is_this_group][seq_len(n_random_effects)]
+Psi <- head(tail(va_params[is_this_group], -n_random_effects), 
+            -n_random_effects)
+Psi <- theta_to_cov(Psi)
+alpha <- tail(va_params[is_this_group], n_random_effects)
+
+# conditional mean, covariance matrix, and Pearson's moment coefficient of 
+# skewness
+dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)
+#> $mu
+#> g1:mu1 g1:mu2 
+#>  0.365  0.615 
+#> 
+#> $Sigma
+#>         [,1]    [,2]
+#> [1,] 0.01551 0.00327
+#> [2,] 0.00327 0.03276
+#> 
+#> $gamma
+#> [1] -0.0125 -0.0302
+```
+
+There is a slight bit of skewness for this cluster. Since one of the
+main differences between the GVA and SNVA is the skewness, we compare
+the quantiles of all the skewness parameters below.
+
+``` r
+skews <- sapply(1:37, function(id){
+  va_params <- snva_fit$fit$va_params
+  is_this_group <- which(grepl(paste0("^g", id, ":"), names(va_params)))
+  
+  xi <- va_params[is_this_group][seq_len(n_random_effects)]
+  Psi <- head(tail(va_params[is_this_group], -n_random_effects), 
+              -n_random_effects)
+  Psi <- theta_to_cov(Psi)
+  alpha <- tail(va_params[is_this_group], n_random_effects)
+  dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)$gamma
+})
+
+apply(skews, 1L, quantile, probs = seq(0, 1, by = .25))
+#>          [,1]    [,2]
+#> 0%   -0.03389 -0.0336
+#> 25%  -0.01934 -0.0261
+#> 50%  -0.01424 -0.0238
+#> 75%  -0.01248 -0.0204
+#> 100% -0.00722 -0.0106
+```
+
+There does not seem to be much skewness for any of the clusters which is
+likely also why the lower bound with the SNVA is almost identical to the
+lower bound from the GVA (a special case of the SNVA).
 
 ### Other link functions
 
@@ -420,8 +503,8 @@ fit_model("probit", method = "GVA")$fit
 ######
 # w/ SNVA (DP: direct parameterization)
 fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
-#> Warning in .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig, gamma =
-#> skew_start): .cp_to_dp: invalid gamma parameter
+#> Warning in cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig, gamma = skew_start):
+#> cp_to_dp: invalid gamma parameter
 #> 
 #> MGSM estimated with method 'SNVA' with link 'PH' from call:
 #>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
@@ -497,8 +580,8 @@ fit_model("probit", method = "SNVA", param_type = "DP")$fit
 ######
 # w/ SNVA (CP: centralized parameterization)
 fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
-#> Warning in .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig, gamma =
-#> skew_start): .cp_to_dp: invalid gamma parameter
+#> Warning in cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig, gamma = skew_start):
+#> cp_to_dp: invalid gamma parameter
 #> 
 #> MGSM estimated with method 'SNVA' with link 'PH' from call:
 #>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
@@ -601,29 +684,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           931  936  940    942  943  948     5
-#>  PH     (2L)  576  585  591    596  598  600     5
-#>  PH     (4L)  430  433  442    438  454  456     5
-#>  PO          1314 1327 1331   1336 1337 1340     5
-#>  PO     (2L)  809  810  812    814  814  815     5
-#>  PO     (4L)  589  597  602    600  604  622     5
-#>  probit      1677 1681 1689   1683 1690 1710     5
-#>  probit (2L)  992  998 1007   1004 1009 1029     5
-#>  probit (4L)  726  726  735    732  743  746     5
+#>  PH           906  909  925    932  938  940     5
+#>  PH     (2L)  568  574  580    582  582  594     5
+#>  PH     (4L)  418  421  428    429  430  442     5
+#>  PO          1317 1318 1320   1319 1321 1326     5
+#>  PO     (2L)  783  785  797    786  812  818     5
+#>  PO     (4L)  566  577  591    598  605  611     5
+#>  probit      1658 1673 1676   1676 1683 1693     5
+#>  probit (2L)  965  984  985    989  989  996     5
+#>  probit (4L)  696  709  715    718  720  732     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           318  320  324    321  331  331     5
-#>  PH     (2L)  206  206  209    209  213  214     5
-#>  PH     (4L)  161  162  164    163  164  168     5
-#>  PO           814  815  826    825  831  847     5
-#>  PO     (2L)  493  495  501    495  500  520     5
-#>  PO     (4L)  345  353  353    356  356  357     5
-#>  probit      1356 1358 1362   1362 1366 1369     5
-#>  probit (2L)  794  800  809    802  818  833     5
-#>  probit (4L)  551  552  555    553  558  559     5
+#>  PH           319  323  331    334  338  339     5
+#>  PH     (2L)  209  214  215    217  217  220     5
+#>  PH     (4L)  163  164  167    165  171  172     5
+#>  PO           794  814  815    815  820  831     5
+#>  PO     (2L)  480  483  488    484  495  496     5
+#>  PO     (4L)  342  345  348    346  351  354     5
+#>  probit      1371 1375 1384   1381 1395 1397     5
+#>  probit (2L)  785  792  806    816  819  820     5
+#>  probit (4L)  535  566  563    567  569  580     5
 ```
 
 ``` r
@@ -651,29 +734,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           388  389  392    389  393  403     5
-#>  PH     (2L)  246  248  249    248  251  252     5
-#>  PH     (4L)  186  188  196    194  198  216     5
-#>  PO          3693 3694 3754   3698 3703 3984     5
-#>  PO     (2L) 2333 2337 2373   2348 2398 2449     5
-#>  PO     (4L) 1834 1838 1881   1846 1876 2014     5
-#>  probit      4212 4228 4265   4247 4303 4335     5
-#>  probit (2L) 2603 2646 2649   2657 2668 2671     5
-#>  probit (4L) 1869 1958 1981   1986 2018 2073     5
+#>  PH           398  403  420    403  436  460     5
+#>  PH     (2L)  247  252  257    253  256  276     5
+#>  PH     (4L)  187  188  195    195  198  206     5
+#>  PO          3714 3747 3769   3758 3799 3829     5
+#>  PO     (2L) 2311 2319 2392   2365 2445 2518     5
+#>  PO     (4L) 1810 1819 1846   1826 1855 1920     5
+#>  probit      4261 4267 4293   4294 4321 4322     5
+#>  probit (2L) 2589 2638 2636   2646 2647 2660     5
+#>  probit (4L) 1950 1959 1979   1987 1990 2011     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           490  492  496    493  502  504     5
-#>  PH     (2L)  311  312  322    314  325  346     5
-#>  PH     (4L)  234  236  244    239  253  258     5
-#>  PO          4149 4150 4168   4175 4181 4183     5
-#>  PO     (2L) 2203 2315 2298   2315 2320 2338     5
-#>  PO     (4L) 1498 1577 1594   1587 1610 1698     5
-#>  probit      3101 3131 3138   3134 3135 3188     5
-#>  probit (2L) 2288 2293 2306   2302 2305 2342     5
-#>  probit (4L) 1518 1713 1685   1729 1731 1734     5
+#>  PH           485  487  503    491  506  543     5
+#>  PH     (2L)  309  311  311    312  312  312     5
+#>  PH     (4L)  237  243  247    243  255  258     5
+#>  PO          4163 4166 4186   4172 4184 4245     5
+#>  PO     (2L) 2160 2160 2194   2162 2242 2244     5
+#>  PO     (4L) 1566 1569 1627   1589 1692 1722     5
+#>  probit      3111 3112 3117   3116 3117 3127     5
+#>  probit (2L) 2252 2253 2273   2258 2274 2327     5
+#>  probit (4L) 1751 1820 1813   1823 1832 1840     5
 ```
 
 ## Joint Models
@@ -940,7 +1023,7 @@ model parameters as follows.
 ``` r
 names(opt_out$par) <- names(out$par)
 true_params <- with(dat$params, c(
-  gamma, B, survTMB:::.cov_to_theta(Psi), survTMB:::.cov_to_theta(sigma),
+  gamma, B, cov_to_theta(Psi), cov_to_theta(sigma),
   delta, omega, alpha))
 n_params <- length(true_params)
 names(true_params) <- names(out$par)[seq_along(true_params)]
@@ -970,7 +1053,7 @@ values.
 ``` r
 # random effect covariance matrix (first estimated and then the true values)
 is_psi <- which(grepl("Psi", names(true_params)))
-survTMB:::.theta_to_cov(opt_out$par[is_psi]) 
+theta_to_cov(opt_out$par[is_psi]) 
 #>        [,1]    [,2]   [,3]    [,4]
 #> [1,]  1.716 -0.3871 -0.189 -0.1885
 #> [2,] -0.387  1.0486 -0.087  0.0759
@@ -982,7 +1065,7 @@ dat$params$Psi
 #> [2,] -0.37  0.98 -0.05  0.09
 #> [3,] -0.08 -0.05  0.87  0.53
 #> [4,] -0.17  0.09  0.53  1.17
-cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_psi]))
+cov2cor(theta_to_cov(opt_out$par[is_psi]))
 #>        [,1]    [,2]    [,3]    [,4]
 #> [1,]  1.000 -0.2886 -0.1577 -0.1330
 #> [2,] -0.289  1.0000 -0.0931  0.0685
@@ -1002,7 +1085,7 @@ the true values.
 ``` r
 # noise covariance matrix (first estimated and then the true values)
 is_sigma <- which(grepl("Sigma", names(true_params)))
-survTMB:::.theta_to_cov(opt_out$par[is_sigma])
+theta_to_cov(opt_out$par[is_sigma])
 #>          [,1]     [,2]
 #> [1,] 3.06e-02 1.99e-06
 #> [2,] 1.99e-06 5.09e-02
@@ -1010,7 +1093,7 @@ dat$params$sigma
 #>      [,1] [,2]
 #> [1,] 0.03 0.00
 #> [2,] 0.00 0.05
-cov2cor(survTMB:::.theta_to_cov(opt_out$par[is_sigma]))
+cov2cor(theta_to_cov(opt_out$par[is_sigma]))
 #>          [,1]     [,2]
 #> [1,] 1.00e+00 5.04e-05
 #> [2,] 5.04e-05 1.00e+00
@@ -1019,6 +1102,76 @@ cov2cor(dat$params$sigma)
 #> [1,]    1    0
 #> [2,]    0    1
 ```
+
+We can look at quantiles of mean, standard deviations, and Pearson’s
+moment coefficient of skewness for each individuals estimated
+variational distribution as follows.
+
+``` r
+va_stats <- lapply(1:1000, function(id){
+  is_grp_x <- which(grepl(paste0("^g", id, ":"), names(opt_out$par)))
+  x_va_pars <- opt_out$par[is_grp_x]
+  xi <- x_va_pars[grepl(":xi", names(x_va_pars))]
+  Lambda <- theta_to_cov(
+    x_va_pars[grepl(":(log_sd|L)", names(x_va_pars))])
+  alpha <- x_va_pars[grepl(":alpha", names(x_va_pars))]
+  
+  dp_to_cp(xi = xi, Psi = Lambda, alpha = alpha)
+})
+
+sum_func <- function(x)
+  apply(x, 2L, quantile, probs = seq(0, 1, by = .1))
+
+# mean 
+sum_func(do.call(rbind, lapply(va_stats, `[[`, "mu")))
+#>        g1:xi1   g1:xi2  g1:xi3   g1:xi4
+#> 0%   -3.38314 -2.60397 -2.3759 -3.01499
+#> 10%  -1.59109 -1.04592 -0.8024 -0.90976
+#> 20%  -1.01056 -0.67118 -0.4956 -0.57987
+#> 30%  -0.59471 -0.44830 -0.2877 -0.33965
+#> 40%  -0.26737 -0.20869 -0.1445 -0.16827
+#> 50%  -0.00406 -0.00645 -0.0242 -0.00151
+#> 60%   0.30710  0.20087  0.1183  0.16191
+#> 70%   0.65224  0.40966  0.2637  0.33883
+#> 80%   1.02772  0.66854  0.4748  0.59726
+#> 90%   1.53340  1.02560  0.8246  0.97119
+#> 100%  4.69386  2.95749  2.9577  2.35595
+
+# standard deviation
+sum_func(do.call(rbind, lapply(va_stats, 
+                               function(x) sqrt(diag(x[["Sigma"]])))))
+#>        [,1]  [,2]  [,3]  [,4]
+#> 0%   0.0866 0.109 0.110 0.140
+#> 10%  0.1312 0.230 0.166 0.293
+#> 20%  0.1647 0.331 0.207 0.419
+#> 30%  0.2426 0.459 0.301 0.577
+#> 40%  0.3560 0.606 0.459 0.770
+#> 50%  0.5034 0.665 0.653 0.837
+#> 60%  0.5887 0.683 0.753 0.870
+#> 70%  0.6422 0.701 0.807 0.904
+#> 80%  0.6790 0.728 0.838 0.943
+#> 90%  0.7138 0.773 0.861 1.002
+#> 100% 0.7497 0.982 0.882 1.075
+
+# skewness
+skews <-  sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
+skews[] <- sprintf("%8.4f", skews)
+print(skews, quote = FALSE)
+#>      [,1]     [,2]     [,3]     [,4]    
+#> 0%    -0.0728  -0.0010  -0.0136  -0.0058
+#> 10%   -0.0502  -0.0002  -0.0003  -0.0001
+#> 20%   -0.0391  -0.0001  -0.0001  -0.0000
+#> 30%   -0.0219  -0.0000  -0.0000  -0.0000
+#> 40%   -0.0142  -0.0000  -0.0000   0.0000
+#> 50%   -0.0122  -0.0000  -0.0000   0.0001
+#> 60%   -0.0114  -0.0000  -0.0000   0.0002
+#> 70%   -0.0107   0.0000  -0.0000   0.0004
+#> 80%   -0.0092   0.0000   0.0000   0.0006
+#> 90%   -0.0066   0.0001   0.0000   0.0007
+#> 100%  -0.0000   0.0116   0.0002   0.0008
+```
+
+We only see some skewness in the first random variable.
 
 ## References
 

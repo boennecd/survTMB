@@ -2,28 +2,50 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
-# maps from direct parameters to centralized parameters
-# TODO: export this function
-.dp_to_cp <- function(xi, Psi, alpha){
-  if(!is.matrix(Psi) && length(Psi) == 1L)
-    Psi <- as.matrix(Psi)
-  rho <- alpha / sqrt(diag(Psi))
-  k <- drop(Psi %*% rho)
-  k <- k / sqrt(drop(1 + rho %*% k))
+#' Maps Between Centralized and Direct Parameters
+#'
+#' @description
+#' Maps between centralized parameters (CP) and direct parameters (DP) for
+#' the multivariate skew-normal distribution.
+#'
+#' @param mu mean of the random variable.
+#' @param Sigma covariance matrix of the random variable.
+#' @param gamma pearson skewness coefficients of the random variable.
+#' @param xi location parameter of the random variable.
+#' @param Psi scale parameter of the random variable.
+#' @param alpha skewness parameter of the random variable.
+#'
+#' @details
+#' We say that a random variable is skew-normal distributed if its density
+#' is given by
+#'
+#' \deqn{2\phi^{(K)}(y - \xi; \Psi)\Phi(\alpha^\top diag(\psi)^{-1}(y - \xi))}
+#'
+#' where \eqn{\psi} is the square root of the diagonal of \eqn{\Psi}. The
+#' two functions maps between the above DP to the CP where
+#' \eqn{\mu = E(Y)}, \eqn{\Sigma = Var(Y)}, and
+#' \eqn{\gamma_i =  E((Y_i - E(Y_i))^3) / Var(Y_i)^{3/2}}.
+#'
+#' @examples
+#' mu <- 1:3
+#' Sig <- diag(3)
+#' Sig[lower.tri(Sig)] <- Sig[upper.tri(Sig)] <- .25
+#' gamma <- ((1:3) - 2) / 10
+#'
+#' dps <- cp_to_dp(mu = mu, Sigma = Sig, gamma = gamma)
+#' dps
+#' cps <- dp_to_cp(xi = dps$xi, Psi = dps$Psi, alpha = dps$alpha)
+#'
+#' stopifnot(all.equal(mu   , cps$mu))
+#' stopifnot(all.equal(Sig  , cps$Sigma))
+#' stopifnot(all.equal(gamma, cps$gamma))
+#'
+#' @export
+cp_to_dp <- function(mu, Sigma, gamma){
+  K <- length(mu)
+  stopifnot(NROW(Sigma) == K, NCOL(Sigma) == K,
+            length(gamma) == K)
 
-  mu <- xi + sqrt(2 / pi) * k
-
-  Sigma <- Psi - 2 / pi * outer(k, k)
-
-  gamma <-  sqrt(2 / pi) * k / sqrt(diag(Psi))
-  gamma <- (4 - pi) / 2 * gamma^3 / (1 - gamma^2)^(3 / 2)
-
-  list(mu = mu, Sigma = Sigma, gamma = gamma)
-}
-
-# maps from centralized parameters to direct parameters
-# TODO: export this function
-.cp_to_dp <- function(mu, Sigma, gamma){
   if(!is.matrix(Sigma) && length(Sigma) == 1L)
     Sigma <- as.matrix(Sigma)
 
@@ -43,12 +65,31 @@
   if(denom > 0.)
     alpha <- psi * rho / sqrt(denom)
   else {
-    warning(".cp_to_dp: invalid gamma parameter")
+    warning("cp_to_dp: invalid gamma parameter")
     alpha_max <- 20. # TODO: some better value?
     alpha <- sign(rho) * alpha_max
   }
 
   list(xi = xi, Psi = Psi, alpha = alpha)
+}
+
+#' @rdname cp_to_dp
+#' @export
+dp_to_cp <- function(xi, Psi, alpha){
+  if(!is.matrix(Psi) && length(Psi) == 1L)
+    Psi <- as.matrix(Psi)
+  rho <- alpha / sqrt(diag(Psi))
+  k <- drop(Psi %*% rho)
+  k <- k / sqrt(drop(1 + rho %*% k))
+
+  mu <- xi + sqrt(2 / pi) * k
+
+  Sigma <- Psi - 2 / pi * outer(k, k)
+
+  gamma <-  sqrt(2 / pi) * k / sqrt(diag(Psi))
+  gamma <- (4 - pi) / 2 * gamma^3 / (1 - gamma^2)^(3 / 2)
+
+  list(mu = mu, Sigma = Sigma, gamma = gamma)
 }
 
 .opt_func_quick_control <- list(
@@ -95,9 +136,34 @@ Shat <- function(obj){
   surv2^rr
 }
 
-.cov_to_theta <- function(theta){
-  n_rng <- NCOL(theta)
-  ch <- t(chol(theta))
+#' Maps Between a Covariance Matrix and Its Log-Cholesky Parametrization
+#'
+#' @description
+#' Let \eqn{C} be a \eqn{K}-dimensional covariance matrix. Let
+#' \eqn{C = LL^\top} where \eqn{L} is the Cholesky decomposition
+#' and \eqn{L = diag(\psi) H} where  \eqn{H} is a lower triangular matrix
+#' with ones in the diagonal. Then the two functions map between \eqn{C} and
+#' a vector where the first \eqn{K} elements are the log of \eqn{psi} and
+#' the remaining \eqn{K (K - 1) / 2} elements are the non-zero and
+#' non-diagonal entries of \eqn{H}.
+#'
+#' @param cov the covariance matrix.
+#' @param theta numeric vector where the
+#'              first \eqn{K} elements are the log of \eqn{psi} and the
+#'              remaining \eqn{K (K - 1) / 2} elements are the non-zero and
+#'              non-diagonal entries of \eqn{H}.
+#'
+#' @examples
+#' set.seed(1)
+#' Sigma <- drop(rWishart(1, 4, diag(4)))
+#' log_chol <- cov_to_theta(Sigma)
+#' log_chol
+#' stopifnot(all.equal(Sigma, theta_to_cov(log_chol)))
+#'
+#' @export
+cov_to_theta <- function(cov){
+  n_rng <- NCOL(cov)
+  ch <- t(chol(cov))
   log_sd <- structure(log(diag(ch)), names = paste0("log_sd", 1:n_rng))
   keep <- lower.tri(ch)
   lower_tri <-(diag(diag(ch)^(-1), n_rng) %*% ch)[keep]
@@ -107,8 +173,10 @@ Shat <- function(obj){
   c(log_sd, lower_tri)
 }
 
+#' @rdname cov_to_theta
 #' @importFrom utils head tail
-.theta_to_cov <- function(theta){
+#' @export
+theta_to_cov <- function(theta){
   dim <- .5 * (sqrt(8 * length(theta) + 1) - 1)
   if(dim < 2L)
     return(exp(2 * theta))
@@ -118,7 +186,6 @@ Shat <- function(obj){
   L <- diag(exp(head(theta, dim))) %*% L
   tcrossprod(L)
 }
-
 
 .set_use_own_VA_method <- with(new.env(), {
   .use_own_VA_method <- TRUE
@@ -381,7 +448,7 @@ make_mgsm_ADFun <- function(
     out
   })
 
-  theta <- .cov_to_theta(theta)
+  theta <- cov_to_theta(theta)
 
   beta <- if(!is.null(beta)){
     stopifnot(length(beta) == NCOL(X))
@@ -505,7 +572,9 @@ make_mgsm_ADFun <- function(
   theta_VA[idx_Lambda] <- params$theta
   # set names
   theta_VA_names <- c(paste0("mu", 1:n_rng), names(params$theta))
-  theta_VA_names <- c(outer(theta_VA_names, 1:n_grp, paste, sep = ":"))
+  theta_VA_names <- c(outer(
+    theta_VA_names, paste0("g", 1:n_grp), function(x, y)
+    paste0(y, ":", x)))
   names(theta_VA) <- theta_VA_names
 
   get_gva_out <- function(theta_VA){
@@ -636,12 +705,12 @@ make_mgsm_ADFun <- function(
     vapply(1:n_grp, function(i){
       # setup mean and VA variance
       gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
-      Sig <- .theta_to_cov(gva_par[-seq_len(n_mu)])
+      Sig <- theta_to_cov(gva_par[-seq_len(n_mu)])
 
-      dp_pars <- .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
-                           gamma = skew_start)
+      dp_pars <- cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
+                          gamma = skew_start)
 
-      c(dp_pars$xi, .cov_to_theta(dp_pars$Psi), dp_pars$alpha)
+      c(dp_pars$xi, cov_to_theta(dp_pars$Psi), dp_pars$alpha)
     }, numeric(n_p_grp), USE.NAMES = FALSE)
 
   } else {
@@ -653,14 +722,14 @@ make_mgsm_ADFun <- function(
       # setup mean and VA variance
       gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
 
-      Sig <- .theta_to_cov(gva_par[-seq_len(n_mu)])
-      dp_pars <- .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
-                           gamma = skew_start)
+      Sig <- theta_to_cov(gva_par[-seq_len(n_mu)])
+      dp_pars <- cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
+                          gamma = skew_start)
 
-      cp_pars <- .dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
+      cp_pars <- dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
                            alpha = dp_pars$alpha)
 
-      out <- c(cp_pars$mu, .cov_to_theta(cp_pars$Sigma),
+      out <- c(cp_pars$mu, cov_to_theta(cp_pars$Sigma),
                get_skew_trans(cp_pars$gamma))
     }, numeric(n_p_grp), USE.NAMES = FALSE)
   }
@@ -678,7 +747,8 @@ make_mgsm_ADFun <- function(
     proto <- c(paste0("mu", 1:n_rng), paste0("log_sd", 1:n_rng), L,
                paste0(skew_name, 1:n_rng))
 
-    c(outer(paste0("g", 1:n_grp), proto, paste, sep = ":"))
+    c(outer(proto, paste0("g", 1:n_grp), function(x, y)
+      paste0(y, ":", x)))
   })
   theta_VA <- structure(c(theta_VA), names = theta_VA_names)
 

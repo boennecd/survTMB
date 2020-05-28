@@ -14,7 +14,7 @@ print.MGSM_ADFit <- function(x, ...){
 
   cat("\nEstimated random effect covariance matrix (correlation matrix) is:\n")
   vcov_par <- x$params[!is_fix]
-  vcov_m   <- as.matrix(.theta_to_cov(vcov_par))
+  vcov_m   <- as.matrix(theta_to_cov(vcov_par))
   colnames(vcov_m) <- rownames(vcov_m) <- x$rng_names
 
   cor_m <- cov2cor(vcov_m)
