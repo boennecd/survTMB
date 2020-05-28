@@ -237,7 +237,8 @@ context("snva-utils unit tests") {
     /*
      dput(mu <- c(4, 3, 8))
      dput(Sig <- matrix(c(1, 1, 2, 1, 4, 3, 2, 3, 6), 3))
-     dput(rho <- c(5, 7, 9))
+     rho <- c(5, 7, 9)
+     dput(alpha <- rho * sqrt(diag(Sig)))
      ch <- t(chol(Sig))
      log_sigs <- log(diag(ch))
      L <- diag(diag(ch)^(-1)) %*% ch
@@ -247,7 +248,8 @@ context("snva-utils unit tests") {
     vector<Type> theta(12);
     theta << 4, 3, 8, 0, 0.549306144334055, 0.255412811882995,
              0.577350269189626,
-             1.54919333848297, 0.447213595499958, 5, 7, 9;
+             1.54919333848297, 0.447213595499958,
+             5, 14, 22.0454076850486;
 
     auto input = SNVA_MD_theta_DP_to_DP(&theta[0], theta.size(), 3L);
     std::vector<double> const mu = { 4, 3, 8 },
@@ -275,6 +277,7 @@ context("snva-utils unit tests") {
      mu = c(-1, 0, 1),
      Sigma = Sig,
      gamma = gam))
+     dput(out$alpha / sqrt(diag(out$Psi)))
      */
 
     using Type = double;

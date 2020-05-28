@@ -2,4 +2,5 @@
 language: r
 r: release
 cache: packages
-sudo: required
+dist: xenial
+os: linux

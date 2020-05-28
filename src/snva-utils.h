@@ -411,10 +411,12 @@ SNVA_MD_input<Type> SNVA_MD_theta_DP_to_DP
     va_lambdas.emplace_back(get_vcov_from_trian(t, rng_dim));
     t += (rng_dim * (rng_dim + 1L)) / 2L;
 
+    matrix<Type> const &Lambda = va_lambdas.back();
+
     /* insert new rho vector */
     vecT rho_vec(rng_dim);
     for(unsigned i = 0; i < rng_dim; ++i)
-      rho_vec[i] = *t++;
+      rho_vec[i] = *t++ / sqrt(Lambda(i, i));
     va_rhos.emplace_back(move(rho_vec));
   }
 

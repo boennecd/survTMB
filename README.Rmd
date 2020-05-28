@@ -407,19 +407,23 @@ cov2cor(dat$params$sigma)
 ```
 
 ```{r check_va, echo = FALSE, eval = FALSE}
-is_grp_x <- which(grepl("^g20:", names(opt_out$par)))
-x_va_pars <- opt_out$par[is_grp_x]
-xi <- x_va_pars[grepl(":xi", names(x_va_pars))]
-Lambda <- survTMB:::.theta_to_cov(
-  x_va_pars[grepl(":(log_sd|L)", names(x_va_pars))])
-rho <- x_va_pars[grepl(":rho", names(x_va_pars))]
+va_stats <- lapply(1:1000, function(id){
+  is_grp_x <- which(grepl(paste0("^g", id, ":"), names(opt_out$par)))
+  x_va_pars <- opt_out$par[is_grp_x]
+  xi <- x_va_pars[grepl(":xi", names(x_va_pars))]
+  Lambda <- survTMB:::.theta_to_cov(
+    x_va_pars[grepl(":(log_sd|L)", names(x_va_pars))])
+  alpha <- x_va_pars[grepl(":alpha", names(x_va_pars))]
+  
+  survTMB:::.dp_to_cp(xi = xi, Psi = Lambda, alpha = alpha)
+})
 
-k <- Lambda %*% rho
-k <- drop(k / sqrt(drop(1 + rho %*% k)))
-Lambda - 2 / pi * outer(k, k)
-cov2cor(Lambda - 2 / pi * outer(k, k))
-
-survTMB:::.dp_to_cp(xi = xi, Psi = Lambda, rho = rho)
+sum_func <- function(x)
+  apply(x, 2L, quantile, probs = seq(0, 1, by = .1))
+sum_func(do.call(rbind, lapply(va_stats, `[[`, "mu")))
+sum_func(do.call(rbind, lapply(va_stats, 
+                               function(x) sqrt(diag(x[["Sigma"]])))))
+sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
 ```
 
 ## References

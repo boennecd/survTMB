@@ -221,9 +221,9 @@ get_surv_start_params <- function(
 
     xi <- out$xi
     Omega <- out$Psi
-    rho <- out$rho
+    alpha <- out$alpha
 
-    c(xi = xi, .cov_to_theta(Omega), rho = rho)
+    c(xi = xi, .cov_to_theta(Omega), alpha = alpha)
   })
 
   va_pars <- structure(

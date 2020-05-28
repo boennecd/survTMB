@@ -3,7 +3,11 @@
 .snva_char    <- "SNVA"
 
 # maps from direct parameters to centralized parameters
-.dp_to_cp <- function(xi, Psi, rho){
+# TODO: export this function
+.dp_to_cp <- function(xi, Psi, alpha){
+  if(!is.matrix(Psi) && length(Psi) == 1L)
+    Psi <- as.matrix(Psi)
+  rho <- alpha / sqrt(diag(Psi))
   k <- drop(Psi %*% rho)
   k <- k / sqrt(drop(1 + rho %*% k))
 
@@ -18,32 +22,33 @@
 }
 
 # maps from centralized parameters to direct parameters
+# TODO: export this function
 .cp_to_dp <- function(mu, Sigma, gamma){
+  if(!is.matrix(Sigma) && length(Sigma) == 1L)
+    Sigma <- as.matrix(Sigma)
+
   sign_gamma <- ifelse(gamma > 0, 1, -1)
   gamma <- abs(gamma)
   cf <- (2 * gamma / (4 - pi))^(1/3)
 
   delta <- sign_gamma * cf / sqrt(1 + cf^2) * sqrt(pi / 2)
   sig_bar <- sqrt(1 - 2 / pi  * delta^2)
-  if(is.matrix(Sigma))
-    psi <- sqrt(diag(Sigma)) / sig_bar
-  else if(is.vector(Sigma) && length(Sigma) == 1L)
-    psi <- sqrt(Sigma) / sig_bar
+  psi <- sqrt(diag(Sigma)) / sig_bar
 
   k <- delta * psi
   xi <- mu - sqrt(2 / pi) * k
   Psi <- Sigma + 2 / pi * outer(k, k)
   rho <- solve(Psi, k)
   denom <- drop(1 - k %*% rho)
-  if(denom > 0.){
-    rho <- rho / sqrt(denom)
-  } else {
+  if(denom > 0.)
+    alpha <- psi * rho / sqrt(denom)
+  else {
     warning(".cp_to_dp: invalid gamma parameter")
     alpha_max <- 20. # TODO: some better value?
-    rho <- sign(rho) * alpha_max / psi
+    alpha <- sign(rho) * alpha_max
   }
 
-  list(xi = xi, Psi = Psi, rho = rho)
+  list(xi = xi, Psi = Psi, alpha = alpha)
 }
 
 .opt_func_quick_control <- list(
@@ -636,7 +641,7 @@ make_mgsm_ADFun <- function(
       dp_pars <- .cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
                            gamma = skew_start)
 
-      c(dp_pars$xi, .cov_to_theta(dp_pars$Psi), dp_pars$rho)
+      c(dp_pars$xi, .cov_to_theta(dp_pars$Psi), dp_pars$alpha)
     }, numeric(n_p_grp), USE.NAMES = FALSE)
 
   } else {
@@ -653,7 +658,7 @@ make_mgsm_ADFun <- function(
                            gamma = skew_start)
 
       cp_pars <- .dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
-                           rho = dp_pars$rho)
+                           alpha = dp_pars$alpha)
 
       out <- c(cp_pars$mu, .cov_to_theta(cp_pars$Sigma),
                get_skew_trans(cp_pars$gamma))
@@ -663,13 +668,17 @@ make_mgsm_ADFun <- function(
   # set names
   theta_VA_names <- local({
     keep <- which(lower.tri(diag(n_rng)))
-    L <-
-      outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
+    L <- outer(
+      1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
 
+    skew_name <- switch(param_type,
+                        DP = "alpha",
+                        `CP_trans` = "skew_trans",
+                        stop("unknown 'param_type'"))
     proto <- c(paste0("mu", 1:n_rng), paste0("log_sd", 1:n_rng), L,
-               paste0("skew", 1:n_rng))
+               paste0(skew_name, 1:n_rng))
 
-    c(outer(proto, 1:n_grp, paste, sep = ":"))
+    c(outer(paste0("g", 1:n_grp), proto, paste, sep = ":"))
   })
   theta_VA <- structure(c(theta_VA), names = theta_VA_names)
 
