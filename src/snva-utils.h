@@ -40,28 +40,150 @@ namespace SNVA {
  w_i f(x_i \sqrt{2}\gamma\sigma/\sqrt{\gamma^2 + \sigma^2})
  \end{align*}
 
+ \begin{align*}
+ \frac{\partial f(\sigma^2)}{\partial \sigma^2} &=
+ \int \frac{z^2-\sigma^2}{2\sigma^{4}}2 \phi(z; \sigma^2)\Phi(z)\log \Phi(z)dz \\
+ &= \frac 1{\sqrt{2\pi\sigma^2}\sigma^{4}}
+ \int (z^2 - \sigma^2)
+ \exp\left(-\frac {z^2}{2\sigma^2}\right)\Phi(z)\log \Phi(z)dz \\
+ &= \frac 1{\sqrt{2\pi\sigma^2}\sigma^{4}}
+ \int (z^2 - \sigma^2) \exp\left(-\frac {z^2}
+ {2\gamma^2\sigma^2/(\gamma^2 + \sigma^2)}\right)
+ \underbrace{\exp\left(\frac {z^2}{2\gamma^2}\right)
+ \Phi(z)\log \Phi(z)}_{f(z;\gamma)}dz \\
+ &\overset{z = s \sqrt{2}\gamma\sigma/\sqrt{\gamma^2 + \sigma^2}}{=}
+ \frac 1{\sigma^{5}\sqrt{2\pi}}
+ \frac {\sqrt 2\sigma\gamma}{\sqrt{\gamma^2 + \sigma^2}}
+ \int
+ \sigma^2\left(\frac{s^2 2\gamma^2}{\gamma^2 + \sigma^2} - 1\right)
+ \exp\left(-s^2\right)
+ f(s \sqrt{2}\gamma\sigma/\sqrt{\gamma^2 + \sigma^2};\gamma)ds \\
+ &\approx
+ \frac 1{\sigma^2\sqrt{\pi}}
+ \frac {\gamma}{\sqrt{\gamma^2 + \sigma^2}}
+ \sum_{i = 1}^n
+ w_i \left(\frac{x_i^2 2\gamma^2}{\gamma^2 + \sigma^2} - 1\right)
+ f(x_i \sqrt{2}\gamma\sigma/\sqrt{\gamma^2 + \sigma^2})
+ \end{align*}
+
  with \gamma(\sigma) = 1.
 */
 template<class Type>
-Type entropy_term
-  (Type const sigma_sq, HermiteData<Type> const &hd){
-  unsigned const n_nodes = hd.x.size();
-  Type const gamma(1.),
-          gamma_sq = gamma * gamma,
-               two(2.);
+class entropy_term_integral : public CppAD::atomic_base<Type> {
+  unsigned const n;
+  HermiteData<double> const &xw_double = GaussHermiteDataCached<double>(n);
+  HermiteData<Type>   const &xw_type   = GaussHermiteDataCached<Type>  (n);
 
-  Type out(0.);
-  Type const
-    mult_sum(Type(M_2_SQRTPI) * gamma / sqrt(sigma_sq + gamma_sq)),
-        mult(mult_sum * sqrt(sigma_sq) / Type(sqrt(M_2_PI)));
+  Type const zero = Type(0.),
+              one = Type(1.),
+              two = Type(2.),
+            small = Type(std::numeric_limits<double>::epsilon() *
+              std::numeric_limits<double>::epsilon()),
+        type_M_PI = Type(M_PI);
 
-  for(unsigned i = 0; i < n_nodes; ++i){
-    Type const xi = hd.x[i] * mult;
-    out +=
-      hd.w[i] * exp(xi * xi / two / gamma_sq) * pnorm(xi) * pnorm_log(xi);
+public:
+  entropy_term_integral(char const *name, unsigned const n):
+  CppAD::atomic_base<Type>(name), n(n) {
+    this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
 
-  return mult_sum * out;
+  /* returns a cached value to use in computations as the object must remain
+   * in scope while all CppAD::ADfun functions are still in use. */
+  static entropy_term_integral& get_cached(unsigned const);
+
+  static double comp(double const sigma_sq, HermiteData<double> const &hd){
+    double out(0.);
+    double const mult_sum(M_2_SQRTPI / sqrt(sigma_sq + 1.)),
+                     mult(mult_sum * sqrt(sigma_sq / M_2_PI));
+
+    for(unsigned i = 0; i < hd.x.size(); ++i){
+      double const xi = hd.x[i] * mult,
+             pnrm_log = pnorm_log(xi, 0., 1.);
+      out += hd.w[i] * exp(xi * xi / 2.) * exp(pnrm_log) * pnrm_log;
+    }
+
+    return mult_sum * out;
+  }
+
+  virtual bool forward(std::size_t p, std::size_t q,
+                       const CppAD::vector<bool> &vx,
+                       CppAD::vector<bool> &vy,
+                       const CppAD::vector<Type> &tx,
+                       CppAD::vector<Type> &ty){
+    if(q > 0)
+      return false;
+
+    ty[0] = Type(comp(asDouble(tx[0]), xw_double));
+
+    /* set variable flags */
+    if (vx.size() > 0) {
+      bool anyvx = false;
+      for (std::size_t i = 0; i < vx.size(); i++)
+        anyvx |= vx[i];
+      for (std::size_t i = 0; i < vy.size(); i++)
+        vy[i] = anyvx;
+    }
+
+    return true;
+  }
+
+  virtual bool reverse(std::size_t q, const CppAD::vector<Type> &tx,
+                       const CppAD::vector<Type> &ty,
+                       CppAD::vector<Type> &px,
+                       const CppAD::vector<Type> &py){
+    if(q > 0)
+      return false;
+
+    Type const  sigma_sq = tx[0] + small,
+             sigma_sq_p1 = sigma_sq + one,
+                mult_sum =
+                  one / sigma_sq / sqrt(type_M_PI * sigma_sq_p1),
+                    mult = sqrt(two * sigma_sq / sigma_sq_p1),
+            mult_sq_term = two / sigma_sq_p1;
+
+    px[0] = Type(0.);
+    for(unsigned i = 0; i < n; ++i){
+      Type const &x = xw_type.x[i],
+                 xi = x * mult,
+           pnrm_log = pnorm_log(xi, zero, one),
+          integrand = exp(xi * xi / two) * exp(pnrm_log) * pnrm_log;
+
+      px[0] += xw_type.w[i] * (x * x * mult_sq_term - one) * integrand;
+    }
+
+    px[0] *= mult_sum * py[0];
+
+    return true;
+  }
+
+  virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
+                              CppAD::vector<bool>& st) {
+    bool anyrt = false;
+    for (std::size_t i = 0; i < rt.size(); i++)
+      anyrt |= rt[i];
+    for (std::size_t i = 0; i < st.size(); i++)
+      st[i] = anyrt;
+    return true;
+  }
+};
+
+template<class Type>
+AD<Type> entropy_term
+  (AD<Type> const sigma_sq, unsigned const n_nodes){
+  auto &functor = entropy_term_integral<Type>::get_cached(n_nodes);
+
+  CppAD::vector<AD<Type> > tx(1), ty(1);
+  tx[0] = sigma_sq;
+
+  functor(tx, ty);
+  return ty[0];
+}
+
+inline double entropy_term
+  (double const sigma_sq, unsigned const n_nodes){
+  HermiteData<double> const &hd =
+    GaussHermiteDataCached<double>(n_nodes);
+  return entropy_term_integral<double>::comp(sigma_sq, hd);
 }
 
 /* Computes the approximate mode of the skew-normal distribution and the
@@ -158,6 +280,10 @@ class integral_atomic : public CppAD::atomic_base<Type> {
   HermiteData<double> const &xw_double = GaussHermiteDataCached<double>(n);
   HermiteData<Type>   const &xw_type   = GaussHermiteDataCached<Type>  (n);
 
+  Type const type_M_SQRT2 = Type(M_SQRT2),
+                      one = Type(1.),
+          type_M_2_SQRTPI = Type(M_2_SQRTPI);
+
 public:
   integral_atomic(char const *name, unsigned const n):
   CppAD::atomic_base<Type>(name), n(n) {
@@ -225,9 +351,8 @@ public:
 
     auto const dvals = get_SNVA_mode_n_Hess(mu, sig, rho);
     Type const xi = dvals.mode,
-              one(1.),
-           lambda = Type(one) / sqrt(-dvals.Hess),
-             mult = Type(M_SQRT2) * lambda;
+           lambda = one / sqrt(-dvals.Hess),
+             mult = type_M_SQRT2 * lambda;
 
     px[0] = Type(0.);
     px[1] = Type(0.);
@@ -248,10 +373,10 @@ public:
       px[2] += constants * dnrm * dpnrm * dif;
     }
 
-    Type const fac = Type(M_2_SQRTPI) * lambda / sig;
-    px[0] *= fac * py[0];
-    px[1] *= fac * py[0];
-    px[2] *= fac * py[0];
+    Type const fac =  py[0] * type_M_2_SQRTPI * lambda / sig;
+    px[0] *= fac;
+    px[1] *= fac;
+    px[2] *= fac;
 
     return true;
   }

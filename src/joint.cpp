@@ -294,9 +294,6 @@ public:
        sqrt_two_pi(sqrt(two_pi)),
              small(std::numeric_limits<double>::epsilon());
 
-    GaussHermite::HermiteData<Type> const &xw =
-      GaussHermite::GaussHermiteDataCached<Type>(n_nodes);
-
     /* evaluate the lower bound */
     survTMB::accumulator_mock<Type> result;
     bool const is_in_parallel = CppAD::thread_alloc::in_parallel(),
@@ -465,7 +462,7 @@ public:
         vector<Type> const va_rho_scaled =
           (llt_mat.matrixU() * va_rho.matrix()).array() + small;
         misc_term -= GaussHermite::SNVA::entropy_term(
-          vec_dot(va_rho_scaled, va_rho_scaled), xw);
+          vec_dot(va_rho_scaled, va_rho_scaled), n_nodes);
         term += misc_term;
       }
 

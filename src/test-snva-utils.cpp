@@ -25,25 +25,47 @@ context("snva-utils unit tests") {
      integrate(function(x)
      2 * dnorm(x, sd = s) * pnorm(x) * pnorm(x, log.p = TRUE),
      -Inf, Inf, rel.tol = .Machine$double.eps^(3/4))$value))
-     dput(psi(0:4))
+     dput(psi(c(0:2, 100)))
+     library(numDeriv)
+     dput(sapply(c(0:2, 100), function(x)
+     grad(psi, x)))
      */
-    std::vector<double> sigmas = { 0., 1., 2., 100. };
-    std::vector<double> expect = {
+    constexpr size_t const n_tests(4L);
+    constexpr double const sigmas[n_tests] = { 0., 1., 2., 100. };
+    constexpr double const expect[n_tests] = {
       -0.693147180559945, -0.5, -0.319885055354923, -0.00720608477031823 };
+    constexpr double const dx    [n_tests] = {
+      33690.3759242532, 0.24026897903233, 0.126022609306171,
+      7.20531098254606e-05 };
     constexpr unsigned const n_nodes = 20L;
-    auto xw = GaussHermite::GaussHermiteData(n_nodes);
 
-    for(unsigned i = 0L; i < 4L; ++i){
-      double res = entropy_term(sigmas[i] * sigmas[i], xw);
+    using ADd = AD<double>;
+    vector<ADd > a(1), b(1);
+    a[0] = ADd(1.5);
+    CppAD::Independent(a);
+    a[0] = a[0] * a[0];
+    b[0] = entropy_term(a[0], n_nodes);
+    CppAD::ADFun<double> func(a, b);
+
+    vector<double> x(1), w(1);
+    w[0] = 1;
+
+    for(unsigned i = 0L; i < n_tests; ++i){
+      double res = entropy_term(sigmas[i] * sigmas[i], n_nodes);
       expect_equal(expect[i], res);
+
+      x[0] = sigmas[i];
+      auto const y = func.Forward(0, x);
+      expect_equal(expect[i], y[0]);
+
+      if(i > 0){
+        auto dy = func.Reverse(1, w);
+        expect_equal(dx[i], dy[0]);
+      }
     }
 
     {
-      double res = entropy_term(1e-8, xw);
-      expect_equal(-std::log(2), res);
-    }
-    {
-      double res = entropy_term(0., xw);
+      double res = entropy_term(1e-8, n_nodes);
       expect_equal(-std::log(2), res);
     }
   }

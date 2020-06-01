@@ -36,8 +36,7 @@ Type dgamma_to_nu_func(Type const g){
          cv_2_3 = pow(cv * cv, 1. / 3.),
           denom = 3. * pow(cv_2_3 + 1., 3. / 2.) * cv_2_3,
             out = mult / denom,
-            eps = Type(1. / pow(
-              std::numeric_limits<double>::epsilon(), 1./ 3.));
+            eps = Type(1. / std::numeric_limits<double>::epsilon());
 
   return CppAD::CondExpLe(out, eps, out, eps);
 }

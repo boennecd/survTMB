@@ -90,7 +90,7 @@ struct probit final : public SNVA_cond_dens_dat<Type> {
 template<class Type, template <class> class Accumlator>
 void SNVA_comp
   (COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
-   HermiteData<Type> const &xw, std::string const &param_type,
+   unsigned const n_nodes, std::string const &param_type,
    unsigned const rng_dim){
   using vecT = vector<Type>;
   using std::move;
@@ -186,15 +186,15 @@ void SNVA_comp
   }
 
   if(link == "PH"){
-    ph<Type>     func(eps, kappa, xw.x.size());
+    ph<Type>     func(eps, kappa, n_nodes);
     MAIN_LOOP(func);
 
   } else if (link == "PO"){
-    po<Type>     func(eps, kappa, xw.x.size());
+    po<Type>     func(eps, kappa, n_nodes);
     MAIN_LOOP(func);
 
   } else if (link == "probit"){
-    probit<Type> func(eps, kappa, xw.x.size());
+    probit<Type> func(eps, kappa, n_nodes);
     MAIN_LOOP(func);
 
   } else
@@ -221,7 +221,7 @@ void SNVA_comp
       vecT va_rho_scaled =
         (llt_mat.matrixU() * va_rhos[g].matrix()).array() + small;
       Type const r_L_r = vec_dot(va_rho_scaled, va_rho_scaled);
-      last_terms -= entropy_term(r_L_r, xw);
+      last_terms -= entropy_term(r_L_r, n_nodes);
 
     }
     lb_t_mult_half -= mat_mult_trace(va_lambda_sum, vcov_inv);
@@ -255,10 +255,7 @@ void SNVA(COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
             theta_VA.size(), expe_size);
   }
 
-  HermiteData<Type> const &xw =
-    GaussHermite::GaussHermiteDataCached<Type>(n_nodes);
-
-  return SNVA_comp(COMMON_CALL, theta_VA, xw, param_type, rng_dim);
+  return SNVA_comp(COMMON_CALL, theta_VA, n_nodes, param_type, rng_dim);
 }
 
 using ADd   = CppAD::AD<double>;
