@@ -226,12 +226,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 308.23 309.05 312.14 310.01 310.40 325.87
-#>               Compute sparse Hessian  19.06  19.16  19.52  19.52  19.89  20.18
-#>         Invert dense Hessian (naive)   5.33   5.37   5.45   5.39   5.43   5.72
-#>        Invert sparse Hessian (naive)   1.06   1.08   1.19   1.19   1.28   1.35
-#>   Invert dense Hessian (alternative)   1.34   1.36   1.39   1.38   1.41   1.50
-#>  Invert sparse Hessian (alternative)   2.77   2.94   3.03   3.02   3.13   3.31
+#>                Compute dense Hessian 308.44 309.18 310.80 310.33 312.34 314.22
+#>               Compute sparse Hessian  18.44  18.89  19.21  19.12  19.42  20.22
+#>         Invert dense Hessian (naive)   5.22   5.30   5.44   5.36   5.48   6.14
+#>        Invert sparse Hessian (naive)   1.04   1.08   1.19   1.16   1.22   1.44
+#>   Invert dense Hessian (alternative)   1.32   1.36   1.41   1.37   1.42   1.67
+#>  Invert sparse Hessian (alternative)   2.79   2.90   3.07   3.00   3.30   3.49
 #>  neval
 #>     10
 #>     10
@@ -257,9 +257,9 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>               expr    min   lq mean median   uq  max neval
-#>  W/o Hessians        99.1  100  102    101  104  106    10
-#>  W/ dense Hessian   202.1  203  204    203  204  209    10
-#>  W/ sparse Hessian 1373.0 1376 1380   1378 1383 1393    10
+#>  W/o Hessians        98.9  101  104    101  107  111    10
+#>  W/ dense Hessian   202.5  203  206    204  211  214    10
+#>  W/ sparse Hessian 1376.6 1382 1385   1384 1386 1397    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -686,29 +686,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           899  921  921    927  929  930     5
-#>  PH     (2L)  574  581  584    585  585  593     5
-#>  PH     (4L)  419  422  432    427  430  460     5
-#>  PO          1293 1301 1308   1311 1313 1322     5
-#>  PO     (2L)  806  811  813    815  816  819     5
-#>  PO     (4L)  559  563  569    568  573  582     5
-#>  probit      1659 1668 1696   1668 1677 1809     5
-#>  probit (2L)  971  974  983    987  988  993     5
-#>  probit (4L)  703  703  708    706  713  715     5
+#>  PH           908  917  919    920  921  930     5
+#>  PH     (2L)  576  577  580    580  583  584     5
+#>  PH     (4L)  408  416  419    421  422  429     5
+#>  PO          1319 1323 1327   1329 1329 1336     5
+#>  PO     (2L)  806  809  810    810  811  815     5
+#>  PO     (4L)  564  564  577    566  596  596     5
+#>  probit      1661 1668 1672   1669 1673 1687     5
+#>  probit (2L)  975  978  983    984  985  992     5
+#>  probit (4L)  685  696  697    698  699  707     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           307  314  316    318  320  320     5
-#>  PH     (2L)  203  203  205    204  207  210     5
-#>  PH     (4L)  160  161  162    162  162  163     5
-#>  PO           795  797  797    798  798  798     5
-#>  PO     (2L)  477  479  481    480  483  483     5
-#>  PO     (4L)  335  337  337    338  338  339     5
-#>  probit      1350 1350 1352   1351 1355 1357     5
-#>  probit (2L)  774  787  790    787  790  809     5
-#>  probit (4L)  537  539  539    539  539  540     5
+#>  PH           313  314  315    316  316  317     5
+#>  PH     (2L)  205  206  208    209  209  212     5
+#>  PH     (4L)  160  161  162    161  163  164     5
+#>  PO           795  797  799    797  797  810     5
+#>  PO     (2L)  476  476  479    479  481  481     5
+#>  PO     (4L)  334  335  336    337  338  339     5
+#>  probit      1354 1356 1357   1358 1359 1359     5
+#>  probit (2L)  785  795  798    798  806  807     5
+#>  probit (4L)  538  540  542    540  543  548     5
 ```
 
 ``` r
@@ -736,29 +736,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           377  383  389    383  384  419     5
-#>  PH     (2L)  243  248  257    259  264  272     5
-#>  PH     (4L)  178  181  186    182  182  208     5
-#>  PO          3668 3696 3707   3710 3725 3736     5
-#>  PO     (2L) 2326 2335 2352   2338 2369 2393     5
-#>  PO     (4L) 1685 1702 1759   1711 1795 1903     5
-#>  probit      4196 4208 4240   4215 4248 4334     5
-#>  probit (2L) 2578 2585 2640   2639 2673 2726     5
-#>  probit (4L) 1845 1851 1858   1852 1854 1885     5
+#>  PH           377  378  381    381  386  386     5
+#>  PH     (2L)  240  241  243    243  243  248     5
+#>  PH     (4L)  180  181  182    181  183  187     5
+#>  PO          3714 3716 3727   3716 3727 3763     5
+#>  PO     (2L) 2200 2201 2206   2202 2205 2223     5
+#>  PO     (4L) 1490 1494 1507   1507 1519 1526     5
+#>  probit      4244 4244 4246   4244 4247 4250     5
+#>  probit (2L) 2478 2491 2506   2499 2526 2535     5
+#>  probit (4L) 1663 1666 1673   1668 1681 1685     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           519  523  532    532  533  554     5
-#>  PH     (2L)  328  329  331    331  333  336     5
-#>  PH     (4L)  232  233  243    239  249  263     5
-#>  PO          3437 3464 3492   3470 3492 3596     5
-#>  PO     (2L) 2478 2495 2532   2559 2561 2568     5
-#>  PO     (4L) 1683 1756 1761   1761 1791 1816     5
-#>  probit      3761 3792 3810   3799 3847 3848     5
-#>  probit (2L) 2364 2366 2380   2376 2385 2409     5
-#>  probit (4L) 1887 1922 1932   1939 1945 1967     5
+#>  PH           489  491  494    491  498  500     5
+#>  PH     (2L)  314  321  323    321  322  337     5
+#>  PH     (4L)  222  223  230    224  240  242     5
+#>  PO          3327 3331 3335   3333 3334 3351     5
+#>  PO     (2L) 2287 2293 2320   2305 2347 2368     5
+#>  PO     (4L) 1323 1351 1452   1398 1561 1625     5
+#>  probit      3643 3645 3656   3653 3656 3680     5
+#>  probit (2L) 2126 2147 2155   2163 2166 2171     5
+#>  probit (4L) 1458 1497 1495   1497 1507 1519     5
 ```
 
 ## Joint Models
@@ -994,7 +994,7 @@ system.time(
     sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>   15.96    0.04    5.22
+#>  15.530   0.032   4.976
 ```
 
 Next, we fit the model using the `lbfgs` function from the `lbfgs`
@@ -1005,7 +1005,7 @@ system.time(
   opt_out <- survTMB:::.opt_default(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#>  760.23    0.02  127.00
+#> 687.604   0.035 114.828
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum

@@ -17,7 +17,7 @@ entropy_term_integral<Type>::get_cached(unsigned const n){
   constexpr std::size_t const n_cache = GaussHermiteDataCachedMaxArg();
   if(n > n_cache or n == 0l)
     throw std::invalid_argument(
-        "entropy_term_integral<Type>: invalid n (too large or zero)");
+        "entropy_term_integral<Type>::get_cached: invalid n (too large or zero)");
 
   static std::array<std::unique_ptr<output_T>, n_cache> cached_values;
 
@@ -28,18 +28,11 @@ entropy_term_integral<Type>::get_cached(unsigned const n){
     return *cached_values[idx];
 
 #ifdef _OPENMP
-#pragma omp critical (snvaEntropyCache)
-{
+  if(CppAD::thread_alloc::in_parallel())
+    throw std::runtime_error("entropy_term_integral<Type>::get_cached called in parallel mode");
 #endif
-  has_value = cached_values[idx].get();
-  if(!has_value){
-    std::unique_ptr<output_T> new_ptr(
-        new output_T("integral_atomic<Type, Fam>", n));
-    std::swap(cached_values[idx], new_ptr);
-  }
-#ifdef _OPENMP
-}
-#endif
+
+  cached_values[idx].reset(new output_T("entropy_term_integral<Type>", n));
 
   return *cached_values[idx];
 }
@@ -52,7 +45,7 @@ integral_atomic<Type, Fam>::get_cached(unsigned const n){
   constexpr std::size_t const n_cache = GaussHermiteDataCachedMaxArg();
   if(n > n_cache or n == 0l)
     throw std::invalid_argument(
-        "integral_atomic<Type, Fam>: invalid n (too large or zero)");
+        "integral_atomic<Type, Fam>::get_cached: invalid n (too large or zero)");
 
   static std::array<std::unique_ptr<output_T>, n_cache> cached_values;
 
@@ -63,18 +56,11 @@ integral_atomic<Type, Fam>::get_cached(unsigned const n){
     return *cached_values[idx];
 
 #ifdef _OPENMP
-#pragma omp critical (snvaCache)
-{
+  if(CppAD::thread_alloc::in_parallel())
+    throw std::runtime_error("integral_atomic<Type, Fam>::get_cached called in parallel mode");
 #endif
-  has_value = cached_values[idx].get();
-  if(!has_value){
-    std::unique_ptr<output_T> new_ptr(
-        new output_T("integral_atomic<Type, Fam>", n));
-    std::swap(cached_values[idx], new_ptr);
-  }
-#ifdef _OPENMP
-}
-#endif
+
+  cached_values[idx].reset(new output_T("integral_atomic<Type, Fam>", n));
 
   return *cached_values[idx];
 }

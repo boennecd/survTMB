@@ -45,3 +45,11 @@ joint_funcs_eval_grad <- function(p, par) {
     .Call(`_survTMB_joint_funcs_eval_grad`, p, par)
 }
 
+fix_atomic_seqfault <- function() {
+    invisible(.Call(`_survTMB_fix_atomic_seqfault`))
+}
+
+setup_atomic_cache <- function(n_nodes, type, link = "") {
+    invisible(.Call(`_survTMB_setup_atomic_cache`, n_nodes, type, link))
+}
+

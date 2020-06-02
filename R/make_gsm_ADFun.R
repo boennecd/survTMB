@@ -557,6 +557,10 @@ make_mgsm_ADFun <- function(
 
 .get_gva_func <- function(n_rng, n_grp, params, data_ad_func, n_nodes,
                           dense_hess, sparse_hess, inits, opt_func) {
+  # setup cache
+  setup_atomic_cache(
+    n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link)
+
   # set the initial values
   n_mu     <- n_rng
   n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
@@ -676,6 +680,10 @@ make_mgsm_ADFun <- function(
 .get_snva_out <- function(n_rng, n_grp, gva_out, params, skew_start,
                           param_type, skew_boundary, data_ad_func, n_nodes,
                           dense_hess, sparse_hess, opt_func) {
+  # setup cache
+  setup_atomic_cache(
+    n_nodes = n_nodes, type = .snva_char, link = data_ad_func$link)
+
   # set the initial values
   n_mu     <- n_rng
   n_rho    <- n_rng

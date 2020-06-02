@@ -277,11 +277,8 @@ HermiteData<Type> const& GaussHermiteDataCached(unsigned const n){
 {
 #endif
   has_value = cached_values[idx].get();
-  if(!has_value){
-    std::unique_ptr<HermiteData<Type> > new_ptr(
-      new HermiteData<Type>(GaussHermiteData(n)));
-    std::swap(cached_values[idx], new_ptr);
-  }
+  if(!has_value)
+    cached_values[idx].reset(new HermiteData<Type>(GaussHermiteData(n)));
 #ifdef _OPENMP
 }
 #endif

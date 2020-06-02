@@ -144,6 +144,25 @@ RcppExport SEXP _survTMB_joint_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
+// fix_atomic_seqfault
+void fix_atomic_seqfault();
+RcppExport SEXP _survTMB_fix_atomic_seqfault() {
+  BEGIN_RCPP
+  fix_atomic_seqfault();
+  return R_NilValue;
+  END_RCPP
+}
+// setup_atomic_cache
+void setup_atomic_cache(size_t const n_nodes, std::string const type, std::string const link);
+RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEXP linkSEXP) {
+  BEGIN_RCPP
+  Rcpp::traits::input_parameter< size_t const >::type n_nodes(n_nodesSEXP);
+  Rcpp::traits::input_parameter< std::string const >::type type(typeSEXP);
+  Rcpp::traits::input_parameter< std::string const >::type link(linkSEXP);
+  setup_atomic_cache(n_nodes, type, link);
+  return R_NilValue;
+  END_RCPP
+}
 
 
 RcppExport SEXP run_testthat_tests();
@@ -163,6 +182,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_joint_funcs_eval_lb", (DL_FUNC) &_survTMB_joint_funcs_eval_lb, 2},
   {"_survTMB_joint_funcs_eval_grad", (DL_FUNC) &_survTMB_joint_funcs_eval_grad, 2},
   {"_survTMB_get_commutation", (DL_FUNC) &_survTMB_get_commutation, 2},
+  {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
+  {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };

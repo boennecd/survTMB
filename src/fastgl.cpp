@@ -393,11 +393,8 @@ std::vector<QuadPair<Type> > const& GLPairsCached(size_t const n){
 {
 #endif
   has_value = cached_values[idx].get();
-  if(!has_value){
-    std::unique_ptr<ele_type> new_ptr(
-        new ele_type(GetGLPairs<Type>(n)));
-    std::swap(cached_values[idx], new_ptr);
-  }
+  if(!has_value)
+    cached_values[idx].reset(new ele_type(GetGLPairs<Type>(n)));
 #ifdef _OPENMP
 }
 #endif

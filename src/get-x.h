@@ -135,20 +135,37 @@ inline size_t get_thread_num(){
 }
 #endif
 
-template<class Type>
 struct setup_parallel_ad {
 #ifdef _OPENMP
-  setup_parallel_ad(std::size_t const nthreads, bool const setup = true) {
-    if(setup){
+  size_t const nthreads;
+
+  setup_parallel_ad(std::size_t const nthreads): nthreads(nthreads) {
+    if(nthreads > 1L)
       CppAD::thread_alloc::parallel_setup(
         nthreads, is_in_parallel, get_thread_num);
-      CppAD::thread_alloc::hold_memory(true);
-    }
+    else
+      CppAD::thread_alloc::parallel_setup(
+        nthreads, nullptr, nullptr);
 
-    CppAD::parallel_ad<Type>();
+    CppAD::thread_alloc::hold_memory(true);
+    CppAD::parallel_ad<      double    >();
+    CppAD::parallel_ad<   AD<double>   >();
+    // CppAD::parallel_ad<AD<AD<double> > >();
   }
+
+  /*
+  ~setup_parallel_ad(){
+    if(nthreads > 1L){
+      CppAD::thread_alloc::parallel_setup(1L, nullptr, nullptr);
+      CppAD::thread_alloc::hold_memory(false);
+
+      CppAD::parallel_ad<      double    >();
+      CppAD::parallel_ad<   AD<double>   >();
+      // CppAD::parallel_ad<AD<AD<double> > >();
+    }
+  }*/
 #else
-  setup_parallel_ad(unsigned const nthreads, bool const setup = true) { }
+  setup_parallel_ad(unsigned const nthreads) { }
 #endif
 };
 

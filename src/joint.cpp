@@ -532,7 +532,7 @@ SEXP get_joint_funcs
   shut_up();
 
   unsigned const n_threads(data["n_threads"]);
-  setup_parallel_ad<double> setup_ADd(n_threads);
+  setup_parallel_ad setup_ADd(n_threads);
   return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
 }
 

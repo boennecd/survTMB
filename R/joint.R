@@ -442,6 +442,7 @@ make_joint_ADFun <- function(
     Sigma = cov_to_theta(Sigma), delta = delta, omega = omega,
     alpha = alpha, va_par = va_par)
 
+  setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = "")
   func <- get_joint_funcs(data = data, parameters = parameters)
 
   # create parameter vector and return
