@@ -58,7 +58,7 @@ saveRDS(dat, file.path("inst", "test-data", "large-joint-all.RDS"))
 
 set.seed(95002011L)
 dat <- sim_joint_data_set(
-  n_obs = 25L, B = B, Psi = Psi, omega = omega, delta = delta,
+  n_obs = 50L, B = B, Psi = Psi, omega = omega, delta = delta,
   alpha = alpha, sigma = sig, gamma = gamma, b_func = b_func,
   m_func = m_func, g_func = g_func, gl_dat = gl_dat, r_z = r_z,
   r_left_trunc = r_left_trunc, r_right_cens = r_right_cens,

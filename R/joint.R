@@ -14,6 +14,12 @@
   list(Y = Y[keep, ], keep = keep)
 }
 
+.rescale_cov <- function(mat){
+  eg <- eigen(mat, symmetric = TRUE)
+  vals <- pmax(eg$values, max(eg$values) * sqrt(.Machine$double.eps))
+  tcrossprod(eg$vectors %*% diag(vals), eg$vectors)
+}
+
 .get_joint_knots <- function(n_knots, times)
   stop(".get_joint_knots not implemented")
 
@@ -92,8 +98,10 @@ get_marker_start_params <- function(
   d_m <- NROW(Psi) / n_y
   K <- get_commutation(n_y, d_m)
   Psi <- tcrossprod(K %*% Psi, K)
+  Psi <- .rescale_cov(Psi)
 
   Sigma <- diag(attr(vc, "sc")^2, n_y)
+  Sigma <- .rescale_cov(Sigma)
 
   out[c("gamma", "B", "Psi", "Sigma", "ll")] <-
     list(gamma, B, Psi, Sigma, ll = c(logLik(fit)))
