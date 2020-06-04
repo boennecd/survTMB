@@ -45,22 +45,22 @@ matrix<Type> get_mat(SEXP obj){
 #undef DATA_STRING
 #endif
 #define DATA_STRING(name)                                      \
-  std::string name = data["" #name ""];                        \
+  std::string name = data["" #name ""]
 
 #define DATA_LOGICAL(name)                                     \
-  bool name = data["" #name ""];
+  bool name = data["" #name ""]
 
 #ifdef DATA_VECTOR
 #undef DATA_VECTOR
 #endif
 #define DATA_VECTOR(name)                                      \
-  vector<Type> name = get_vec<Type>(data["" #name ""]);
+  vector<Type> name = get_vec<Type>(data["" #name ""])
 
 #ifdef DATA_MATRIX
 #undef DATA_MATRIX
 #endif
 #define DATA_MATRIX(name)                                      \
-  matrix<Type> name = get_mat<Type>(data["" #name ""]);
+  matrix<Type> name = get_mat<Type>(data["" #name ""])
 
 #ifdef DATA_IVECTOR
 #undef DATA_IVECTOR
@@ -76,33 +76,33 @@ matrix<Type> get_mat(SEXP obj){
       out[i] = org(i);                                         \
                                                                \
     return out;                                                \
-  })();
+  })()
 
 #ifdef DATA_INTEGER
 #undef DATA_INTEGER
 #endif
 #define DATA_INTEGER(name)                                     \
-  int name = data["" #name ""];
+  int name = data["" #name ""]
 
 #ifdef PARAMETER
 #undef PARAMETER
 #endif
 #define PARAMETER(name)                                        \
-  double name = parameters["" #name ""];
+  double name = parameters["" #name ""]
 
 #ifdef PARAMETER_VECTOR
 #undef PARAMETER_VECTOR
 #endif
 #define PARAMETER_VECTOR(name)                                 \
   vector<Type> name =                                          \
-    get_vec<Type>(parameters["" #name ""]);                     \
+    get_vec<Type>(parameters["" #name ""])
 
 #ifdef PARAMETER_MATRIX
 #undef PARAMETER_MATRIX
 #endif
 #define PARAMETER_MATRIX(name)                                 \
   matrix<Type> name =                                          \
-    get_mat<Type>(parameters["" #name ""]);
+    get_mat<Type>(parameters["" #name ""])
 
 template<typename Tout, typename Tin>
 vector<Tout> get_args_va

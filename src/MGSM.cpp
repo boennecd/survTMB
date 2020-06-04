@@ -35,12 +35,12 @@ class VA_worker {
   DATA_INTEGER(n_nodes);
   DATA_STRING(param_type);
 
+public:
   std::size_t const n_b = b       .size(),
                     n_t = theta   .size(),
                     n_v = theta_VA.size(),
                  n_para = 2L + n_b + n_t + n_v;
 
-public:
 #ifdef _OPENMP
   std::size_t const n_blocks = n_threads;
 #else
@@ -98,12 +98,20 @@ public:
   }
 };
 
-struct VA_func {
+class VA_func {
   using ADd   = CppAD::AD<double>;
   using ADdd  = CppAD::AD<ADd>;
   using ADddd = CppAD::AD<ADdd>;
   template<class Type>
   using ADFun = CppAD::ADFun<Type>;
+
+  size_t n_para;
+
+public:
+
+  size_t get_n_para() const {
+    return n_para;
+  }
 
                   std::vector<std::unique_ptr<ADFun<double> > >   funcs;
   std::unique_ptr<std::vector<std::unique_ptr<ADFun<double> > > > grads;
@@ -120,6 +128,7 @@ struct VA_func {
       VA_worker<ADd> w(data, parameters);
       funcs.resize(w.n_blocks);
       vector<ADd> args = w.get_args_va<ADd>();
+      n_para = w.n_para;
 
 #ifdef _OPENMP
 #pragma omp parallel for if(w.n_blocks > 1L) firstprivate(args)
@@ -294,6 +303,8 @@ double VA_funcs_eval_lb
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
+  if((size_t)parv.size() != ptr->get_n_para())
+    throw std::invalid_argument("VA_funcs_eval_lb: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();
   double out(0);
@@ -314,6 +325,8 @@ Rcpp::NumericVector VA_funcs_eval_grad
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
+  if((size_t)parv.size() != ptr->get_n_para())
+    throw std::invalid_argument("VA_funcs_eval_grad: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();
   vector<double> grad(parv.size());
@@ -357,6 +370,9 @@ Rcpp::NumericMatrix VA_funcs_eval_hess
     &grads = *ptr->grads;
 
   vector<double> parv = get_vec<double>(par);
+  if((size_t)parv.size() != ptr->get_n_para())
+    throw std::invalid_argument("VA_funcs_eval_hess: invalid par");
+
   unsigned const n_blocks = grads.size(),
                  n_vars   = parv.size();
   vector<double> hess(n_vars * n_vars);
@@ -396,6 +412,9 @@ Rcpp::List VA_funcs_eval_hess_sparse
         "VA_funcs_eval_hess_sparse: no object to compute the sparse Hessian");
 
   vector<double> parv = get_vec<double>(par);
+  if((size_t)parv.size() != ptr->get_n_para())
+    throw std::invalid_argument("VA_funcs_eval_hess_sparse: invalid par");
+
   auto &shd = *ptr->sparse_hess_dat;
   vector<double> val = shd.ddf.Forward(0, parv);
 

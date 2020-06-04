@@ -205,9 +205,8 @@ alpha <- tail(va_params[is_this_group], n_random_effects)
 dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)
 ```
 
-There is a slight bit of skewness for this cluster. Since one of the main 
-differences between the GVA and SNVA is the skewness, we compare the 
-quantiles of all the skewness parameters below.
+from the default values possibly because the lower bound is quite flat in 
+these parameters in this area.
 
 ```{r snva_check_skew}
 skews <- sapply(1:37, function(id){
@@ -225,9 +224,7 @@ skews <- sapply(1:37, function(id){
 apply(skews, 1L, quantile, probs = seq(0, 1, by = .25))
 ```
 
-There does not seem to be much skewness for any of the clusters which is 
-likely also why the lower bound with the SNVA is almost identical to the 
-lower bound from the GVA (a special case of the SNVA).
+Agian, the skewness parameter have not moved much from the defaults.
 
 ### Other link functions
 We estimate the same model below with other link functions.
@@ -411,12 +408,11 @@ system.time(
     n_nodes = 30L, n_threads = 6L))
 ```
 
-Next, we fit the model using the `lbfgs` function from the `lbfgs` package 
-using the non-exported `.opt_default` function.
+Next, we fit the model using the default optimization function.
 
 ```{r joint_fit, cache = 1, dependson = "joint_get_ptr"}
 system.time(
-  opt_out <- survTMB:::.opt_default(
+  opt_out <- out$opt_func(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 ```
 
@@ -499,6 +495,6 @@ skews[] <- sprintf("%8.4f", skews)
 print(skews, quote = FALSE)
 ```
 
-We only see some skewness in the first random variable. 
+We only see a low amount of skewness.
 
 ## References

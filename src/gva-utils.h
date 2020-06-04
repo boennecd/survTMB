@@ -27,7 +27,7 @@ namespace GVA {
  with (non-adaptive) Gauss–Hermite quadrature
 */
 struct mlogit_fam {
-  static constexpr double const too_large = 30.;
+  static double const too_large;
 
   static double g(double const &eta) {
     return eta > too_large ? eta : log(1 + exp(eta));

@@ -46,7 +46,7 @@ public:
   std::size_t const n_blocks = 1L;
 #endif
 
-private:
+public:
   std::size_t const n_y = markers.rows(),
                   dim_m = mknots.size(),
                   dim_g = gknots.size(),
@@ -60,7 +60,6 @@ private:
                    Psi.size() + Sigma.size() + delta.size() + omega.size() +
                    alpha.size() + va_par.size();
 
-public:
   using cum_integral =
     fastgl::joint::snva_integral
     <typename Type::value_type, splines::ns, splines::ns, splines::ns>;
@@ -486,12 +485,20 @@ public:
   }
 };
 
-struct VA_func {
+class VA_func {
   using ADd   = CppAD::AD<double>;
   using ADdd  = CppAD::AD<ADd>;
   using ADddd = CppAD::AD<ADdd>;
   template<class Type>
   using ADFun = CppAD::ADFun<Type>;
+
+  size_t n_pars;
+
+public:
+
+  size_t get_n_pars() const {
+    return n_pars;
+  }
 
   template<class Type>
   using splines_n_cum_haz = typename VA_worker<Type>::splines_n_cum_haz;
@@ -506,6 +513,7 @@ struct VA_func {
       VA_worker<ADd> w(data, parameters);
       splines_n_cum_ints_ADd = w.get_splines_n_cum_ints();
       funcs.resize(w.n_blocks);
+      n_pars = w.n_pars;
       vector<ADd> args = w.get_concatenated_args<ADd>();
 
 #ifdef _OPENMP
@@ -543,6 +551,8 @@ double joint_funcs_eval_lb(SEXP p, SEXP par){
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
+  if(parv.size() != ptr->get_n_pars())
+    throw std::invalid_argument("joint_funcs_eval_lb: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();
   double out(0);
@@ -569,6 +579,8 @@ Rcpp::NumericVector joint_funcs_eval_grad(SEXP p, SEXP par){
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
+  if(parv.size() != ptr->get_n_pars())
+    throw std::invalid_argument("joint_funcs_eval_grad: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();
   vector<double> grad(parv.size());

@@ -42,7 +42,7 @@
   DATA_IVECTOR(grp);                                           \
   DATA_STRING(link);                                           \
   DATA_IVECTOR(grp_size);                                      \
-  DATA_INTEGER(n_threads)                                      \
+  DATA_INTEGER(n_threads);                                     \
                                                                \
   /* They are marked as parameter such that the user can       \
    * change them later */                                      \

@@ -256,7 +256,7 @@ mode_n_Hess<double> get_SNVA_mode_n_Hess
  poor if there is a large skew.
  */
 struct mlogit_fam {
-  static constexpr double const too_large = 30.;
+  static double const too_large;
 
   template<typename T>
   static T g(T const &eta) {
@@ -622,6 +622,87 @@ SNVA_MD_input<Type> SNVA_MD_theta_CP_trans_to_DP
 
   return out;
 }
+
+/* useful class to perform computations for a given
+   individual */
+template<class Type>
+struct SNVA_cond_dens_dat {
+  /* input dependend objects */
+  Type const eps,
+         eps_log = log(eps),
+           kappa;
+  unsigned const n_nodes;
+
+  /* potentially needed constants */
+  Type const mlog_2_pi_half = Type(-log(2 * M_PI) / 2.),
+                        two = Type(2.);
+
+  SNVA_cond_dens_dat
+  (Type const eps, Type const kappa, unsigned const n_nodes):
+  eps(eps), kappa(kappa), n_nodes(n_nodes) { }
+};
+
+#define SNVA_COND_DENS_ARGS                                      \
+  Type const &eta_fix, Type const &etaD_fix,                     \
+  Type const &event, Type const &va_mu, Type const &va_sd,       \
+  Type const &va_rho, Type const &va_d, Type const &va_var,      \
+  Type const &dist_mean, Type const &dist_var
+
+/* computes the conditional density term for the PH (log-log) link
+ * function */
+template<class Type>
+struct ph final : public SNVA_cond_dens_dat<Type> {
+  using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
+
+  Type operator()(SNVA_COND_DENS_ARGS) const {
+    Type const h = etaD_fix * exp(eta_fix + dist_mean),
+               H = this->two * exp(
+                 eta_fix + va_mu + va_var / this->two) * pnorm(va_d),
+          if_low = event * this->eps_log - H - h * h * this->kappa,
+          if_ok  = event * log(h)  - H;
+
+    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+  }
+};
+
+/* computes the conditional density term for the PO (-logit) link
+ * function */
+template<class Type>
+struct po final : public SNVA_cond_dens_dat<Type> {
+  using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
+
+  Type operator()(SNVA_COND_DENS_ARGS) const {
+    Type const H = mlogit_integral(
+      va_mu, va_sd, va_rho, eta_fix, this->n_nodes),
+               h = etaD_fix * exp(eta_fix + dist_mean - H),
+          if_low = event * this->eps_log - H - h * h * this->kappa,
+          if_ok  = event * log(h)  - H;
+
+    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+  }
+};
+
+/* computes the conditional density term for the probit (-probit) link
+ * function */
+template<class Type>
+struct probit final : public SNVA_cond_dens_dat<Type> {
+  using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
+
+  Type operator()(SNVA_COND_DENS_ARGS) const {
+    Type const H = probit_integral(
+        va_mu, va_sd, va_rho, -eta_fix, this->n_nodes),
+            diff = (eta_fix + dist_mean),
+               h = etaD_fix * exp(
+                 this->mlog_2_pi_half - diff * diff / this->two -
+                   dist_var / this->two + H),
+            if_low = event * this->eps_log - H - h * h * this->kappa,
+            if_ok  = event * log(h)  - H;
+
+    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+  }
+};
+
+#undef SNVA_COND_DENS_ARGS
 
 } // namespace SNVA
 } // namespace GaussHermite

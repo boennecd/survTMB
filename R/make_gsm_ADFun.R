@@ -2,6 +2,9 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
+.MGSM_defaul_eps <- .Machine$double.eps^(1/2)
+.MGSM_default_kappa <- 1e8
+
 #' Maps Between Centralized and Direct Parameters
 #'
 #' @description
@@ -92,14 +95,83 @@ dp_to_cp <- function(xi, Psi, alpha){
   list(mu = mu, Sigma = Sigma, gamma = gamma)
 }
 
-.opt_func_quick_control <- list(
-  reltol = .Machine$double.eps^(1/5), maxit = 100, abstol = 0)
-
 #' @importFrom lbfgs lbfgs
 .opt_default <- function(
   par, fn, gr, ..., control = list(
     reltol = sqrt(.Machine$double.eps), maxit = 100L, trace = 0L)){
   if(length(par) > 1000L){
+    # Current statues codes are (https://github.com/chokkan/liblbfgs/blob/7fc787678e4a7f02eaef1c21b36b9bc3bcc0d39b/include/lbfgs.h#L75-L146)
+    #    LBFGS_SUCCESS = 0
+    #    LBFGS_CONVERGENCE = 0
+    #    LBFGS_STOP 1
+    #    /** The initial variables already minimize the objective function. */
+    #    LBFGS_ALREADY_MINIMIZED 2
+    #
+    #    /** Unknown error. */
+    #    LBFGSERR_UNKNOWNERROR = -1024
+    #    /** Logic error. */
+    #    LBFGSERR_LOGICERROR -1023
+    #    /** Insufficient memory. */
+    #    LBFGSERR_OUTOFMEMORY -1022
+    #    /** The minimization process has been canceled. */
+    #    LBFGSERR_CANCELED -1021
+    #    /** Invalid number of variables specified. */
+    #    LBFGSERR_INVALID_N -1020
+    #    /** Invalid number of variables (for SSE) specified. */
+    #    LBFGSERR_INVALID_N_SSE -1019
+    #    /** The array x must be aligned to 16 (for SSE). */
+    #    LBFGSERR_INVALID_X_SSE -1018
+    #    /** Invalid parameter lbfgs_parameter_t::epsilon specified. */
+    #    LBFGSERR_INVALID_EPSILON -1017
+    #    /** Invalid parameter lbfgs_parameter_t::past specified. */
+    #    LBFGSERR_INVALID_TESTPERIOD -1016
+    #    /** Invalid parameter lbfgs_parameter_t::delta specified. */
+    #    LBFGSERR_INVALID_DELTA -1015
+    #    /** Invalid parameter lbfgs_parameter_t::linesearch specified. */
+    #    LBFGSERR_INVALID_LINESEARCH -1014
+    #    /** Invalid parameter lbfgs_parameter_t::max_step specified. */
+    #    LBFGSERR_INVALID_MINSTEP -1013
+    #    /** Invalid parameter lbfgs_parameter_t::max_step specified. */
+    #    LBFGSERR_INVALID_MAXSTEP -1012
+    #    /** Invalid parameter lbfgs_parameter_t::ftol specified. */
+    #    LBFGSERR_INVALID_FTOL -1011
+    #    /** Invalid parameter lbfgs_parameter_t::wolfe specified. */
+    #    LBFGSERR_INVALID_WOLFE -1010
+    #    /** Invalid parameter lbfgs_parameter_t::gtol specified. */
+    #    LBFGSERR_INVALID_GTOL -1009
+    #    /** Invalid parameter lbfgs_parameter_t::xtol specified. */
+    #    LBFGSERR_INVALID_XTOL -1008
+    #    /** Invalid parameter lbfgs_parameter_t::max_linesearch specified. */
+    #    LBFGSERR_INVALID_MAXLINESEARCH -1007
+    #    /** Invalid parameter lbfgs_parameter_t::orthantwise_c specified. */
+    #    LBFGSERR_INVALID_ORTHANTWISE -1006
+    #    /** Invalid parameter lbfgs_parameter_t::orthantwise_start specified. */
+    #    LBFGSERR_INVALID_ORTHANTWISE_START -1005
+    #    /** Invalid parameter lbfgs_parameter_t::orthantwise_end specified. */
+    #    LBFGSERR_INVALID_ORTHANTWISE_END -1004
+    #    /** The line-search step went out of the interval of uncertainty. */
+    #    LBFGSERR_OUTOFINTERVAL -1003
+    #    /** A logic error occurred; alternatively, the interval of uncertainty
+    #        became too small. */
+    #    LBFGSERR_INCORRECT_TMINMAX -1002
+    #    /** A rounding error occurred; alternatively, no line-search step
+    #        satisfies the sufficient decrease and curvature conditions. */
+    #    LBFGSERR_ROUNDING_ERROR -1001
+    #    /** The line-search step became smaller than lbfgs_parameter_t::min_step. */
+    #    LBFGSERR_MINIMUMSTEP -1000
+    #    /** The line-search step became larger than lbfgs_parameter_t::max_step. */
+    #    LBFGSERR_MAXIMUMSTEP -999
+    #    /** The line-search routine reaches the maximum number of evaluations. */
+    #    LBFGSERR_MAXIMUMLINESEARCH -998
+    #    /** The algorithm routine reaches the maximum number of iterations. */
+    #    LBFGSERR_MAXIMUMITERATION -997
+    #    /** Relative width of the interval of uncertainty is at most
+    #        lbfgs_parameter_t::xtol. */
+    #    LBFGSERR_WIDTHTOOSMALL -996
+    #    /** A logic error (negative line-search step) occurred. */
+    #    LBFGSERR_INVALIDPARAMETERS -995
+    #    /** The current search direction increases the objective function value. */
+    #    LBFGSERR_INCREASEGRADIENT -994
     delta <- if(!is.null(control$reltol))
       control$reltol else sqrt(.Machine$double.eps)
     max_iterations <- if(!is.null(control$maxit))
@@ -307,7 +379,7 @@ make_mgsm_ADFun <- function(
   n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
   opt_func = .opt_default, n_threads = 1L,
-  skew_start = -0.02, dense_hess = FALSE,
+  skew_start = -.0001, dense_hess = FALSE,
   sparse_hess = FALSE){
   link <- link[1]
   param_type <- param_type[1]
@@ -459,7 +531,7 @@ make_mgsm_ADFun <- function(
 
   # assign parameter list
   params = list(
-    eps = .Machine$double.eps^(1/2), kappa = 1e8, b = beta,
+    eps = .MGSM_defaul_eps, kappa = .MGSM_default_kappa, b = beta,
     theta = theta)
 
   laplace_out <- if(.laplace_char %in% do_setup)
@@ -663,9 +735,12 @@ make_mgsm_ADFun <- function(
   coefs_start <- c(params$b, params$theta)
 
   # find parameters for each group
+  par <- c(coefs_start, theta_VA)
   do_drop <- seq_along(coefs_start)
-  get_x <- function(x)
-    c(coefs_start, x)
+  get_x <- function(x){
+    par[-do_drop] <- x
+    par
+  }
 
   fn <- function(x)
     func$fn(get_x(x))
@@ -673,7 +748,8 @@ make_mgsm_ADFun <- function(
     func$gr(get_x(x))[-do_drop]
 
   opt_out <- opt_func(theta_VA, fn = fn, gr = gr,
-                      control = .opt_func_quick_control)
+                      control = list(maxit = 1000L,
+                                     reltol = .Machine$double.eps^(1/5)))
   get_gva_out(opt_out$par)
 }
 
@@ -697,7 +773,7 @@ make_mgsm_ADFun <- function(
   beta <- params$b
   theta <- params$theta
   gva_opt <- with(gva_out, opt_func(par, fn, gr,
-                                    control = .opt_func_quick_control))
+                                    control = list(maxit = 1000L)))
   gva_va_vals <- gva_opt$par[-seq_len(length(beta) + length(theta))]
 
   params$b     <- gva_opt$par[1:length(beta)]
@@ -847,6 +923,6 @@ make_mgsm_ADFun <- function(
     func$gr(get_x(x))[-do_drop]
 
   opt_out <- opt_func(theta_VA, fn = fn, gr = gr,
-                      control = .opt_func_quick_control)
+                      control = list(maxit = 1000L))
   get_snva_out(opt_out$par)
 }

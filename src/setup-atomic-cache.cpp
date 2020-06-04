@@ -13,6 +13,9 @@ namespace {
  * each type has to be constructed __before__ calling `get_cached` such that
  * the list gets destructed last. See
  *   https://stackoverflow.com/a/335746/5861244
+ *
+ * TODO: I only think we need to create one atomic class as the list should
+ *       be shared between all derived classes.
  */
 template<template<class> class Int>
 void fix_atomic_seqfault_helper(){

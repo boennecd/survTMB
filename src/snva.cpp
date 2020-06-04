@@ -8,85 +8,6 @@ using namespace GaussHermite;
 using namespace GaussHermite::SNVA;
 using namespace survTMB;
 
-template<class Type>
-struct SNVA_cond_dens_dat {
-  /* input dependend objects */
-  Type const eps,
-         eps_log = Type(log(eps)),
-           kappa;
-  unsigned const n_nodes;
-
-  /* potentially needed constants */
-  Type const mlog_2_pi_half = Type(-log(2 * M_PI) / 2.),
-                        two = Type(2.);
-
-  SNVA_cond_dens_dat
-  (Type const eps, Type const kappa, unsigned const n_nodes):
-  eps(eps), kappa(kappa), n_nodes(n_nodes) { }
-};
-
-#define SNVA_COND_DENS_ARGS                                      \
-  Type const &eta_fix, Type const &etaD_fix,                     \
-  Type const &event, Type const &va_mu, Type const &va_sd,       \
-  Type const &va_rho, Type const &va_d, Type const &va_var,      \
-  Type const &dist_mean, Type const &dist_var
-
-/* computes the conditional density term for the PH (log-log) link
- * function */
-template<class Type>
-struct ph final : public SNVA_cond_dens_dat<Type> {
-  using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
-
-  Type operator()(SNVA_COND_DENS_ARGS) const {
-    Type const h = etaD_fix * exp(eta_fix + dist_mean),
-               H = this->two * exp(
-                 eta_fix + va_mu + va_var / this->two) * pnorm(va_d),
-          if_low = event * this->eps_log - H - h * h * this->kappa,
-          if_ok  = event * log(h)  - H;
-
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
-  }
-};
-
-/* computes the conditional density term for the PO (-logit) link
- * function */
-template<class Type>
-struct po final : public SNVA_cond_dens_dat<Type> {
-  using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
-
-  Type operator()(SNVA_COND_DENS_ARGS) const {
-    Type const H = mlogit_integral(
-      va_mu, va_sd, va_rho, eta_fix, this->n_nodes),
-               h = etaD_fix * exp(eta_fix + dist_mean - H),
-          if_low = event * this->eps_log - H - h * h * this->kappa,
-          if_ok  = event * log(h)  - H;
-
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
-  }
-};
-
-/* computes the conditional density term for the probit (-probit) link
- * function */
-template<class Type>
-struct probit final : public SNVA_cond_dens_dat<Type> {
-  using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
-
-  Type operator()(SNVA_COND_DENS_ARGS) const {
-    Type const H = probit_integral(
-        va_mu, va_sd, va_rho, -eta_fix, this->n_nodes),
-            diff = (eta_fix + dist_mean),
-               h = etaD_fix * exp(
-                 this->mlog_2_pi_half - diff * diff / this->two -
-                   dist_var / this->two + H),
-            if_low = event * this->eps_log - H - h * h * this->kappa,
-            if_ok  = event * log(h)  - H;
-
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
-  }
-};
-
-#undef SNVA_COND_DENS_ARGS
-
 template<class Type, template <class> class Accumlator>
 void SNVA_comp
   (COMMON_ARGS(Type, Accumlator), vector<Type> const &theta_VA,
@@ -132,74 +53,72 @@ void SNVA_comp
             etaD_fix = XD * b;
   Type const sqrt_2_pi(sqrt(M_2_PI)),
                    one(1.),
+                   two(2.),
                  small(std::numeric_limits<double>::epsilon());
 
-  /* assign object used in VA distribution */
+  /* assign object used in the variational distribution */
   std::vector<vecT> va_ds;
   va_ds.reserve(n_groups);
   for(unsigned g = 0; g < n_groups; ++g){
     vecT new_d = va_lambdas[g] * va_rhos[g];
-    Type const denom = sqrt(one + (va_rhos[g] * new_d).sum());
+    Type const denom = sqrt(one + vec_dot(va_rhos[g], new_d));
     new_d /= denom;
     va_ds.emplace_back(move(new_d));
   }
 
   /* handle terms from conditional density of observed outcomes */
   bool const is_in_parallel = CppAD::thread_alloc::in_parallel();
-#define MAIN_LOOP(func)                                        \
-  {                                                            \
-    unsigned i = 0;                                            \
-    for(unsigned g = 0; g < grp_size.size(); ++g){             \
-      unsigned const n_members = grp_size[g];                  \
-      /* is this our cluster? */                               \
-      if(is_in_parallel and !is_my_region(*result.obj)){       \
-        i += n_members;                                        \
-        result.obj->parallel_region();                         \
-        continue;                                              \
-      }                                                        \
-                                                               \
-      vecT const &va_mu = va_mus[g],                           \
-                  &va_d = va_ds [g];                           \
-      matrix<Type> const &va_lambda = va_lambdas[g];           \
-                                                               \
-      Type term(0.);                                           \
-      unsigned const end = n_members + i;                      \
-      for(; i < end; ++i){                                     \
-        vecT const z = Z.row(i);                               \
-                                                               \
-        Type const mu = vec_dot(z, va_mu),                     \
-                sd_sq = quad_form_sym(z, va_lambda),           \
-                   sd = sqrt(sd_sq),                           \
-                    d = vec_dot(z, va_d),                      \
-                  rho = d / sd_sq / sqrt(one - d * d / sd_sq), \
-             d_scaled = sqrt_2_pi * d,                         \
-            dist_mean = mu + d_scaled,                         \
-             dist_var = sd_sq - d_scaled * d_scaled;           \
-                                                               \
-        term += func(                                          \
-          eta_fix[i], etaD_fix[i], event[i],                   \
-          mu, sd, rho, d, sd_sq, dist_mean, dist_var);         \
-      }                                                        \
-                                                               \
-      result -= term;                                          \
-    }                                                          \
+  ph    <Type>     ph_func(eps, kappa, n_nodes);
+  po    <Type>     po_func(eps, kappa, n_nodes);
+  probit<Type> probit_func(eps, kappa, n_nodes);
+  {
+    unsigned i = 0;
+    for(unsigned g = 0; g < grp_size.size(); ++g){
+      unsigned const n_members = grp_size[g];
+      /* is this our cluster? */
+      if(is_in_parallel and !is_my_region(*result.obj)){
+        i += n_members;
+        result.obj->parallel_region();
+        continue;
+      }
+
+      vecT const &va_mu = va_mus[g],
+                  &va_d = va_ds [g];
+      matrix<Type> const &va_lambda = va_lambdas[g];
+
+      Type term(0.);
+      unsigned const end = n_members + i;
+      for(; i < end; ++i){
+        vecT const z = Z.row(i);
+
+        Type const mu = vec_dot(z, va_mu),
+                sd_sq = quad_form_sym(z, va_lambda),
+                   sd = sqrt(sd_sq),
+                    d = vec_dot(z, va_d),
+                  rho = d / sd_sq / sqrt(one - d * d / sd_sq),
+             d_scaled = sqrt_2_pi * d,
+            dist_mean = mu + d_scaled,
+             dist_var = sd_sq - d_scaled * d_scaled;
+
+        if(link == "PH")
+          term += ph_func(
+            eta_fix[i], etaD_fix[i], event[i],
+            mu, sd, rho, d, sd_sq, dist_mean, dist_var);
+        else if(link == "PO")
+          term += po_func(
+            eta_fix[i], etaD_fix[i], event[i],
+            mu, sd, rho, d, sd_sq, dist_mean, dist_var);
+        else if(link == "probit")
+          term += probit_func(
+            eta_fix[i], etaD_fix[i], event[i],
+            mu, sd, rho, d, sd_sq, dist_mean, dist_var);
+        else
+          error("'%s' not implemented", link.c_str());
+      }
+
+      result -= term;
+    }
   }
-
-  if(link == "PH"){
-    ph<Type>     func(eps, kappa, n_nodes);
-    MAIN_LOOP(func);
-
-  } else if (link == "PO"){
-    po<Type>     func(eps, kappa, n_nodes);
-    MAIN_LOOP(func);
-
-  } else if (link == "probit"){
-    probit<Type> func(eps, kappa, n_nodes);
-    MAIN_LOOP(func);
-
-  } else
-    error("'%s' not implemented", link.c_str());
-#undef MAIN_LOOP
 
   if(!is_my_region(*result.obj))
     /* only have to add one more term so just return */
@@ -226,12 +145,12 @@ void SNVA_comp
     }
     lb_t_mult_half -= mat_mult_trace(va_lambda_sum, vcov_inv);
 
-    last_terms += lb_t_mult_half / Type(2.) + lb_t_mult_other * sqrt_2_pi;
+    last_terms += lb_t_mult_half / two + lb_t_mult_other * sqrt_2_pi;
   }
 
   /* add final log determinant term and constants */
   last_terms += Type(n_groups) * (
-    -log_det_vcov /  Type(2.) + Type(rng_dim) /  Type(2.) - Type(M_LN2));
+    -log_det_vcov /  two + Type(rng_dim) /  two - Type(M_LN2));
 
   result -= last_terms;
 }

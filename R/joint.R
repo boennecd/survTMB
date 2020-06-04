@@ -479,7 +479,12 @@ make_joint_ADFun <- function(
       stop("he not implemented")
     },
     get_params = function(x)
-      stop("get_params not implemented"))
+      stop("get_params not implemented"),
+    opt_func = opt_func,
+    sparse_hess = sparse_hess,
+    cl = match.call()
+    # TODO: save terms
+    )
 
   if(missed_va){
     # make a quick search where we set all VA parameters to the same value
@@ -487,7 +492,7 @@ make_joint_ADFun <- function(
     par <- .opt_sub(
       par = par, which_par = is_va_regex, extract_name = "^(g\\d+:)(.+)",
       replacement = "\\2", fn = out$fn, gr = out$gr,
-      opt_func = opt_func, control = .opt_func_quick_control)
+      opt_func = opt_func, control = list(maxit = 1000L))
 
     # refine by optimizing each individually
     is_va <- which(grepl(is_va_regex, names(par)))
@@ -501,7 +506,7 @@ make_joint_ADFun <- function(
     }
 
     opt_va <- opt_func(
-      par[is_va], fn_va, gr_va, control = .opt_func_quick_control)
+      par[is_va], fn_va, gr_va, control = list(maxit = 1000L))
     par[is_va] <- opt_va$par
   }
 

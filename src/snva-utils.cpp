@@ -65,6 +65,8 @@ integral_atomic<Type, Fam>::get_cached(unsigned const n){
   return *cached_values[idx];
 }
 
+double const mlogit_fam::too_large = 30.;
+
 using ADd   = CppAD::AD<double>;
 using ADdd  = CppAD::AD<CppAD::AD<double> >;
 using ADddd = CppAD::AD<CppAD::AD<CppAD::AD<double> > >;
@@ -84,5 +86,5 @@ template class integral_atomic<ADd   , probit_fam>;
 template class integral_atomic<ADdd  , probit_fam>;
 template class integral_atomic<ADddd , probit_fam>;
 
-} // namespace GaussHermite
 } // namespace SNVA
+} // namespace GaussHermite
