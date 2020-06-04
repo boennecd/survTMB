@@ -320,7 +320,7 @@ get_surv_start_params <- function(
 #' @export
 make_joint_ADFun <- function(
   sformula, mformula, sdata, mdata, id_var, time_var, mknots, sknots,
-  gknots, n_nodes = 20L, skew_start = -0.02,
+  gknots, n_nodes = 20L, skew_start = -.0001,
   opt_func = .opt_default, n_threads = 1L, sparse_hess = FALSE, B = NULL,
   Psi = NULL, Sigma = NULL, omega = NULL, alpha = NULL, delta = NULL,
   gamma = NULL, va_par = NULL){

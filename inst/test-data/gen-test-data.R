@@ -4,6 +4,10 @@ if(FALSE)
                            ref = "cb2f777e065b229e5739c372460f88b18b5f5d38")
 
 #####
+# heritability data
+source(file.path("inst", "test-data", "gen-heritability-data.R"))
+
+#####
 # x-all
 library(SimSurvNMarker)
 alpha <- c(0.32, -0.31)

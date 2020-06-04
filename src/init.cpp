@@ -92,6 +92,39 @@ RcppExport SEXP _survTMB_get_commutation(SEXP nSEXP, SEXP mSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
+// get_herita_funcs
+SEXP get_herita_funcs(Rcpp::List data, Rcpp::List parameters);
+RcppExport SEXP _survTMB_get_herita_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+  Rcpp::traits::input_parameter< Rcpp::List >::type parameters(parametersSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_herita_funcs(data, parameters));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// herita_funcs_eval_lb
+double herita_funcs_eval_lb(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_herita_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
+  rcpp_result_gen = Rcpp::wrap(herita_funcs_eval_lb(p, par));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// herita_funcs_eval_grad
+Rcpp::NumericVector herita_funcs_eval_grad(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_herita_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
+  rcpp_result_gen = Rcpp::wrap(herita_funcs_eval_grad(p, par));
+  return rcpp_result_gen;
+  END_RCPP
+}
 // joint_start_ll
 arma::vec joint_start_ll(arma::vec const& Y, arma::vec const& tstart, arma::vec const& tstop, arma::vec const& omega, arma::vec const& delta, arma::mat const& Z, unsigned const n_nodes, arma::vec const& bound_knots, arma::vec const& inter_knots, bool const grad);
 RcppExport SEXP _survTMB_joint_start_ll(SEXP YSEXP, SEXP tstartSEXP, SEXP tstopSEXP, SEXP omegaSEXP, SEXP deltaSEXP, SEXP ZSEXP, SEXP n_nodesSEXP, SEXP bound_knotsSEXP, SEXP inter_knotsSEXP, SEXP gradSEXP) {
@@ -182,6 +215,9 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_joint_funcs_eval_lb", (DL_FUNC) &_survTMB_joint_funcs_eval_lb, 2},
   {"_survTMB_joint_funcs_eval_grad", (DL_FUNC) &_survTMB_joint_funcs_eval_grad, 2},
   {"_survTMB_get_commutation", (DL_FUNC) &_survTMB_get_commutation, 2},
+  {"_survTMB_get_herita_funcs", (DL_FUNC) &_survTMB_get_herita_funcs, 2},
+  {"_survTMB_herita_funcs_eval_lb", (DL_FUNC) &_survTMB_herita_funcs_eval_lb, 2},
+  {"_survTMB_herita_funcs_eval_grad", (DL_FUNC) &_survTMB_herita_funcs_eval_grad, 2},
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},

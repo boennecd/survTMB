@@ -54,7 +54,7 @@ library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", dense_hess = FALSE, 
-                      sparse_hess = FALSE, do_fit = TRUE){
+                      sparse_hess = FALSE, do_fit = TRUE)
   eval(bquote({
     adfun <- make_mgsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
@@ -65,7 +65,6 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
       fit_mgsm(adfun, method = .(method)) else NULL
     list(fit = fit, fun = adfun)
   }), parent.frame())
-}
 
 # estimate the model using different methods. Start w/ Laplace
 (lap_ph <- fit_model("PO"))$fit
@@ -224,7 +223,7 @@ skews <- sapply(1:37, function(id){
 apply(skews, 1L, quantile, probs = seq(0, 1, by = .25))
 ```
 
-Agian, the skewness parameter have not moved much from the defaults.
+Again, the skewness parameter have not moved much from the defaults.
 
 ### Other link functions
 We estimate the same model below with other link functions.
@@ -496,5 +495,69 @@ print(skews, quote = FALSE)
 ```
 
 We only see a low amount of skewness.
+
+## Heritability
+
+<!-- $$\begin{align*}  -->
+<!-- g(S(t\mid \vec x_{ij}, \epsilon_{ij})) &=  -->
+<!--   \vec\omega^\top\vec f(t) + \vec\beta^\top\vec x_{ij} +\epsilon_{ij} \\ -->
+<!-- \vec\epsilon_i &= (\epsilon_{i1}, \dots, \epsilon_{in_i})^\top \sim  -->
+<!--   N^{(n_i)}\left(\vec 0, \sum_{l = 1}^K\sigma_l^2 C_{il} -->
+<!--   \right) -->
+<!-- \end{align*}$$ -->
+
+The package contains an implementation of models which can used to estimate 
+heritability. These are GSMs of the following form 
+
+$$\begin{align*} g(S(t\mid \vec x_{ij}, \epsilon_{ij})) &=   \vec\omega^\top\vec f(t) + \vec\beta^\top\vec x_{ij} +\epsilon_{ij} \\\vec\epsilon_i &= (\epsilon_{i1}, \dots, \epsilon_{in_i})^\top \sim   N^{(n_i)}\left(\vec 0, \sum_{l = 1}^K\sigma_l^2 C_{il}  \right)\end{align*}$$
+
+where $g$ is a given link function, $\vec f$ is a given function, the 
+$\epsilon_{ij}$s are individual specific random effects, and the $K$ 
+$C_{il}$ matrices are known. Various types of $C_{il}$ matrices can be used. 
+A typical example is to use a kinship matrix to estimate genetic effect 
+Other examples are to include 
+maternal effects, paternal effects, shared environment etc. 
+
+As an example, we will use the `heritability.RDS` in the 
+[inst/test-data](inst/test-data) directory. 
+
+```{r herita_example, cache = 1}
+# load the data
+library(survTMB)
+dat <- readRDS(file.path("inst", "test-data", "heritability.RDS"))
+
+# prepare the cluster data
+c_data <- lapply(dat$sim_data, function(x){
+  # use third order polynomial 
+  X <- local({
+    y <- log(x$y)
+    cbind(y^3, y^2, y)
+  })
+  XD <- local({
+    y <- log(x$y)
+    cbind(3 * y^2, 2 * y, 1)
+  })
+  
+  # list with C matrices. There is only one here but there can be more
+  cor_mats <- list(x$rel_mat)
+
+  list(y = x$y, event = as.numeric(x$event), X = t(X),
+       XD = t(XD), Z = t(x$Z), cor_mats = cor_mats)
+})
+length(c_data) # number of clusters/families
+
+# create ADFun. We start at the true parameters as we starting values are
+# not implemented yet
+system.time(
+  func <- make_heritability_ADFun(c_data = c_data, link = "probit",
+                                  omega = dat$omega, beta = dat$beta,
+                                  sds = dat$sds))
+
+# optimize and compare the results with the true parameters
+system.time(opt_out <- func$opt_func(func$par, fn = func$fn, gr = func$gr))
+
+rbind(
+  estimated = head(opt_out$par, 6), `True values` = head(func   $par, 6))
+```
 
 ## References

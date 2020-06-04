@@ -29,6 +29,18 @@ get_commutation <- function(n, m) {
     .Call(`_survTMB_get_commutation`, n, m)
 }
 
+get_herita_funcs <- function(data, parameters) {
+    .Call(`_survTMB_get_herita_funcs`, data, parameters)
+}
+
+herita_funcs_eval_lb <- function(p, par) {
+    .Call(`_survTMB_herita_funcs_eval_lb`, p, par)
+}
+
+herita_funcs_eval_grad <- function(p, par) {
+    .Call(`_survTMB_herita_funcs_eval_grad`, p, par)
+}
+
 joint_start_ll <- function(Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad) {
     .Call(`_survTMB_joint_start_ll`, Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad)
 }

@@ -16,7 +16,7 @@ make_joint_ADFun(
   sknots,
   gknots,
   n_nodes = 20L,
-  skew_start = -0.02,
+  skew_start = -1e-04,
   opt_func = .opt_default,
   n_threads = 1L,
   sparse_hess = FALSE,

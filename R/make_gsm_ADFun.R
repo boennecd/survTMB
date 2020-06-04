@@ -103,6 +103,8 @@ dp_to_cp <- function(xi, Psi, alpha){
     # Current statues codes are (https://github.com/chokkan/liblbfgs/blob/7fc787678e4a7f02eaef1c21b36b9bc3bcc0d39b/include/lbfgs.h#L75-L146)
     #    LBFGS_SUCCESS = 0
     #    LBFGS_CONVERGENCE = 0
+    #    https://github.com/chokkan/liblbfgs/blob/7fc787678e4a7f02eaef1c21b36b9bc3bcc0d39b/lib/lbfgs.c#L650-L651
+    #    "Success: met stopping criteria (ftol)."
     #    LBFGS_STOP 1
     #    /** The initial variables already minimize the objective function. */
     #    LBFGS_ALREADY_MINIMIZED 2
@@ -181,7 +183,7 @@ dp_to_cp <- function(xi, Psi, alpha){
     out <- lbfgs(
       call_eval = fn, call_grad = gr, vars = par, invisible = invisible,
       m = 6L, epsilon = 0, delta = delta, past = 1L,
-      max_iterations = max_iterations)
+      max_iterations = max_iterations, max_linesearch = 100L)
     names(out$par) <- names(par)
     return(out)
   }
