@@ -322,7 +322,7 @@ Rcpp::NumericVector VA_funcs_eval_grad
   (SEXP p, SEXP par){
   shut_up();
 
-  Rcpp::XPtr<VA_func > ptr(p);
+  Rcpp::XPtr<VA_func> ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
   if((size_t)parv.size() != ptr->get_n_para())

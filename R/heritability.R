@@ -1,3 +1,12 @@
+#' Construct Objective Functions with Derivatives for a Mixed Generalized
+#' Survival Model for Heritability
+#'
+#' @param c_data \code{\link{list}} with cluster data.
+#' @param omega starting value for baseline hazard parameters.
+#' @param beta starting values for fixed effects coefficients.
+#' @param sds starting values for scale matrix scales.
+#' @inheritParams make_mgsm_ADFun
+#'
 #' @export
 make_heritability_ADFun <- function(
   c_data, n_nodes = 20L, n_threads = 1L, sparse_hess = FALSE,
@@ -37,6 +46,14 @@ make_heritability_ADFun <- function(
     }, list(x = bquote(c_data[[.(i)]])))
     eval(expr, environment())
   }
+
+  #####
+  # get starting values
+
+  # setup cluster
+  # get X and XD, y, etc.
+  # do this per-cluster and write limitations in `man` file
+  # then fit model with shared random effect on the cluster level
 
   #####
   # setup variational parameters

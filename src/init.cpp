@@ -92,6 +92,47 @@ RcppExport SEXP _survTMB_get_commutation(SEXP nSEXP, SEXP mSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
+// get_gsm_pointer
+SEXP get_gsm_pointer(arma::mat const& X, arma::mat const& XD, arma::mat const& Z, arma::vec const& y, double const eps, double const kappa, std::string const& link, unsigned const n_threads);
+RcppExport SEXP _survTMB_get_gsm_pointer(SEXP XSEXP, SEXP XDSEXP, SEXP ZSEXP, SEXP ySEXP, SEXP epsSEXP, SEXP kappaSEXP, SEXP linkSEXP, SEXP n_threadsSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< arma::mat const& >::type X(XSEXP);
+  Rcpp::traits::input_parameter< arma::mat const& >::type XD(XDSEXP);
+  Rcpp::traits::input_parameter< arma::mat const& >::type Z(ZSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type y(ySEXP);
+  Rcpp::traits::input_parameter< double const >::type eps(epsSEXP);
+  Rcpp::traits::input_parameter< double const >::type kappa(kappaSEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type link(linkSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_gsm_pointer(X, XD, Z, y, eps, kappa, link, n_threads));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// gsm_eval_ll
+double gsm_eval_ll(SEXP ptr, arma::vec const& beta, arma::vec const& gamma);
+RcppExport SEXP _survTMB_gsm_eval_ll(SEXP ptrSEXP, SEXP betaSEXP, SEXP gammaSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type beta(betaSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type gamma(gammaSEXP);
+  rcpp_result_gen = Rcpp::wrap(gsm_eval_ll(ptr, beta, gamma));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// gsm_eval_grad
+arma::vec gsm_eval_grad(SEXP ptr, arma::vec const& beta, arma::vec const& gamma);
+RcppExport SEXP _survTMB_gsm_eval_grad(SEXP ptrSEXP, SEXP betaSEXP, SEXP gammaSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type beta(betaSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type gamma(gammaSEXP);
+  rcpp_result_gen = Rcpp::wrap(gsm_eval_grad(ptr, beta, gamma));
+  return rcpp_result_gen;
+  END_RCPP
+}
 // get_herita_funcs
 SEXP get_herita_funcs(Rcpp::List data, Rcpp::List parameters);
 RcppExport SEXP _survTMB_get_herita_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
@@ -215,6 +256,9 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_joint_funcs_eval_lb", (DL_FUNC) &_survTMB_joint_funcs_eval_lb, 2},
   {"_survTMB_joint_funcs_eval_grad", (DL_FUNC) &_survTMB_joint_funcs_eval_grad, 2},
   {"_survTMB_get_commutation", (DL_FUNC) &_survTMB_get_commutation, 2},
+  {"_survTMB_get_gsm_pointer", (DL_FUNC) &_survTMB_get_gsm_pointer, 8},
+  {"_survTMB_gsm_eval_ll", (DL_FUNC) &_survTMB_gsm_eval_ll, 3},
+  {"_survTMB_gsm_eval_grad", (DL_FUNC) &_survTMB_gsm_eval_grad, 3},
   {"_survTMB_get_herita_funcs", (DL_FUNC) &_survTMB_get_herita_funcs, 2},
   {"_survTMB_herita_funcs_eval_lb", (DL_FUNC) &_survTMB_herita_funcs_eval_lb, 2},
   {"_survTMB_herita_funcs_eval_grad", (DL_FUNC) &_survTMB_herita_funcs_eval_grad, 2},

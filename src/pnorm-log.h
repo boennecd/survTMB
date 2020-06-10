@@ -21,7 +21,7 @@ TMB_ATOMIC_VECTOR_FUNCTION(
     Type const cdf = exp(ty[0]);
     px[0] *= dnorm1(tx[0]) / cdf;
   } else {
-    Type const log_pdf = dnorm(tx[0], Type(0.), Type(1.), 1L);
+      Type const log_pdf = dnorm(tx[0], Type(0.), Type(1.), 1L);
     px[0] *= exp(log_pdf - ty[0]);
   })
 } // namespace atomic

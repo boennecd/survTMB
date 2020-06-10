@@ -551,7 +551,7 @@ double joint_funcs_eval_lb(SEXP p, SEXP par){
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
-  if(parv.size() != ptr->get_n_pars())
+  if((size_t)parv.size() != ptr->get_n_pars())
     throw std::invalid_argument("joint_funcs_eval_lb: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();
@@ -579,7 +579,7 @@ Rcpp::NumericVector joint_funcs_eval_grad(SEXP p, SEXP par){
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
-  if(parv.size() != ptr->get_n_pars())
+  if((size_t)parv.size() != ptr->get_n_pars())
     throw std::invalid_argument("joint_funcs_eval_grad: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();

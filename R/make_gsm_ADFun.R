@@ -197,18 +197,7 @@ dp_to_cp <- function(xi, Psi, alpha){
   out
 }
 
-#' @importFrom survival survfit
-Shat <- function(obj){
-  ## predicted survival for individuals (adjusted for covariates)
-  newobj <- survfit(obj, se.fit = FALSE)
-  surv <- newobj$surv
-  rr <- try(predict(obj, type = "risk"), silent = TRUE)
-  if (inherits(rr, "try-error"))
-    rr <- 1
-  surv2 <- surv[match(obj$y[, ncol(obj$y) - 1], newobj$time)]
 
-  surv2^rr
-}
 
 #' Maps Between a Covariance Matrix and Its Log-Cholesky Parametrization
 #'
@@ -371,7 +360,7 @@ theta_to_cov <- function(theta){
 #' \code{\link{fit_mgsm}}
 #'
 #' @importFrom TMB MakeADFun
-#' @importFrom stats model.frame model.response terms model.matrix lm lm.fit predict qnorm
+#' @importFrom stats model.frame model.response terms model.matrix lm lm.fit predict qnorm sd
 #' @importFrom rstpm2 nsx
 #' @importFrom survival coxph frailty Surv
 #' @importFrom Matrix sparseMatrix
@@ -466,42 +455,18 @@ make_mgsm_ADFun <- function(
   need_theta <- is.null(theta)
   need_beta  <- is.null(beta)
 
-  stopifnot(isTRUE(attr(mt_Z, "intercept") == 1L),
-            colnames(Z)[1] == "(Intercept)")
-
   inits <- list()
-
   if(need_beta){
-    inits$link_Hat <- local({
-        cox_fit <- coxph(formula, data, model = TRUE)
-        S_hat <- Shat(cox_fit)
-        if(link == "PH")
-          pmax(log(.Machine$double.eps) / 4, log(-log(S_hat)))
-        else if(link == "PO")
-          log((1 - S_hat) / S_hat)
-        else if(link == "probit")
-          -qnorm(S_hat)
-        else
-          stop(sprintf("%s not implemented", sQuote(link)))
-      })
+    gsm_est <- gsm_fit(
+      X = X[, -is_fix, drop = FALSE], XD = XD[, -is_fix, drop = FALSE],
+      Z = X[,  is_fix, drop = FALSE], y = y, link = link,
+      n_threads = n_threads, opt_func)
 
-    inits$coef <- local({
-      keep <- event > 0
-      lm.fit(x = X[keep, , drop = FALSE],
-             y = inits$link_Hat[keep])$coefficients
-    })
+    inits$coef <- numeric(NCOL(X))
+    inits$coef[-is_fix] <- gsm_est$beta
+    inits$coef[ is_fix] <- gsm_est$gamma
+    names(inits$coef) <- colnames(X)
   }
-
-  if(need_theta)
-    inits$theta <- local({
-      cox_frm <- eval(bquote(
-        update(formula, . ~ . + frailty(.(cluster),
-                                        distribution = "gaussian"))))
-
-      cox_fit <- coxph(cox_frm, data)
-
-      cox_fit$history[[1L]]$theta
-    })
 
   #####
   # setup ADFun object for the Laplace approximation
@@ -515,13 +480,10 @@ make_mgsm_ADFun <- function(
     theta
 
   } else local({
-    out <- matrix(0., n_rng, n_rng)
-    out[1L] <- inits$theta
-    if(n_rng > 1L)
-      diag(out)[-1L] <- rep(1, n_rng - 1L)
-    out
+    sds <- apply(Z, 2, sd)
+    sds[sds == 0] <- 1
+    diag((.1 / sds)^2, length(sds))
   })
-
   theta <- cov_to_theta(theta)
 
   beta <- if(!is.null(beta)){
