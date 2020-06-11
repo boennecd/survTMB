@@ -280,6 +280,11 @@ theta_to_cov <- function(theta){
 #' @param data \code{\link{data.frame}} with variables used in the model.
 #' @param df integer with the degrees of freedom used for the baseline
 #'           spline.
+#' @param tformula \code{\link{formula}} with baseline survival function.
+#'                 The time variable must be the same
+#'                 symbol as used in the left-hand-side of \code{formula}.
+#'                 \code{NULL} implies that \code{df} is passed to
+#'                 \code{\link{nsx}}.
 #' @param Z one-sided \code{\link{formula}} where the right-hand side are
 #'          the random effects.
 #' @param cluster vector with integers or factors for group identifiers
@@ -366,15 +371,14 @@ theta_to_cov <- function(theta){
 #' @importFrom Matrix sparseMatrix
 #' @export
 make_mgsm_ADFun <- function(
-  formula, data, df, Z, cluster, do_setup = c("Laplace", "GVA", "SNVA"),
-  n_nodes = 20L, param_type = c("DP", "CP_trans", "CP"),
-  link = c("PH", "PO", "probit"), theta = NULL, beta = NULL,
-  opt_func = .opt_default, n_threads = 1L,
+  formula, data, df, tformula = NULL, Z, cluster,
+  do_setup = c("Laplace", "GVA", "SNVA"), n_nodes = 20L,
+  param_type = c("DP", "CP_trans", "CP"), link = c("PH", "PO", "probit"),
+  theta = NULL, beta = NULL, opt_func = .opt_default, n_threads = 1L,
   skew_start = -.0001, dense_hess = FALSE,
   sparse_hess = FALSE){
   link <- link[1]
   param_type <- param_type[1]
-  skew_boundary <- 0.99527
   stopifnot(
     is.integer(df), df > 0L, inherits(formula, "formula"),
     inherits(Z, "formula"), is.data.frame(data),
@@ -387,6 +391,7 @@ make_mgsm_ADFun <- function(
     is.numeric(skew_start), length(skew_start) == 1L,
     is.logical(dense_hess), length(dense_hess) == 1L, !is.na(dense_hess),
     is.logical(sparse_hess), length(sparse_hess) == 1L, !is.na(sparse_hess))
+  skew_boundary <- 0.99527
   eval(bquote(stopifnot(
     .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
 
@@ -409,17 +414,32 @@ make_mgsm_ADFun <- function(
   grp_size <- table(grp)
 
   #####
-  # get design matrices and outcome
-  mf_X <- model.frame(formula, data = data)
-  mt_X <- terms(mf_X)
-  X <- model.matrix(mt_X, mf_X)
-  n_x_fix <- NCOL(X)
+  # get design matrices and outcomes
+  need_theta <- is.null(theta)
+  need_beta  <- is.null(beta)
 
-  y <- model.response(mf_X)
+  gsm_output <- gsm(formula = formula, tformula = tformula, data = data,
+                    df = df, link = link, n_threads = n_threads,
+                    do_fit = need_beta, opt_func = opt_func)
+
+  mt_X <- gsm_output$mt_Z
+  X <- gsm_output$Z
+  n_x_fix <- NCOL(X)
+  is_fix <- seq_len(n_x_fix)
+
+  # add time-varying baseline
+  mt_b <- gsm_output$mt_X
+  X <- cbind(X, gsm_output$X)
+  XD <- cbind(matrix(0., NROW(X), n_x_fix), gsm_output$XD)
+  colnames(XD) <- colnames(X)
+
+  # get outcome
+  y <- gsm_output$y
   stopifnot(inherits(y, "Surv"), isTRUE(attr(y, "type") == "right"))
   event <- y[, 2]
   tobs  <- y[, 1]
 
+  # get random effect covariates
   formula_Z <- Z
   mf_Z <- model.frame(formula_Z, data = data)
   mt_Z <- terms(mf_Z)
@@ -429,44 +449,17 @@ make_mgsm_ADFun <- function(
             length(y) == NROW(X))
 
   #####
-  # add time-varying baseline
-  time_var <- formula[[2L]][[2L]]
-  formula_b <- eval(
-    bquote(~ nsx(log(.(time_var)), df = .(df), intercept = FALSE) - 1))
-  mt_b <- terms(model.frame(formula_b, data = data[event > 0, ]))
-  X <- cbind(X, model.matrix(mt_b, data))
-
-  #####
-  # approximate derivatives w/ finite difference
-  is_fix <- 1:n_x_fix
-  XD <- X
-  XD[,  is_fix] <- 0.
-  XD[, -is_fix] <- local({
-    dt <- .Machine$double.eps^(1/3)
-    dat_m1 <- dat_p1 <- eval(bquote(data.frame(.(time_var))), data)
-    x <- dat_m1[[1L]]
-    dat_p1[[1L]] <- x * exp( dt)
-    dat_m1[[1L]] <- x * exp(-dt)
-    (model.matrix(mt_b, dat_p1) - model.matrix(mt_b, dat_m1)) / 2 / dt / x
-  })
-
-  #####
-  # get starting values w/ coxph and then a lm fit
-  need_theta <- is.null(theta)
-  need_beta  <- is.null(beta)
-
+  # get starting values
   inits <- list()
   if(need_beta){
-    gsm_est <- gsm_fit(
-      X = X[, -is_fix, drop = FALSE], XD = XD[, -is_fix, drop = FALSE],
-      Z = X[,  is_fix, drop = FALSE], y = y, link = link,
-      n_threads = n_threads, opt_func)
+    gsm_est <- gsm_output$fit
 
     inits$coef <- numeric(NCOL(X))
     inits$coef[-is_fix] <- gsm_est$beta
     inits$coef[ is_fix] <- gsm_est$gamma
     names(inits$coef) <- colnames(X)
   }
+  rm(gsm_output)
 
   #####
   # setup ADFun object for the Laplace approximation

@@ -9,6 +9,7 @@ make_mgsm_ADFun(
   formula,
   data,
   df,
+  tformula = NULL,
   Z,
   cluster,
   do_setup = c("Laplace", "GVA", "SNVA"),
@@ -33,6 +34,12 @@ fixed effects.}
 
 \item{df}{integer with the degrees of freedom used for the baseline
 spline.}
+
+\item{tformula}{\code{\link{formula}} with baseline survival function.
+The time variable must be the same
+symbol as used in the left-hand-side of \code{formula}.
+\code{NULL} implies that \code{df} is passed to
+\code{\link{nsx}}.}
 
 \item{Z}{one-sided \code{\link{formula}} where the right-hand side are
 the random effects.}

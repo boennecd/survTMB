@@ -521,43 +521,37 @@ maternal effects, paternal effects, shared environment etc.
 As an example, we will use the `heritability.RDS` in the 
 [inst/test-data](inst/test-data) directory. 
 
-```{r herita_example, cache = 1}
+```{r herita_example, cache = 1, eval = FALSE}
 # load the data
 library(survTMB)
 dat <- readRDS(file.path("inst", "test-data", "heritability.RDS"))
 
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
-  # use third order polynomial 
-  X <- local({
-    y <- log(x$y)
-    cbind(y^3, y^2, y)
-  })
-  XD <- local({
-    y <- log(x$y)
-    cbind(3 * y^2, 2 * y, 1)
-  })
-  
-  # list with C matrices. There is only one here but there can be more
+  data <- data.frame(Z = x$Z, y = x$y, event = x$event)
   cor_mats <- list(x$rel_mat)
-
-  list(y = x$y, event = as.numeric(x$event), X = t(X),
-       XD = t(XD), Z = t(x$Z), cor_mats = cor_mats)
+  list(data = data, cor_mats = cor_mats)
 })
-length(c_data) # number of clusters/families
+length(c_data)    # number of clusters/families
+str(c_data[[1L]]) # example with the first cluster/family
 
-# create ADFun. We start at the true parameters as we starting values are
-# not implemented yet
+# create ADFun
 system.time(
-  func <- make_heritability_ADFun(c_data = c_data, link = "probit",
-                                  omega = dat$omega, beta = dat$beta,
-                                  sds = dat$sds))
+  func <- make_heritability_ADFun(
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
+    # use a third order polynomial as in the true model
+    tformula = ~ cbind(y^3, y^2, y^1) - 1,  
+    c_data = c_data, link = "probit", n_threads = 1L,
+    omega = dat$omega, beta = dat$beta, sds = dat$sds))
 
 # optimize and compare the results with the true parameters
-system.time(opt_out <- func$opt_func(func$par, fn = func$fn, gr = func$gr))
+system.time(opt_out <- func$opt_func(
+  func$par, fn = func$fn, gr = func$gr, control = list(maxit = 1000L)))
 
 rbind(
-  estimated = head(opt_out$par, 6), `True values` = head(func   $par, 6))
+  estimated = head(opt_out$par, 6),
+  `starting values` = head(func$par, 6), 
+  `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 ```
 
 ## References

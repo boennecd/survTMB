@@ -1,17 +1,33 @@
 #' Construct Objective Functions with Derivatives for a Mixed Generalized
 #' Survival Model for Heritability
 #'
+#' @param formula two-sided \code{\link{formula}} where the left-hand side is a
+#'                \code{\link{Surv}} object and the right-hand side is the
+#'                fixed effects. The formula is passed on each cluster so
+#'                the \code{\link{model.matrix}} cannot depend on the
+#'                data set (e.g. you cannot use \code{\link{ns}} without
+#'                specifying the knots).
+#' @param tformula \code{\link{formula}} with baseline survival function.
+#'                 The time variable must be the same
+#'                 symbol as used in the left-hand-side of \code{formula}.
+#'                 The formula is passed on each cluster so
+#'                 the \code{\link{model.matrix}} cannot depend on the
+#'                 data set (e.g. you cannot use \code{\link{ns}} without
+#'                 specifying the knots).
 #' @param c_data \code{\link{list}} with cluster data.
-#' @param omega starting value for baseline hazard parameters.
+#' @param n_nodes integer with the number of nodes to use in (adaptive)
+#'                Gauss-Hermite quadrature and Gauss–Legendre quadrature.
+#' @param omega starting value for baseline survival function's parameters.
 #' @param beta starting values for fixed effects coefficients.
 #' @param sds starting values for scale matrix scales.
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export
 make_heritability_ADFun <- function(
-  c_data, n_nodes = 20L, n_threads = 1L, sparse_hess = FALSE,
-  link = c("PH", "PO", "probit"), opt_func = .opt_default,
-  skew_start = -.0001, omega, beta, sds){
+  c_data, formula, tformula, n_nodes = 20L, n_threads = 1L,
+  sparse_hess = FALSE, link = c("PH", "PO", "probit"),
+  opt_func = .opt_default, skew_start = -.0001, omega = NULL,
+  beta = NULL, sds = NULL){
   # checks
   link <- link[1L]
   stopifnot(
@@ -20,11 +36,55 @@ make_heritability_ADFun <- function(
     is.integer(n_threads), length(n_threads) == 1L, n_threads > 0L,
     is.logical(sparse_hess), length(sparse_hess) == 1L,
     is.character(link), link %in% c(c("PH", "PO", "probit")),
-    is.numeric(omega), is.vector(omega), all(is.finite(omega)),
-    is.numeric(beta), is.vector(beta), all(is.finite(beta)),
-    is.numeric(sds), is.vector(sds), all(sds > 0),
-    is.numeric(skew_start), all(is.finite(skew_start)))
+    is.null(omega) || (
+      is.numeric(omega) && is.vector(omega) && all(is.finite(omega))),
+    is.null(beta) || (
+      is.numeric(beta) && is.vector(beta) && all(is.finite(beta))),
+    is.null(sds) || (
+      is.numeric(sds) && is.vector(sds) && all(sds > 0)))
+  skew_boundary <- 0.99527
+  eval(bquote(stopifnot(
+    .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
 
+  # get design matrices etc.
+  c_data <- lapply(c_data, function(x){
+    gsm_dat <- gsm(formula = formula, data = x$data, tformula = tformula,
+                   link = link, n_threads = n_threads, do_fit = FALSE,
+                   opt_func = opt_func)
+    y <- gsm_dat$y
+    stopifnot(inherits(y, "Surv"), isTRUE(attr(y, "type") == "right"))
+
+    list(cor_mats = x$cor_mats, X = t(gsm_dat$X), XD = t(gsm_dat$XD),
+         Z = t(gsm_dat$Z), y = y[, 1], event = y[, 2], y_surv = y)
+  })
+
+  #####
+  # get starting values
+  if(is.null(beta) || is.null(omega)){
+    fix_start <- local({
+      X  <- t(do.call(cbind, lapply(c_data, `[[`, "X")))
+      XD <- t(do.call(cbind, lapply(c_data, `[[`, "XD")))
+      Z  <- t(do.call(cbind, lapply(c_data, `[[`, "Z")))
+      y  <- do.call(rbind, lapply(c_data, `[[`, "y_surv"))
+
+      class(y) <- "Surv"
+      attr(y, "type") <- "right"
+
+      fit <- gsm_fit(X = X, XD = XD, Z = Z, y = y, link = link,
+                     n_threads = n_threads, opt_func = opt_func)
+
+      list(omega = fit$beta, beta = fit$gamma)
+    })
+
+    omega <- fix_start$omega
+    beta <- fix_start$beta
+  }
+
+  if(is.null(sds))
+    sds <- rep(.01, length(c_data[[1L]]$cor_mats))
+
+  #####
+  # checks
   for(i in seq_along(c_data)){
     n_obs <- c_data[[i]]$n_obs
     expr <- substitute({
@@ -41,19 +101,12 @@ make_heritability_ADFun <- function(
         is.list(x$cor_mats),
         length(x$cor_mats) == length(sds))
       for(j in seq_along(sds))
-        stopifnot(is.matrix(x$cor_mats[[j]]), NROW(x$cor_mats[[j]]) == n_obs,
+        stopifnot(is.matrix(x$cor_mats[[j]]),
+                  NROW(x$cor_mats[[j]]) == n_obs,
                   NCOL(x$cor_mats[[j]]) == n_obs)
     }, list(x = bquote(c_data[[.(i)]])))
     eval(expr, environment())
   }
-
-  #####
-  # get starting values
-
-  # setup cluster
-  # get X and XD, y, etc.
-  # do this per-cluster and write limitations in `man` file
-  # then fit model with shared random effect on the cluster level
 
   #####
   # setup variational parameters
@@ -114,17 +167,27 @@ make_heritability_ADFun <- function(
   # find variational parameters
   is_va <- -seq_len(length(omega) + length(beta) + length(sds))
   new_vas <- local({
+    # start with GVA
+    is_alpha <- which(grepl("^g\\d+:alpha", names(par)))
+    stopifnot(length(is_alpha) > 0)
+    exclude <- c(is_va, -is_alpha)
     fn_va <- function(x, ...){
-      par[is_va] <- x
+      par[exclude] <- x
       herita_funcs_eval_lb(p = adfun, par)
     }
     gr_va <- function(x, ...){
-      par[is_va] <- x
-      herita_funcs_eval_grad(p = adfun, par)[is_va]
+      par[exclude] <- x
+      herita_funcs_eval_grad(p = adfun, par)[exclude]
     }
 
-    va_opt <-
-      opt_func(par[is_va], fn_va, gr_va, control = list(maxit = 1000L))
+    va_opt <- opt_func(par[exclude], fn_va, gr_va,
+                       control = list(maxit = 1000L))
+    par[exclude] <- va_opt$par
+
+    # then SNVA
+    exclude <- is_va
+    va_opt <- opt_func(par[exclude], fn_va, gr_va,
+                       control = list(maxit = 1000L))
 
     va_opt$par
   })

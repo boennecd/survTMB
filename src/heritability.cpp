@@ -11,14 +11,15 @@ vector<Tout> get_args(vector<T> const &omega, vector<T> const &beta,
                       vector<T> const &log_sds, vector<T> const &va_par){
   vector<Tout> out(omega.size() + beta.size() +log_sds.size() + va_par.size());
   Tout *o = &out[0];
-  for(int i = 0; i < omega.size(); ++i, ++o)
-    *o = Tout(omega[i]);
-  for(int i = 0; i < beta.size(); ++i, ++o)
-    *o = Tout(beta[i]);
-  for(int i = 0; i < log_sds.size(); ++i, ++o)
-    *o = Tout(log_sds[i]);
-  for(int i = 0; i < va_par.size(); ++i, ++o)
-    *o = Tout(va_par[i]);
+
+  auto add_to_vec = [&](vector<T> const &x){
+    for(int i = 0; i < x.size(); ++i, ++o)
+      *o = x[i];
+  };
+  add_to_vec(omega);
+  add_to_vec(beta);
+  add_to_vec(log_sds);
+  add_to_vec(va_par);
 
   return out;
 }
@@ -226,10 +227,10 @@ public:
 
         Type const &sd_sq = lambda(i, i),
                        sd = sqrt(sd_sq),
-                       &d = delta(i),
+                       &d = delta[i],
                       rho = d / sd_sq / sqrt(one - d * d / sd_sq),
                  d_scaled = sqrt_2_pi * d,
-                dist_mean = mu(i) + d_scaled,
+                dist_mean = mu[i] + d_scaled,
                  dist_var = sd_sq - d_scaled * d_scaled;
 
         if(link == "PH")
@@ -248,6 +249,8 @@ public:
           error("'%s' not implemented", link.c_str());
       }
 
+      Rcpp::Rcout << "Term: " << asDouble(term) << '\t';
+
       /* add prior and entropy terms */
       matrix<Type> sigma(n_members, n_members);
       sigma.setZero();
@@ -256,12 +259,18 @@ public:
 
       Type log_det_sigma;
       matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
+      vector<Type> va_rho_scaled =
+        matrix<Type>(lambda.llt().matrixU()) * rho;
+      va_rho_scaled += small;
 
       term += (
-        atomic::logdet(lambda) - quad_form_sym(mu, sigma_inv) -
-          mat_mult_trace(lambda, sigma_inv) - log_det_sigma +
-          Type(n_members)) / two;
-      term -= sqrt_2_pi * quad_form(mu, sigma_inv, delta) + type_M_LN2;
+        atomic::logdet(lambda) - quad_form_sym(mu, sigma_inv)
+          - mat_mult_trace(lambda, sigma_inv) - log_det_sigma
+          + Type(n_members)) / two;
+      term -= sqrt_2_pi * quad_form(mu, sigma_inv, delta) + type_M_LN2
+        + entropy_term(vec_dot(va_rho_scaled, va_rho_scaled), n_nodes);
+
+      Rcpp::Rcout << "w/ prior: " << asDouble(term) << '\n';
 
       result -= term;
     }

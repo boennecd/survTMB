@@ -130,8 +130,8 @@ public:
   (arma::vec const &beta, arma::vec const &gamma) const {
     check_params(beta, gamma);
     arma::vec out(n_b + n_g, arma::fill::zeros),
-               dg(out.begin()      , n_g, false),
-               db(out.begin() + n_g, n_b, false);
+               db(out.begin()      , n_b, false),
+               dg(out.begin() + n_b, n_g, false);
 
 #ifdef _OPENMP
 #pragma omp parallel num_threads(n_threads)

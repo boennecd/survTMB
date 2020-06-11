@@ -76,8 +76,8 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0436 0.0597             0.209 0.839
-#> trt              0.0597 0.1159             0.839 0.340
+#> (Intercept)      0.0427 0.0607             0.207 0.867
+#> trt              0.0607 0.1148             0.867 0.339
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13031.16
@@ -102,8 +102,8 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0490 0.0536             0.221 0.687
-#> trt              0.0536 0.1243             0.687 0.353
+#> (Intercept)      0.0501 0.0525             0.224 0.665
+#> trt              0.0525 0.1245             0.665 0.353
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13031.11
@@ -120,7 +120,7 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                   -8.06                                    1.03 
+#>                                   -8.06                                    1.04 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
 #>                                    5.70                                   11.82 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
@@ -128,8 +128,8 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0490 0.0536             0.221 0.687
-#> trt              0.0536 0.1243             0.687 0.353
+#> (Intercept)      0.0501 0.0525             0.224 0.665
+#> trt              0.0525 0.1245             0.665 0.353
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13031.11
@@ -198,13 +198,13 @@ alte_vcov <- function(hess){
 # these are the asymptotic standard deviations
 structure(sqrt(diag(alte_vcov(dense_hess))), names = names(fit$fit$params))
 #>                             (Intercept)                                     trt 
-#>                                   0.420                                   0.110 
+#>                                   0.420                                   0.109 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
 #>                                   0.282                                   0.816 
 #> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
-#>                                   0.162                                   0.483 
+#>                                   0.162                                   0.465 
 #>                                   theta                                   theta 
-#>                                   1.355                                   2.307
+#>                                   1.147                                   1.925
 
 # check output is the same
 stopifnot(
@@ -225,12 +225,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 306.20 306.74 313.10 314.69 318.10 322.21
-#>               Compute sparse Hessian  18.66  18.86  19.34  19.31  19.58  20.65
-#>         Invert dense Hessian (naive)   5.14   5.31   5.38   5.33   5.35   5.77
-#>        Invert sparse Hessian (naive)   1.04   1.12   1.29   1.30   1.40   1.70
-#>   Invert dense Hessian (alternative)   1.31   1.35   1.38   1.38   1.43   1.45
-#>  Invert sparse Hessian (alternative)   2.77   2.95   3.12   3.02   3.12   3.76
+#>                Compute dense Hessian 320.76 322.46 326.76 323.82 333.81 336.34
+#>               Compute sparse Hessian  18.95  19.14  19.86  19.49  20.71  21.48
+#>         Invert dense Hessian (naive)   5.25   5.36   5.77   5.40   5.54   8.27
+#>        Invert sparse Hessian (naive)   1.10   1.13   1.27   1.19   1.33   1.78
+#>   Invert dense Hessian (alternative)   1.34   1.34   1.45   1.37   1.39   2.20
+#>  Invert sparse Hessian (alternative)   2.69   3.08   3.41   3.31   3.76   4.32
 #>  neval
 #>     10
 #>     10
@@ -256,9 +256,9 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>               expr    min     lq   mean median     uq    max neval
-#>  W/o Hessians        63.1   63.7   64.2   64.2   64.6   65.4    10
-#>  W/ dense Hessian   166.0  166.8  169.2  169.3  171.0  173.1    10
-#>  W/ sparse Hessian 1272.1 1290.5 1302.2 1295.1 1302.7 1383.0    10
+#>  W/o Hessians        62.9   65.2   67.9   66.7   68.7   80.2    10
+#>  W/ dense Hessian   165.6  166.3  170.0  166.8  174.6  183.5    10
+#>  W/ sparse Hessian 1259.4 1268.3 1297.5 1296.1 1309.8 1397.5    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -277,13 +277,13 @@ n_random_effects <- 2L
 # conditional mean of random effects
 va_params[is_this_group][seq_len(n_random_effects)]
 #> g1:mu1 g1:mu2 
-#>  0.367  0.613
+#>   0.37   0.61
 
 # conditional covariance matrix of random effects
 theta_to_cov(va_params[is_this_group][-seq_len(n_random_effects)])
-#>         [,1]    [,2]
-#> [1,] 0.01706 0.00161
-#> [2,] 0.00161 0.03448
+#>          [,1]     [,2]
+#> [1,] 0.017831 0.000754
+#> [2,] 0.000754 0.035483
 ```
 
 We can compare this with the multivariate skew-normal distribution
@@ -305,12 +305,12 @@ alpha <- tail(va_params[is_this_group], n_random_effects)
 dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)
 #> $mu
 #> g1:mu1 g1:mu2 
-#>  0.367  0.613 
+#>   0.37   0.61 
 #> 
 #> $Sigma
-#>         [,1]    [,2]
-#> [1,] 0.01706 0.00161
-#> [2,] 0.00161 0.03448
+#>          [,1]     [,2]
+#> [1,] 0.017831 0.000754
+#> [2,] 0.000754 0.035483
 #> 
 #> $gamma
 #> [1] -1e-04 -1e-04
@@ -369,8 +369,8 @@ fit_model("PH"    )$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0256 0.0301             0.160 0.853
-#> trt              0.0301 0.0486             0.853 0.220
+#> (Intercept)      0.0253 0.0305             0.159 0.874
+#> trt              0.0305 0.0483             0.874 0.220
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13026.68
@@ -393,8 +393,8 @@ fit_model("PO"    )$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0436 0.0597             0.209 0.839
-#> trt              0.0597 0.1159             0.839 0.340
+#> (Intercept)      0.0427 0.0607             0.207 0.867
+#> trt              0.0607 0.1148             0.867 0.339
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13031.16
@@ -417,8 +417,8 @@ fit_model("probit")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0183 0.0170             0.135 0.629
-#> trt              0.0170 0.0401             0.629 0.200
+#> (Intercept)      0.0184 0.0169             0.136 0.621
+#> trt              0.0169 0.0402             0.621 0.201
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13035.14
@@ -436,19 +436,19 @@ fit_model("PH"    , method = "GVA")$fit
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                  -7.826                                   0.723 
+#>                                   -7.82                                    0.72 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   5.394                                  11.389 
+#>                                    5.39                                   11.39 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                   4.799 
+#>                                    4.80 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0284 0.0266             0.168 0.682
-#> trt              0.0266 0.0538             0.682 0.232
+#> (Intercept)      0.0257 0.0301             0.160 0.843
+#> trt              0.0301 0.0496             0.843 0.223
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
-#> Estimated lower bound is -13026.73
+#> Estimated lower bound is -13026.71
 fit_model("PO"    , method = "GVA")$fit
 #> 
 #> MGSM estimated with method 'GVA' with link 'PO' from call:
@@ -468,8 +468,8 @@ fit_model("PO"    , method = "GVA")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0490 0.0536             0.221 0.687
-#> trt              0.0536 0.1243             0.687 0.353
+#> (Intercept)      0.0501 0.0525             0.224 0.665
+#> trt              0.0525 0.1245             0.665 0.353
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13031.11
@@ -484,16 +484,16 @@ fit_model("probit", method = "GVA")$fit
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                  -3.742                                   0.602 
+#>                                  -3.743                                   0.602 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   2.661                                   5.005 
+#>                                   2.660                                   5.005 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
 #>                                   2.973 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0202 0.0146             0.142 0.492
-#> trt              0.0146 0.0433             0.492 0.208
+#> (Intercept)      0.0206 0.0143             0.144 0.480
+#> trt              0.0143 0.0430             0.480 0.207
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13035.15
@@ -511,19 +511,19 @@ fit_model("PH"    , method = "SNVA", param_type = "DP")$fit
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                  -7.826                                   0.723 
+#>                                   -7.82                                    0.72 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   5.394                                  11.390 
+#>                                    5.39                                   11.39 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                   4.799 
+#>                                    4.80 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0284 0.0266             0.168 0.682
-#> trt              0.0266 0.0537             0.682 0.232
+#> (Intercept)      0.0256 0.0301             0.160 0.843
+#> trt              0.0301 0.0497             0.843 0.223
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
-#> Estimated lower bound is -13026.73
+#> Estimated lower bound is -13026.70
 fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> 
 #> MGSM estimated with method 'SNVA' with link 'PO' from call:
@@ -535,7 +535,7 @@ fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                   -8.06                                    1.03 
+#>                                   -8.06                                    1.04 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
 #>                                    5.70                                   11.82 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
@@ -543,8 +543,8 @@ fit_model("PO"    , method = "SNVA", param_type = "DP")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0490 0.0536             0.221 0.687
-#> trt              0.0536 0.1243             0.687 0.353
+#> (Intercept)      0.0501 0.0525             0.224 0.665
+#> trt              0.0525 0.1245             0.665 0.353
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13031.11
@@ -561,14 +561,14 @@ fit_model("probit", method = "SNVA", param_type = "DP")$fit
 #>                             (Intercept)                                     trt 
 #>                                  -3.743                                   0.602 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   2.660                                   5.005 
+#>                                   2.661                                   5.005 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
 #>                                   2.973 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0202 0.0145             0.142 0.492
-#> trt              0.0145 0.0433             0.492 0.208
+#> (Intercept)      0.0206 0.0143             0.144 0.480
+#> trt              0.0143 0.0430             0.480 0.207
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13035.15
@@ -586,19 +586,19 @@ fit_model("PH"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                  -7.826                                   0.722 
+#>                                   -7.82                                    0.72 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   5.394                                  11.389 
+#>                                    5.39                                   11.39 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                   4.800 
+#>                                    4.80 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0287 0.0272             0.169 0.695
-#> trt              0.0272 0.0534             0.695 0.231
+#> (Intercept)      0.0256 0.0301             0.160 0.843
+#> trt              0.0301 0.0497             0.843 0.223
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
-#> Estimated lower bound is -13026.68
+#> Estimated lower bound is -13026.70
 fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> MGSM estimated with method 'SNVA' with link 'PO' from call:
@@ -610,7 +610,7 @@ fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> Estimated fixed effects:
 #>                             (Intercept)                                     trt 
-#>                                   -8.06                                    1.03 
+#>                                   -8.06                                    1.04 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
 #>                                    5.70                                   11.82 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
@@ -618,8 +618,8 @@ fit_model("PO"    , method = "SNVA", param_type = "CP_trans")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0490 0.0536             0.221 0.687
-#> trt              0.0536 0.1243             0.687 0.353
+#> (Intercept)      0.0501 0.0525             0.224 0.665
+#> trt              0.0525 0.1245             0.665 0.353
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13031.11
@@ -636,14 +636,14 @@ fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 #>                             (Intercept)                                     trt 
 #>                                  -3.743                                   0.602 
 #> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   2.660                                   5.005 
+#>                                   2.661                                   5.005 
 #> nsx(log(y), df = 3, intercept = FALSE)3 
 #>                                   2.973 
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0202 0.0145             0.142 0.492
-#> trt              0.0145 0.0433             0.492 0.208
+#> (Intercept)      0.0206 0.0143             0.144 0.480
+#> trt              0.0143 0.0430             0.480 0.207
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated lower bound is -13035.15
@@ -678,29 +678,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH          1064 1065 1068   1069 1070 1071     5
-#>  PH     (2L)  645  648  655    652  657  675     5
-#>  PH     (4L)  469  479  479    479  481  485     5
-#>  PO          1184 1200 1203   1207 1207 1216     5
-#>  PO     (2L)  725  726  734    730  739  749     5
-#>  PO     (4L)  530  531  536    537  537  545     5
-#>  probit      1869 1879 1897   1889 1902 1947     5
-#>  probit (2L) 1120 1144 1141   1146 1146 1151     5
-#>  probit (4L)  773  786  792    800  801  803     5
+#>  PH           873  891  894    892  900  916     5
+#>  PH     (2L)  558  561  564    567  567  570     5
+#>  PH     (4L)  400  405  408    407  407  419     5
+#>  PO           984 1012 1012   1014 1017 1033     5
+#>  PO     (2L)  625  630  637    634  644  650     5
+#>  PO     (4L)  442  451  455    452  457  471     5
+#>  probit      1568 1570 1591   1597 1597 1621     5
+#>  probit (2L)  944  969  968    972  972  983     5
+#>  probit (4L)  667  671  684    683  693  704     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          233 234  234    234 234 236     5
-#>  PH     (2L) 152 153  154    153 155 156     5
-#>  PH     (4L) 120 120  120    120 121 121     5
-#>  PO          493 495  496    495 496 499     5
-#>  PO     (2L) 298 298  300    302 302 303     5
-#>  PO     (4L) 211 211  212    212 213 214     5
-#>  probit      898 898  899    898 899 900     5
-#>  probit (2L) 528 531  531    531 532 532     5
-#>  probit (4L) 360 361  362    361 362 364     5
+#>  PH          303 305  309    310 313 313     5
+#>  PH     (2L) 194 196  198    200 200 200     5
+#>  PH     (4L) 146 148  150    150 153 155     5
+#>  PO          559 559  561    561 562 565     5
+#>  PO     (2L) 332 334  335    334 336 338     5
+#>  PO     (4L) 238 238  244    240 243 261     5
+#>  probit      934 937  947    941 960 961     5
+#>  probit (2L) 540 543  547    544 552 556     5
+#>  probit (4L) 386 387  396    387 392 427     5
 ```
 
 ``` r
@@ -728,29 +728,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           276  277  278    277  277  281     5
-#>  PH     (2L)  178  180  181    180  182  185     5
-#>  PH     (4L)  140  141  142    141  142  143     5
-#>  PO           636  640  641    641  642  644     5
-#>  PO     (2L)  384  384  386    385  385  390     5
-#>  PO     (4L)  271  272  274    272  275  279     5
-#>  probit      1159 1161 1162   1161 1164 1165     5
-#>  probit (2L)  682  683  686    687  688  690     5
-#>  probit (4L)  465  465  472    468  477  483     5
+#>  PH           321  322  324    324  326  327     5
+#>  PH     (2L)  206  207  209    208  211  212     5
+#>  PH     (4L)  158  162  162    163  163  163     5
+#>  PO           644  645  646    646  646  648     5
+#>  PO     (2L)  385  386  390    388  394  396     5
+#>  PO     (4L)  273  276  278    276  280  282     5
+#>  probit      1048 1052 1052   1053 1054 1054     5
+#>  probit (2L)  617  618  619    619  620  621     5
+#>  probit (4L)  422  436  435    436  438  440     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           549  550  551    551  552  553     5
-#>  PH     (2L)  346  352  352    353  355  355     5
-#>  PH     (4L)  251  252  253    253  254  256     5
-#>  PO           642  644  644    644  644  646     5
-#>  PO     (2L)  388  388  391    391  394  394     5
-#>  PO     (4L)  272  274  274    274  275  275     5
-#>  probit      1169 1170 1172   1171 1174 1175     5
-#>  probit (2L)  690  691  694    693  696  699     5
-#>  probit (4L)  470  470  477    476  482  488     5
+#>  PH           326  327  330    328  332  340     5
+#>  PH     (2L)  209  210  217    215  218  232     5
+#>  PH     (4L)  160  161  168    164  164  191     5
+#>  PO           648  648  653    650  651  669     5
+#>  PO     (2L)  388  390  397    396  403  408     5
+#>  PO     (4L)  277  278  285    284  290  298     5
+#>  probit      1048 1048 1054   1056 1058 1059     5
+#>  probit (2L)  612  614  632    620  628  685     5
+#>  probit (4L)  437  439  444    447  448  449     5
 ```
 
 ## Joint Models
@@ -986,7 +986,7 @@ system.time(
     sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  43.907   0.024   9.848
+#>  42.895   0.032   9.554
 ```
 
 Next, we fit the model using the default optimization function.
@@ -996,7 +996,7 @@ system.time(
   opt_out <- out$opt_func(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#> 166.656   0.004  28.007
+#> 163.000   0.012  27.386
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -1218,44 +1218,30 @@ dat <- readRDS(file.path("inst", "test-data", "heritability.RDS"))
 
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
-  # use third order polynomial 
-  X <- local({
-    y <- log(x$y)
-    cbind(y^3, y^2, y)
-  })
-  XD <- local({
-    y <- log(x$y)
-    cbind(3 * y^2, 2 * y, 1)
-  })
-  
-  # list with C matrices. There is only one here but there can be more
+  data <- data.frame(Z = x$Z, y = x$y, event = x$event)
   cor_mats <- list(x$rel_mat)
-
-  list(y = x$y, event = as.numeric(x$event), X = t(X),
-       XD = t(XD), Z = t(x$Z), cor_mats = cor_mats)
+  list(data = data, cor_mats = cor_mats)
 })
-length(c_data) # number of clusters/families
-#> [1] 30
+length(c_data)    # number of clusters/families
+str(c_data[[1L]]) # example with the first cluster/family
 
-# create ADFun. We start at the true parameters as we starting values are
-# not implemented yet
+# create ADFun
 system.time(
-  func <- make_heritability_ADFun(c_data = c_data, link = "probit",
-                                  omega = dat$omega, beta = dat$beta,
-                                  sds = dat$sds))
-#>    user  system elapsed 
-#>   6.745   0.015   6.762
+  func <- make_heritability_ADFun(
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
+    # use a third order polynomial as in the true model
+    tformula = ~ cbind(y^3, y^2, y^1) - 1,  
+    c_data = c_data, link = "probit", n_threads = 1L,
+    omega = dat$omega, beta = dat$beta, sds = dat$sds))
 
 # optimize and compare the results with the true parameters
-system.time(opt_out <- func$opt_func(func$par, fn = func$fn, gr = func$gr))
-#>    user  system elapsed 
-#>   6.978   0.025   7.003
+system.time(opt_out <- func$opt_func(
+  func$par, fn = func$fn, gr = func$gr, control = list(maxit = 1000L)))
 
 rbind(
-  estimated = head(opt_out$par, 6), `True values` = head(func   $par, 6))
-#>             omega: omega: omega:y beta:1 beta:2 log_sds1
-#> estimated    0.024  0.121   0.205  -1.14  0.294   -0.251
-#> True values  0.020  0.100   0.175  -1.00  0.250   -0.223
+  estimated = head(opt_out$par, 6),
+  `starting values` = head(func$par, 6), 
+  `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 ```
 
 ## References

@@ -144,7 +144,7 @@ sim_fam <- function(rchild, rmatch, max_depth = 2L, max_members = 100L){
 max_depth <- 2L
 max_members <- 100L
 sds <- .8
-n_families <- 30L
+n_families <- 100L
 
 # then the baseline survival function
 base_haz_func <- function(x){

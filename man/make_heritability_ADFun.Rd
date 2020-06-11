@@ -7,22 +7,39 @@ Survival Model for Heritability}
 \usage{
 make_heritability_ADFun(
   c_data,
+  formula,
+  tformula,
   n_nodes = 20L,
   n_threads = 1L,
   sparse_hess = FALSE,
   link = c("PH", "PO", "probit"),
   opt_func = .opt_default,
   skew_start = -1e-04,
-  omega,
-  beta,
-  sds
+  omega = NULL,
+  beta = NULL,
+  sds = NULL
 )
 }
 \arguments{
 \item{c_data}{\code{\link{list}} with cluster data.}
 
+\item{formula}{two-sided \code{\link{formula}} where the left-hand side is a
+\code{\link{Surv}} object and the right-hand side is the
+fixed effects. The formula is passed on each cluster so
+the \code{\link{model.matrix}} cannot depend on the
+data set (e.g. you cannot use \code{\link{ns}} without
+specifying the knots).}
+
+\item{tformula}{\code{\link{formula}} with baseline survival function.
+The time variable must be the same
+symbol as used in the left-hand-side of \code{formula}.
+The formula is passed on each cluster so
+the \code{\link{model.matrix}} cannot depend on the
+data set (e.g. you cannot use \code{\link{ns}} without
+specifying the knots).}
+
 \item{n_nodes}{integer with the number of nodes to use in (adaptive)
-Gauss-Hermite quadrature.}
+Gauss-Hermite quadrature and Gauss–Legendre quadrature.}
 
 \item{n_threads}{integer with number of threads to use.}
 
@@ -39,7 +56,7 @@ needs to have an interface like \code{\link{optim}}.}
 skewness parameter when a SNVA is used. Currently,
 a somewhat arbitrary value.}
 
-\item{omega}{starting value for baseline hazard parameters.}
+\item{omega}{starting value for baseline survival function's parameters.}
 
 \item{beta}{starting values for fixed effects coefficients.}
 

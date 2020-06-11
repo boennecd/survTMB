@@ -349,6 +349,9 @@ make_joint_ADFun <- function(
     is.integer(n_nodes), length(n_nodes) == 1L && n_nodes > 0L,
     is.integer(n_threads), length(n_threads) == 1L, n_threads > 0L,
     is.logical(sparse_hess), length(sparse_hess) == 1L)
+  skew_boundary <- 0.99527
+  eval(bquote(stopifnot(
+    .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
 
   id_var <- substitute(id_var)
   time_var <- substitute(time_var)

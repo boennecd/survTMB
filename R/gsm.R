@@ -11,6 +11,62 @@ Shat <- function(obj){
   surv2^rr
 }
 
+gsm_get_XD <- function(time_var, mt_X, data){
+  stopifnot(is.symbol(time_var))
+
+  #####
+  # approximate derivatives w/ finite difference
+  dt <- .Machine$double.eps^(1/3)
+  dat_m1 <- dat_p1 <- data
+  t_var <- deparse(time_var)
+  x <- dat_m1[[time_var]]
+  dat_p1[[time_var]] <- x * exp( dt)
+  dat_m1[[time_var]] <- x * exp(-dt)
+  (model.matrix(mt_X, dat_p1) - model.matrix(mt_X, dat_m1)) / 2 / dt / x
+}
+
+# fits a GSM
+gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
+                do_fit, opt_func = .opt_default){
+  # checks
+  stopifnot(
+    inherits(formula, "formula"),
+    is.data.frame(data),
+    missing(df) || (is.integer(df) && df > 0 && length(df) == 1L),
+    is.null(tformula) || inherits(tformula, "formula"),
+    !(missing(df) && is.null(tformula)),
+    is.integer(n_threads) && n_threads > 0 && length(n_threads) == 1L,
+    link %in% c("PH", "PO", "probit"),
+    is.logical(do_fit), length(do_fit) == 1L)
+
+  #####
+  # get design matrices and outcome
+  mf_Z <- model.frame(formula, data = data)
+  mt_Z <- terms(mf_Z)
+  Z <- model.matrix(mt_Z, mf_Z)
+
+  y <- model.response(mf_Z)
+  stopifnot(inherits(y, "Surv"), isTRUE(attr(y, "type") == "right"))
+  event <- y[, 2]
+
+  #####
+  # get time-varying baseline
+  time_var <- formula[[2L]][[2L]]
+  if(is.null(tformula))
+    tformula <- eval(
+      bquote(~ nsx(log(.(time_var)), df = .(df), intercept = FALSE) - 1))
+  mt_X <- terms(model.frame(tformula, data = data[event > 0, ]))
+  X <- model.matrix(mt_X, data)
+
+  XD <- gsm_get_XD(time_var = time_var, mt_X = mt_X, data = data)
+
+  out <- list(Z = Z, X = X, XD = XD, y = y, mt_Z = mt_Z, mt_X = mt_X)
+  if(!do_fit)
+    return(out)
+
+  out$fit <- gsm_fit(X, XD, Z, y, link, n_threads, opt_func)
+  out
+}
 
 # fits a GSM
 gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default){
@@ -67,5 +123,5 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default){
 
   list(beta  = opt_out$par[is_beta],
        gamma = opt_out$par[-is_beta],
-       optim = par)
+       optim = opt_out, mlogli = fn, grad = gr)
 }
