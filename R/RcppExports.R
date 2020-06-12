@@ -29,8 +29,8 @@ get_commutation <- function(n, m) {
     .Call(`_survTMB_get_commutation`, n, m)
 }
 
-get_gsm_pointer <- function(X, XD, Z, y, eps, kappa, link, n_threads) {
-    .Call(`_survTMB_get_gsm_pointer`, X, XD, Z, y, eps, kappa, link, n_threads)
+get_gsm_pointer <- function(X, XD, Z, y, eps, kappa, link, n_threads, offset_eta, offset_etaD) {
+    .Call(`_survTMB_get_gsm_pointer`, X, XD, Z, y, eps, kappa, link, n_threads, offset_eta, offset_etaD)
 }
 
 gsm_eval_ll <- function(ptr, beta, gamma) {
@@ -39,6 +39,10 @@ gsm_eval_ll <- function(ptr, beta, gamma) {
 
 gsm_eval_grad <- function(ptr, beta, gamma) {
     .Call(`_survTMB_gsm_eval_grad`, ptr, beta, gamma)
+}
+
+gsm_eval_hess <- function(ptr, beta, gamma) {
+    .Call(`_survTMB_gsm_eval_hess`, ptr, beta, gamma)
 }
 
 get_herita_funcs <- function(data, parameters) {

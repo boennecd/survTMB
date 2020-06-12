@@ -521,7 +521,7 @@ maternal effects, paternal effects, shared environment etc.
 As an example, we will use the `heritability.RDS` in the 
 [inst/test-data](inst/test-data) directory. 
 
-```{r herita_example, cache = 1, eval = FALSE}
+```{r herita_example, cache = 1}
 # load the data
 library(survTMB)
 dat <- readRDS(file.path("inst", "test-data", "heritability.RDS"))
@@ -547,25 +547,23 @@ system.time(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
--func$fn(func$par)
+
+-func$fn(func$par) # log-likelihood at the starting values
 
 # optimize and compare the results with the true parameters
-system.time(opt_out <- func$opt_func(
-  func$par, fn = func$fn, gr = func$gr, 
-  control = list(maxit = 1000L, trace = 1L)))
 library(lbfgs)
+system.time(
+  opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
+                   max_iterations = 10000L, invisible = 1))
+```
 
-sink("tmp.log")
-opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
-                 max_iterations = 100000L)
-sink()
+We show the estimates below and compare them with the true values.
 
+```{r herita_show_est}
 rbind(
-  estimated = head(opt_out$par, 6),
-  `starting values` = head(func$par, 6), 
+  `Starting values` = head(func$par, 6), 
+  Estimates = head(opt_out$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
-
-head(func$gr(func$par), 6)
 ```
 
 ## References

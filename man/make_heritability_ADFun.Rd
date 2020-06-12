@@ -62,6 +62,8 @@ a somewhat arbitrary value.}
 \item{beta}{starting values for fixed effects coefficients.}
 
 \item{sds}{starting values for scale matrix scales.}
+
+\item{trace}{logical for whether to print tracing information.}
 }
 \description{
 Construct Objective Functions with Derivatives for a Mixed Generalized

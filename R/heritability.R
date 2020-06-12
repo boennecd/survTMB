@@ -20,6 +20,7 @@
 #' @param omega starting value for baseline survival function's parameters.
 #' @param beta starting values for fixed effects coefficients.
 #' @param sds starting values for scale matrix scales.
+#' @param trace logical for whether to print tracing information.
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export
@@ -75,7 +76,8 @@ make_heritability_ADFun <- function(
       attr(y, "type") <- "right"
 
       fit <- gsm_fit(X = X, XD = XD, Z = Z, y = y, link = link,
-                     n_threads = n_threads, opt_func = opt_func)
+                     n_threads = n_threads, opt_func = opt_func,
+                     offset_eta = numeric(), offset_etaD = numeric())
       if(trace)
         cat(sprintf(
           "Maximum log-likelihood without random effects is: %.3f\n",
@@ -89,7 +91,7 @@ make_heritability_ADFun <- function(
   }
 
   if(is.null(sds))
-    sds <- rep(.1, length(c_data[[1L]]$cor_mats))
+    sds <- rep(.5, length(c_data[[1L]]$cor_mats))
 
   #####
   # checks
@@ -127,8 +129,35 @@ make_heritability_ADFun <- function(
     for(i in seq_along(sds))
       sigma <- sigma + sds[i]^2 * c_dat$cor_mats[[i]]
 
-    out <- cp_to_dp(mu = numeric(n_obs), Sigma = sigma,
-                    gamma = rep(skew_start, n_obs))
+    offset_eta  <- drop(omega %*% c_dat$X + beta %*% c_dat$Z)
+    offset_etaD <- drop(omega %*% c_dat$XD)
+
+    X <- matrix(nrow = 0, ncol = n_obs)
+    # TODO: this is very inefficient
+    opt_obj <- get_gsm_pointer(
+      X = X, XD = X, Z = diag(n_obs), y = c_dat$event, eps = 1e-16,
+      kappa = 1e8, link = link, n_threads = 1L, offset_eta = offset_eta,
+      offset_etaD = offset_etaD)
+
+    par <- numeric(n_obs)
+    sig_inv <- solve(sigma)
+    chol_sig_inv <- chol(sig_inv)
+
+    fn <- function(x, ...)
+      gsm_eval_ll(ptr = opt_obj, beta = numeric(), gamma = x) +
+      sum((chol_sig_inv %*% x)^2) / 2
+    gr <- function(x, ...)
+      gsm_eval_grad(ptr = opt_obj, beta = numeric(), gamma = x) +
+      drop(sig_inv %*% x)
+    he <- function(x, ...)
+      gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
+
+    opt_ret <- opt_func(par, fn, gr)
+    mu <- opt_ret$par
+    sig_use <- solve(he(mu))
+
+    out <- cp_to_dp(
+      mu = mu, Sigma = sig_use, gamma = rep(skew_start, n_obs))
 
     xi <- out$xi
     names(xi) <- paste0("xi", seq_along(xi))

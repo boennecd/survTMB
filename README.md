@@ -1223,7 +1223,19 @@ c_data <- lapply(dat$sim_data, function(x){
   list(data = data, cor_mats = cor_mats)
 })
 length(c_data)    # number of clusters/families
+#> [1] 100
 str(c_data[[1L]]) # example with the first cluster/family
+#> List of 2
+#>  $ data    :'data.frame':    32 obs. of  4 variables:
+#>   ..$ Z.1  : num [1:32] 1 1 1 1 1 1 1 1 1 1 ...
+#>   ..$ Z.2  : num [1:32] -0.04471 -1.73322 0.00213 -0.6303 -0.34097 ...
+#>   ..$ y    : num [1:32] 6.58058 2.74164 4.72234 0.04791 0.00399 ...
+#>   ..$ event: logi [1:32] FALSE TRUE FALSE TRUE TRUE FALSE ...
+#>  $ cor_mats:List of 1
+#>   ..$ : num [1:32, 1:32] 1 0.5 0.5 0.125 0.125 0.125 0 0 0 0 ...
+#>   .. ..- attr(*, "dimnames")=List of 2
+#>   .. .. ..$ : chr [1:32] "8" "9" "10" "16" ...
+#>   .. .. ..$ : chr [1:32] "8" "9" "10" "16" ...
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
@@ -1237,25 +1249,40 @@ system.time(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
--func$fn(func$par)
+#> Finding starting values for fixed effects...
+#> Maximum log-likelihood without random effects is: -1583.452
+#> Creating ADFun...
+#> Finding starting values for variational parameters...
+#>    user  system elapsed 
+#>  17.867   0.421   8.410
+
+-func$fn(func$par) # log-likelihood at the starting values
+#> [1] -1575
 
 # optimize and compare the results with the true parameters
-system.time(opt_out <- func$opt_func(
-  func$par, fn = func$fn, gr = func$gr, 
-  control = list(maxit = 1000L, trace = 1L)))
 library(lbfgs)
+system.time(
+  opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
+                   max_iterations = 10000L, invisible = 1))
+#>    user  system elapsed 
+#> 3051.18    8.48  513.15
+```
 
-sink("tmp.log")
-opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
-                 max_iterations = 100000L)
-sink()
+We show the estimates below and compare them with the true values.
 
+``` r
 rbind(
-  estimated = head(opt_out$par, 6),
-  `starting values` = head(func$par, 6), 
+  `Starting values` = head(func$par, 6), 
+  Estimates = head(opt_out$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
-
-head(func$gr(func$par), 6)
+#>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
+#> Starting values             0.0150              0.076               0.140
+#> Estimates                   0.0198              0.100               0.184
+#> True values                 0.0200              0.100               0.175
+#>                 beta:Z.1 beta:Z.2 log_sds1
+#> Starting values   -0.792    0.217   -0.693
+#> Estimates         -1.033    0.279   -0.169
+#> True values       -1.000    0.250   -0.223
 ```
 
 ## References

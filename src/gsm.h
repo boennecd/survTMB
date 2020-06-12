@@ -32,6 +32,7 @@ public:
   virtual double log_likelihood
   (arma::vec const&, arma::vec const&) const = 0;
   virtual arma::vec grad(arma::vec const&, arma::vec const&) const = 0;
+  virtual arma::mat hess(arma::vec const&, arma::vec const&) const = 0;
 
   virtual ~gsm_base() = default;
 };
@@ -46,6 +47,8 @@ public:
    gpp_gp: ratio of twice-derivative and the derivative of the inverse
            link function.
    gpp: twice-derivative of the inverse link function.
+   d_gp_g: derivative of gp_g.
+   d_gpp_gp: derivative of gpp_gp.
 
  This allows one to cache certian values. The design matrices needs to be
  [# coefficients] x [# observations]. Z is for the time invariant
@@ -61,6 +64,7 @@ class gsm final : public gsm_base {
   double const eps, kappa,
            eps_log = log(eps);
   unsigned const n_threads;
+  arma::vec const offset_eta, offset_etaD;
 
   void check_params(arma::vec const &beta, arma::vec const &gamma) const {
     if(beta.n_elem != n_b)
@@ -72,8 +76,10 @@ class gsm final : public gsm_base {
 public:
   gsm(arma::mat const &X, arma::mat const &XD, arma::mat const &Z,
       arma::vec const &y, double const eps, double const kappa,
-      unsigned const n_threads):
-  X(X), XD(XD), Z(Z), y(y), eps(eps), kappa(kappa), n_threads(n_threads) {
+      unsigned const n_threads, arma::vec const &offset_eta,
+      arma::vec const &offset_etaD):
+  X(X), XD(XD), Z(Z), y(y), eps(eps), kappa(kappa), n_threads(n_threads),
+  offset_eta(offset_eta), offset_etaD(offset_etaD) {
     /* checks */
     if(XD.n_rows != n_b or XD.n_cols != n)
       throw std::invalid_argument("gsm: invalid XD");
@@ -87,6 +93,10 @@ public:
       throw std::invalid_argument("gsm: invalid eps");
     else if(n_threads < 1)
       throw std::invalid_argument("gsm: invalid n_threads");
+    else if(offset_eta.n_elem != n)
+      throw std::invalid_argument("gsm: invalid offset_eta");
+    else if(offset_etaD.n_elem != n)
+      throw std::invalid_argument("gsm: invalid offset_etaD");
 
 #ifdef _OPENMP
     omp_set_num_threads(n_threads);
@@ -106,11 +116,12 @@ public:
       double const * const xi  = X .colptr(i),
                    * const xdi = XD.colptr(i),
                    * const zi  = Z .colptr(i);
-      double const eta = arma_dot(beta, xi) + arma_dot(gamma, zi);
+      double const eta =
+        arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
       Family fam(eta);
 
       if(y[i] > 0){
-        double const eta_p = arma_dot(beta, xdi),
+        double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
                          h = -fam.gp() * eta_p;
         if(__builtin_expect(h > eps, 1))
           /*   valid h */
@@ -146,11 +157,12 @@ public:
       double const * const xi  = X .colptr(i),
                    * const xdi = XD.colptr(i),
                    * const zi  = Z .colptr(i);
-      double const eta = arma_dot(beta, xi) + arma_dot(gamma, zi);
+      double const eta =
+        arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
       Family fam(eta);
 
       if(y[i] > 0){
-        double const eta_p = arma_dot(beta, xdi),
+        double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
                          h = -fam.gp() * eta_p;
 
         if(__builtin_expect(h > eps, 1)){
@@ -190,6 +202,77 @@ public:
 
     return out;
   }
+
+  arma::mat hess
+  (arma::vec const &beta, arma::vec const &gamma) const {
+    check_params(beta, gamma);
+    arma::mat bm(n_b, n_b, arma::fill::zeros),
+              gm(n_g, n_g, arma::fill::zeros),
+             gbm(n_g, n_b, arma::fill::zeros);
+
+#ifdef _OPENMP
+#pragma omp parallel num_threads(n_threads)
+  {
+#endif
+    arma::mat bm_loc(n_b, n_b, arma::fill::zeros),
+              gm_loc(n_g, n_g, arma::fill::zeros),
+             gbm_loc(n_g, n_b, arma::fill::zeros);
+#ifdef _OPENMP
+#pragma omp for schedule(static)
+#endif
+    for(size_t i = 0; i < n; ++i){
+      double const * const xi  = X .colptr(i),
+                   * const xdi = XD.colptr(i),
+                   * const zi  = Z .colptr(i);
+        double const eta =
+          arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
+        Family fam(eta);
+
+        if(y[i] > 0){
+          double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
+                           h = -fam.gp() * eta_p;
+
+          if(__builtin_expect(h > eps, 1)){
+            /*   valid h */
+            double const f = fam.d_gpp_gp();
+            /* TODO: do something smarter */
+            bm_loc  += (f * X.col(i)) * X.col(i).t();
+            gm_loc  += (f * Z.col(i)) * Z.col(i).t();
+            gbm_loc += (f * Z.col(i)) * X.col(i).t();
+            bm_loc  -= (XD.col(i) / (eta_p * eta_p)) * XD.col(i).t();
+
+          }
+        } else {
+          /* TODO: do something smarter */
+          double const f = fam.d_gp_g();
+          bm_loc  += (f * X.col(i)) * X.col(i).t();
+          gm_loc  += (f * Z.col(i)) * Z.col(i).t();
+          gbm_loc += (f * Z.col(i)) * X.col(i).t();
+
+        }
+    }
+
+#ifdef _OPENMP
+#pragma omp critical
+      {
+#endif
+    bm  += bm_loc;
+    gm  += gm_loc;
+    gbm += gbm_loc;
+#ifdef _OPENMP
+      }
+    }
+#endif
+
+    arma::mat out(n_b + n_g, n_b + n_g);
+    if(n_b > 0)
+      out.submat(0  , 0  , n_b - 1      , n_b - 1      ) = bm;
+    if(n_g > 0)
+      out.submat(n_b, n_b, n_b + n_g - 1, n_b + n_g - 1) = gm;
+    if(n_b > 0 and n_g > 0)
+      out.submat(n_b, 0  , n_b + n_g - 1, n_b - 1      ) = gbm;
+    return arma::symmatl(out);
+  }
 };
 
 /** probit link function. */
@@ -203,6 +286,8 @@ struct gsm_probit {
   double gp_g() const;
   double gpp_gp() const;
   double gpp() const;
+  double d_gp_g() const;
+  double d_gpp_gp() const;
 };
 
 /** PH link function. */
@@ -218,6 +303,8 @@ public:
   double gp_g() const;
   double gpp_gp() const;
   double gpp() const;
+  double d_gp_g() const;
+  double d_gpp_gp() const;
 };
 
 /** negative-logit link function. */
@@ -234,6 +321,8 @@ public:
   double gp_g() const;
   double gpp_gp() const;
   double gpp() const;
+  double d_gp_g() const;
+  double d_gpp_gp() const;
 };
 } // namespace gsm_objs
 
