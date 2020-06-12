@@ -7,9 +7,9 @@ MGSM estimated with method 'Laplace' with link 'PO' from call:
 
 Estimated fixed effects:
                             (Intercept)                                     trt 
-                                 -8.914                                   0.877 
+                                 -8.915                                   0.877 
 nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-                                  6.428                                  13.447 
+                                  6.429                                  13.449 
 nsx(log(y), df = 3, intercept = FALSE)3 
                                   5.419 
 

@@ -231,25 +231,41 @@ public:
                       rho = d / sd_sq / sqrt(one - d * d / sd_sq),
                  d_scaled = sqrt_2_pi * d,
                 dist_mean = mu[i] + d_scaled,
-                 dist_var = sd_sq - d_scaled * d_scaled;
+                 dist_var = sd_sq - d_scaled * d_scaled,
+                  eta_fix = vec_dot(aomega, x) + vec_dot(abeta, z),
+                 etaD_fix = vec_dot(aomega, xd);
 
         if(link == "PH")
           term += ph_func(
-            vec_dot(aomega, x) + vec_dot(abeta, z), vec_dot(aomega, xd),
-            c_dat.event[i], mu[i], sd, rho, d, sd_sq, dist_mean, dist_var);
+            eta_fix, etaD_fix, c_dat.event[i], mu[i], sd, rho, d, sd_sq,
+            dist_mean, dist_var);
         else if(link == "PO")
           term += po_func(
-            vec_dot(aomega, x) + vec_dot(abeta, z), vec_dot(aomega, xd),
-            c_dat.event[i], mu[i], sd, rho, d, sd_sq, dist_mean, dist_var);
+            eta_fix, etaD_fix, c_dat.event[i], mu[i], sd, rho, d, sd_sq,
+            dist_mean, dist_var);
         else if(link == "probit")
           term += probit_func(
-            vec_dot(aomega, x) + vec_dot(abeta, z), vec_dot(aomega, xd),
-            c_dat.event[i], mu[i], sd, rho, d, sd_sq, dist_mean, dist_var);
+            eta_fix, etaD_fix, c_dat.event[i], mu[i], sd, rho, d, sd_sq,
+            dist_mean, dist_var);
         else
           error("'%s' not implemented", link.c_str());
+
+        // TODO: delete
+        // Rcpp::Rcout << asDouble(term) << ": "
+        //             << asDouble(eta_fix) << ' '
+        //             << asDouble(etaD_fix) << ' '
+        //             << asDouble(c_dat.event[i]) << ' '
+        //             << asDouble(mu[i]) << ' '
+        //             << asDouble(sd) << ' '
+        //             << asDouble(rho) << ' '
+        //             << asDouble(d) << ' '
+        //             << asDouble(sd_sq) << ' '
+        //             << asDouble(dist_mean) << ' '
+        //             << asDouble(dist_var) << '\n';
       }
 
-      Rcpp::Rcout << "Term: " << asDouble(term) << '\t';
+      // TODO: delete
+      // Rcpp::Rcout << "Term: " << asDouble(term) << '\t';
 
       /* add prior and entropy terms */
       matrix<Type> sigma(n_members, n_members);
@@ -270,7 +286,8 @@ public:
       term -= sqrt_2_pi * quad_form(mu, sigma_inv, delta) + type_M_LN2
         + entropy_term(vec_dot(va_rho_scaled, va_rho_scaled), n_nodes);
 
-      Rcpp::Rcout << "w/ prior: " << asDouble(term) << '\n';
+      // TODO: delete
+      // Rcpp::Rcout << "w/ prior: " << asDouble(term) << '\n';
 
       result -= term;
     }
@@ -345,7 +362,6 @@ double herita_funcs_eval_lb(SEXP p, SEXP par){
   unsigned const n_blocks = ptr->funcs.size();
   double out(0);
 #ifdef _OPENMP
-  /* #pragma omp parallel for if(n_blocks > 1L) firstprivate(parv) reduction(+:out) */
 #pragma omp parallel for ordered if(n_blocks > 1L) firstprivate(parv)  schedule(static, 1)
 #endif
   for(unsigned i = 0; i < n_blocks; ++i){

@@ -17,7 +17,8 @@ make_heritability_ADFun(
   skew_start = -1e-04,
   omega = NULL,
   beta = NULL,
-  sds = NULL
+  sds = NULL,
+  trace = FALSE
 )
 }
 \arguments{

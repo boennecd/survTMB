@@ -197,13 +197,16 @@ dat <- replicate(n_families, {
 
   Us <- runif(n_obs)
   Zs <- gen_x(n_obs)
-  targets <- qnorm(Us) + drop(Zs %*% beta)
+
+  # -Phi^-(S) = b + eta + eps
+  # <=> Phi^-(S) + eta + eps = -b
+  targets <- qnorm(Us) + drop(Zs %*% beta) + epsilon
   cens <- gen_cens(n_obs)
 
   # find survival times
   Ys <- mapply(function(x, C){
     f <- function(v)
-      -base_haz_func(v) %*% c(a_val, b_val, c_val) - x
+      -base_haz_func(v) %*% omega - x
     f_U <- f(C)
 
     if(f_U > 0)
@@ -225,4 +228,3 @@ dat <- list(
   omega = omega, beta = beta, sds = sds, sim_data = dat)
 
 saveRDS(dat, file.path("inst", "test-data", "heritability.RDS"))
-

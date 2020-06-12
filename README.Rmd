@@ -535,23 +535,37 @@ c_data <- lapply(dat$sim_data, function(x){
 length(c_data)    # number of clusters/families
 str(c_data[[1L]]) # example with the first cluster/family
 
+# use a third order polynomial as in the true model
+sbase_haz <- function(x){
+  x <- log(x)
+  cbind(x^3, x^2, x)
+}
+
 # create ADFun
 system.time(
   func <- make_heritability_ADFun(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
-    # use a third order polynomial as in the true model
-    tformula = ~ cbind(y^3, y^2, y^1) - 1,  
-    c_data = c_data, link = "probit", n_threads = 1L,
-    omega = dat$omega, beta = dat$beta, sds = dat$sds))
+    tformula = ~ sbase_haz(y) - 1, trace = TRUE,
+    c_data = c_data, link = "probit", n_threads = 6L))
+-func$fn(func$par)
 
 # optimize and compare the results with the true parameters
 system.time(opt_out <- func$opt_func(
-  func$par, fn = func$fn, gr = func$gr, control = list(maxit = 1000L)))
+  func$par, fn = func$fn, gr = func$gr, 
+  control = list(maxit = 1000L, trace = 1L)))
+library(lbfgs)
+
+sink("tmp.log")
+opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
+                 max_iterations = 100000L)
+sink()
 
 rbind(
   estimated = head(opt_out$par, 6),
   `starting values` = head(func$par, 6), 
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
+
+head(func$gr(func$par), 6)
 ```
 
 ## References

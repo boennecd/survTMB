@@ -27,7 +27,7 @@ make_heritability_ADFun <- function(
   c_data, formula, tformula, n_nodes = 20L, n_threads = 1L,
   sparse_hess = FALSE, link = c("PH", "PO", "probit"),
   opt_func = .opt_default, skew_start = -.0001, omega = NULL,
-  beta = NULL, sds = NULL){
+  beta = NULL, sds = NULL, trace = FALSE){
   # checks
   link <- link[1L]
   stopifnot(
@@ -41,7 +41,8 @@ make_heritability_ADFun <- function(
     is.null(beta) || (
       is.numeric(beta) && is.vector(beta) && all(is.finite(beta))),
     is.null(sds) || (
-      is.numeric(sds) && is.vector(sds) && all(sds > 0)))
+      is.numeric(sds) && is.vector(sds) && all(sds > 0)),
+    is.logical(trace), length(trace) == 1L)
   skew_boundary <- 0.99527
   eval(bquote(stopifnot(
     .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
@@ -61,6 +62,9 @@ make_heritability_ADFun <- function(
   #####
   # get starting values
   if(is.null(beta) || is.null(omega)){
+    if(trace)
+      cat("Finding starting values for fixed effects...\n")
+
     fix_start <- local({
       X  <- t(do.call(cbind, lapply(c_data, `[[`, "X")))
       XD <- t(do.call(cbind, lapply(c_data, `[[`, "XD")))
@@ -72,6 +76,10 @@ make_heritability_ADFun <- function(
 
       fit <- gsm_fit(X = X, XD = XD, Z = Z, y = y, link = link,
                      n_threads = n_threads, opt_func = opt_func)
+      if(trace)
+        cat(sprintf(
+          "Maximum log-likelihood without random effects is: %.3f\n",
+          -fit$optim$value))
 
       list(omega = fit$beta, beta = fit$gamma)
     })
@@ -81,7 +89,7 @@ make_heritability_ADFun <- function(
   }
 
   if(is.null(sds))
-    sds <- rep(.01, length(c_data[[1L]]$cor_mats))
+    sds <- rep(.1, length(c_data[[1L]]$cor_mats))
 
   #####
   # checks
@@ -126,6 +134,7 @@ make_heritability_ADFun <- function(
     names(xi) <- paste0("xi", seq_along(xi))
     Psi <- cov_to_theta(out$Psi)
     alpha <- out$alpha
+    names(xi) <- paste0("xi", seq_along(xi))
     names(alpha) <- paste0("alpha", seq_along(alpha))
 
     out <- c(out$xi, Psi, alpha)
@@ -153,11 +162,17 @@ make_heritability_ADFun <- function(
   if(length(sds) > 0)
     names(sds) = paste0("log_sds", seq_along(sds))
 
+  if(trace)
+    cat("Creating ADFun...\n")
+
   data <- list(n_threads = n_threads, sparse_hess = sparse_hess,
                n_nodes = n_nodes, link = link, c_data = c_data)
   parameters <- list(omega = omega, beta = beta, log_sds = log(sds),
                      va_par = va_par, eps = .MGSM_defaul_eps,
                      kappa = .MGSM_default_kappa)
+
+  # setup cache
+  setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link)
 
   adfun <- get_herita_funcs(data = data, parameters = parameters)
   par <- c(parameters$omega, parameters$beta, parameters$log_sds,
@@ -167,6 +182,9 @@ make_heritability_ADFun <- function(
   # find variational parameters
   is_va <- -seq_len(length(omega) + length(beta) + length(sds))
   new_vas <- local({
+    if(trace)
+      cat("Finding starting values for variational parameters...\n")
+
     # start with GVA
     is_alpha <- which(grepl("^g\\d+:alpha", names(par)))
     stopifnot(length(is_alpha) > 0)

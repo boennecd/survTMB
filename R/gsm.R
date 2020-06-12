@@ -1,16 +1,3 @@
-#' @importFrom survival survfit
-Shat <- function(obj){
-  ## predicted survival for individuals (adjusted for covariates)
-  newobj <- survfit(obj, se.fit = FALSE)
-  surv <- newobj$surv
-  rr <- try(predict(obj, type = "risk"), silent = TRUE)
-  if (inherits(rr, "try-error"))
-    rr <- 1
-  surv2 <- surv[match(obj$y[, ncol(obj$y) - 1], newobj$time)]
-
-  surv2^rr
-}
-
 gsm_get_XD <- function(time_var, mt_X, data){
   stopifnot(is.symbol(time_var))
 
@@ -18,14 +5,14 @@ gsm_get_XD <- function(time_var, mt_X, data){
   # approximate derivatives w/ finite difference
   dt <- .Machine$double.eps^(1/3)
   dat_m1 <- dat_p1 <- data
-  t_var <- deparse(time_var)
-  x <- dat_m1[[time_var]]
+  x <- data[[deparse(time_var)]]
   dat_p1[[time_var]] <- x * exp( dt)
   dat_m1[[time_var]] <- x * exp(-dt)
   (model.matrix(mt_X, dat_p1) - model.matrix(mt_X, dat_m1)) / 2 / dt / x
 }
 
 # fits a GSM
+#' @importFrom stats ecdf
 gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
                 do_fit, opt_func = .opt_default){
   # checks
@@ -81,8 +68,13 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default){
 
   # get starting values
   start_coef <- local({
-    cox_fit <- coxph(y ~ Z - 1, model = TRUE)
-    S_hat <- Shat(cox_fit)
+    keep <- event > 0
+    y_pass <- y[, 1][keep]
+    fit <- ecdf(y_pass)
+    S_hat <- 1 - fit(y_pass)
+    n <- length(S_hat)
+    S_hat <- pmax(.25 / n, pmin(S_hat, 1 - .25 / n))
+
     link_hat <- if(link == "PH")
       pmax(log(.Machine$double.eps) / 4, log(-log(S_hat)))
     else if(link == "PO")
@@ -92,10 +84,9 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default){
     else
       stop(sprintf("%s not implemented", sQuote(link)))
 
-    keep <- event > 0
     sfit <-
       lm.fit(x = cbind(X[keep, , drop = FALSE], Z[keep, , drop = FALSE]),
-             y = link_hat[keep])
+             y = link_hat)
 
     list(beta  = sfit$coefficients[ seq_len(NCOL(X))],
          gamma = sfit$coefficients[-seq_len(NCOL(X))])
@@ -107,14 +98,15 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default){
                              link = link, n_threads = n_threads)
 
   is_beta <- seq_along(start_coef$beta)
+  is_gamma <- with(start_coef, seq_along(gamma) + length(beta))
   fn <- function(x){
-    b <- x[ is_beta]
-    g <- x[-is_beta]
+    b <- x[is_beta]
+    g <- x[is_gamma]
     -gsm_eval_ll(ptr = opt_obj, beta = b, gamma = g)
   }
   gr <- function(x){
-    b <- x[ is_beta]
-    g <- x[-is_beta]
+    b <- x[is_beta]
+    g <- x[is_gamma]
     -gsm_eval_grad(ptr = opt_obj, beta = b, gamma = g)
   }
 
@@ -122,6 +114,6 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default){
   opt_out <- opt_func(par, fn = fn, gr = gr)
 
   list(beta  = opt_out$par[is_beta],
-       gamma = opt_out$par[-is_beta],
+       gamma = opt_out$par[is_gamma],
        optim = opt_out, mlogli = fn, grad = gr)
 }

@@ -76,8 +76,8 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0427 0.0607             0.207 0.867
-#> trt              0.0607 0.1148             0.867 0.339
+#> (Intercept)      0.0428 0.0607             0.207 0.866
+#> trt              0.0607 0.1148             0.866 0.339
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13031.16
@@ -204,7 +204,7 @@ structure(sqrt(diag(alte_vcov(dense_hess))), names = names(fit$fit$params))
 #> nsx(log(y), df = 3, intercept = FALSE)3                                   theta 
 #>                                   0.162                                   0.465 
 #>                                   theta                                   theta 
-#>                                   1.147                                   1.925
+#>                                   1.148                                   1.925
 
 # check output is the same
 stopifnot(
@@ -225,12 +225,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 320.76 322.46 326.76 323.82 333.81 336.34
-#>               Compute sparse Hessian  18.95  19.14  19.86  19.49  20.71  21.48
-#>         Invert dense Hessian (naive)   5.25   5.36   5.77   5.40   5.54   8.27
-#>        Invert sparse Hessian (naive)   1.10   1.13   1.27   1.19   1.33   1.78
-#>   Invert dense Hessian (alternative)   1.34   1.34   1.45   1.37   1.39   2.20
-#>  Invert sparse Hessian (alternative)   2.69   3.08   3.41   3.31   3.76   4.32
+#>                Compute dense Hessian 301.28 302.87 303.74 303.88 304.62 305.57
+#>               Compute sparse Hessian  18.46  18.57  18.80  18.83  18.90  19.14
+#>         Invert dense Hessian (naive)   5.13   5.17   5.30   5.29   5.34   5.64
+#>        Invert sparse Hessian (naive)   1.00   1.08   1.18   1.15   1.27   1.42
+#>   Invert dense Hessian (alternative)   1.29   1.33   1.39   1.35   1.45   1.58
+#>  Invert sparse Hessian (alternative)   2.70   2.75   2.95   2.92   3.10   3.46
 #>  neval
 #>     10
 #>     10
@@ -255,10 +255,10 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 #> Unit: milliseconds
-#>               expr    min     lq   mean median     uq    max neval
-#>  W/o Hessians        62.9   65.2   67.9   66.7   68.7   80.2    10
-#>  W/ dense Hessian   165.6  166.3  170.0  166.8  174.6  183.5    10
-#>  W/ sparse Hessian 1259.4 1268.3 1297.5 1296.1 1309.8 1397.5    10
+#>               expr  min     lq   mean median   uq    max neval
+#>  W/o Hessians        44   44.7   47.3   45.1   46   57.9    10
+#>  W/ dense Hessian   144  145.5  147.0  147.6  149  148.8    10
+#>  W/ sparse Hessian 1313 1318.8 1321.1 1320.7 1322 1333.2    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -282,8 +282,8 @@ va_params[is_this_group][seq_len(n_random_effects)]
 # conditional covariance matrix of random effects
 theta_to_cov(va_params[is_this_group][-seq_len(n_random_effects)])
 #>          [,1]     [,2]
-#> [1,] 0.017831 0.000754
-#> [2,] 0.000754 0.035483
+#> [1,] 0.017829 0.000755
+#> [2,] 0.000755 0.035481
 ```
 
 We can compare this with the multivariate skew-normal distribution
@@ -309,8 +309,8 @@ dp_to_cp(xi = xi, Psi = Psi, alpha = alpha)
 #> 
 #> $Sigma
 #>          [,1]     [,2]
-#> [1,] 0.017831 0.000754
-#> [2,] 0.000754 0.035483
+#> [1,] 0.017829 0.000755
+#> [2,] 0.000755 0.035481
 #> 
 #> $gamma
 #> [1] -1e-04 -1e-04
@@ -393,8 +393,8 @@ fit_model("PO"    )$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0427 0.0607             0.207 0.867
-#> trt              0.0607 0.1148             0.867 0.339
+#> (Intercept)      0.0428 0.0607             0.207 0.866
+#> trt              0.0607 0.1148             0.866 0.339
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13031.16
@@ -417,8 +417,8 @@ fit_model("probit")$fit
 #> 
 #> Estimated random effect covariance matrix (correlation matrix) is:
 #>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0184 0.0169             0.136 0.621
-#> trt              0.0169 0.0402             0.621 0.201
+#> (Intercept)      0.0184 0.0169             0.136 0.620
+#> trt              0.0169 0.0403             0.620 0.201
 #> (standard deviations are in the diagonal of the correlation matrix)
 #> 
 #> Estimated log-likelihood is -13035.14
@@ -678,29 +678,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           873  891  894    892  900  916     5
-#>  PH     (2L)  558  561  564    567  567  570     5
-#>  PH     (4L)  400  405  408    407  407  419     5
-#>  PO           984 1012 1012   1014 1017 1033     5
-#>  PO     (2L)  625  630  637    634  644  650     5
-#>  PO     (4L)  442  451  455    452  457  471     5
-#>  probit      1568 1570 1591   1597 1597 1621     5
-#>  probit (2L)  944  969  968    972  972  983     5
-#>  probit (4L)  667  671  684    683  693  704     5
+#>  PH           881  883  889    887  888  908     5
+#>  PH     (2L)  539  539  544    540  546  557     5
+#>  PH     (4L)  385  388  393    395  397  401     5
+#>  PO           973  992  995   1000 1001 1007     5
+#>  PO     (2L)  598  607  611    614  614  621     5
+#>  PO     (4L)  419  423  428    428  433  438     5
+#>  probit      1545 1563 1569   1564 1578 1593     5
+#>  probit (2L)  936  957  954    958  959  960     5
+#>  probit (4L)  641  645  661    654  659  708     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          303 305  309    310 313 313     5
-#>  PH     (2L) 194 196  198    200 200 200     5
-#>  PH     (4L) 146 148  150    150 153 155     5
-#>  PO          559 559  561    561 562 565     5
-#>  PO     (2L) 332 334  335    334 336 338     5
-#>  PO     (4L) 238 238  244    240 243 261     5
-#>  probit      934 937  947    941 960 961     5
-#>  probit (2L) 540 543  547    544 552 556     5
-#>  probit (4L) 386 387  396    387 392 427     5
+#>  PH          284 284  288    288 290 292     5
+#>  PH     (2L) 172 175  175    175 176 178     5
+#>  PH     (4L) 124 125  127    127 128 129     5
+#>  PO          529 529  532    531 534 537     5
+#>  PO     (2L) 320 320  321    321 322 324     5
+#>  PO     (4L) 215 215  217    217 218 219     5
+#>  probit      869 873  874    874 877 879     5
+#>  probit (2L) 510 515  515    515 517 518     5
+#>  probit (4L) 337 339  341    341 342 347     5
 ```
 
 ``` r
@@ -727,30 +727,30 @@ for(param_type in c("DP", "CP_trans")){
 #> Method: SNVA (DP)
 #> -----------------
 #> Unit: milliseconds
-#>         expr  min   lq mean median   uq  max neval
-#>  PH           321  322  324    324  326  327     5
-#>  PH     (2L)  206  207  209    208  211  212     5
-#>  PH     (4L)  158  162  162    163  163  163     5
-#>  PO           644  645  646    646  646  648     5
-#>  PO     (2L)  385  386  390    388  394  396     5
-#>  PO     (4L)  273  276  278    276  280  282     5
-#>  probit      1048 1052 1052   1053 1054 1054     5
-#>  probit (2L)  617  618  619    619  620  621     5
-#>  probit (4L)  422  436  435    436  438  440     5
+#>         expr min  lq mean median  uq max neval
+#>  PH          309 309  312    310 314 315     5
+#>  PH     (2L) 192 193  193    193 193 195     5
+#>  PH     (4L) 139 140  141    141 142 144     5
+#>  PO          616 621  622    622 623 629     5
+#>  PO     (2L) 373 374  375    374 375 378     5
+#>  PO     (4L) 252 252  255    256 256 259     5
+#>  probit      978 978  980    979 979 985     5
+#>  probit (2L) 578 580  582    581 582 588     5
+#>  probit (4L) 383 385  387    386 390 391     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
-#>         expr  min   lq mean median   uq  max neval
-#>  PH           326  327  330    328  332  340     5
-#>  PH     (2L)  209  210  217    215  218  232     5
-#>  PH     (4L)  160  161  168    164  164  191     5
-#>  PO           648  648  653    650  651  669     5
-#>  PO     (2L)  388  390  397    396  403  408     5
-#>  PO     (4L)  277  278  285    284  290  298     5
-#>  probit      1048 1048 1054   1056 1058 1059     5
-#>  probit (2L)  612  614  632    620  628  685     5
-#>  probit (4L)  437  439  444    447  448  449     5
+#>         expr min  lq mean median  uq max neval
+#>  PH          312 316  317    318 318 322     5
+#>  PH     (2L) 191 192  196    196 200 200     5
+#>  PH     (4L) 141 141  143    144 144 145     5
+#>  PO          625 626  630    629 635 635     5
+#>  PO     (2L) 375 376  378    378 381 381     5
+#>  PO     (4L) 255 256  258    256 260 261     5
+#>  probit      981 985  987    986 989 995     5
+#>  probit (2L) 580 586  588    589 590 593     5
+#>  probit (4L) 389 392  393    393 394 398     5
 ```
 
 ## Joint Models
@@ -986,7 +986,7 @@ system.time(
     sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  42.895   0.032   9.554
+#>  43.038   0.024   9.607
 ```
 
 Next, we fit the model using the default optimization function.
@@ -996,7 +996,7 @@ system.time(
   opt_out <- out$opt_func(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#> 163.000   0.012  27.386
+#>   160.1     0.0    26.9
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -1225,23 +1225,37 @@ c_data <- lapply(dat$sim_data, function(x){
 length(c_data)    # number of clusters/families
 str(c_data[[1L]]) # example with the first cluster/family
 
+# use a third order polynomial as in the true model
+sbase_haz <- function(x){
+  x <- log(x)
+  cbind(x^3, x^2, x)
+}
+
 # create ADFun
 system.time(
   func <- make_heritability_ADFun(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
-    # use a third order polynomial as in the true model
-    tformula = ~ cbind(y^3, y^2, y^1) - 1,  
-    c_data = c_data, link = "probit", n_threads = 1L,
-    omega = dat$omega, beta = dat$beta, sds = dat$sds))
+    tformula = ~ sbase_haz(y) - 1, trace = TRUE,
+    c_data = c_data, link = "probit", n_threads = 6L))
+-func$fn(func$par)
 
 # optimize and compare the results with the true parameters
 system.time(opt_out <- func$opt_func(
-  func$par, fn = func$fn, gr = func$gr, control = list(maxit = 1000L)))
+  func$par, fn = func$fn, gr = func$gr, 
+  control = list(maxit = 1000L, trace = 1L)))
+library(lbfgs)
+
+sink("tmp.log")
+opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
+                 max_iterations = 100000L)
+sink()
 
 rbind(
   estimated = head(opt_out$par, 6),
   `starting values` = head(func$par, 6), 
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
+
+head(func$gr(func$par), 6)
 ```
 
 ## References
