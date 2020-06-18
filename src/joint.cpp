@@ -3,11 +3,161 @@
 #include "utils.h"
 #include "joint-utils.h"
 #include "snva-utils.h"
-#include "splines.h"
 #include "convert-eigen-arma.h"
 #include <limits>
+#include "bases-wrapper.h"
 
 namespace {
+constexpr size_t const INT_NS = 0L,
+                     INT_POLY = 1L;
+
+/**
+ abstract base class to use for the integration in the hazard and to
+ evaluate the basis functions.
+ */
+template<class Type>
+class splines_n_cum_haz_base {
+public:
+  /** returns true if there is a term for each basis. */
+  virtual bool has_b() const = 0;
+  virtual bool has_g() const = 0;
+  virtual bool has_m() const = 0;
+  virtual bool has_g_surv() const = 0;
+  virtual bool has_m_surv() const = 0;
+
+  /** evalutes the bases and return by reference. */
+  virtual void eval_b(arma::vec&, double const) const = 0;
+  virtual void eval_g(arma::vec&, double const) const = 0;
+  virtual void eval_m(arma::vec&, double const) const = 0;
+  virtual void eval_g_surv(arma::vec&, double const) const = 0;
+  virtual void eval_m_surv(arma::vec&, double const) const = 0;
+
+  /** returns the input vector to pass along to eval_int. */
+  virtual vector<Type> get_x(
+      Type const, Type const, vector<Type> const&, vector<Type> const&,
+      matrix<Type> const&, vector<Type> const&, vector<Type> const&,
+      matrix<Type> const&) const = 0;
+
+  /** evalutes the integral in the survival function.  */
+  virtual Type eval_int(vector<Type> const&) = 0;
+
+  virtual ~splines_n_cum_haz_base() = default;
+};
+
+/** class for a general basis. */
+template<class Type, class Basis>
+class splines_n_cum_haz_T final : public splines_n_cum_haz_base<Type> {
+  using cum_integral =
+    fastgl::joint::snva_integral
+  <typename Type::value_type, Basis, Basis, Basis>;
+
+  bool const use_log;
+  std::unique_ptr<Basis> b, g, m, g_surv, m_surv;
+  cum_integral cum_haz;
+
+  bool has_b() const {
+    return static_cast<bool>(b);
+  }
+  bool has_g() const {
+    return static_cast<bool>(g);
+  }
+  bool has_m() const {
+    return static_cast<bool>(m);
+  }
+  bool has_g_surv() const {
+    return static_cast<bool>(g_surv);
+  }
+  bool has_m_surv() const {
+    return static_cast<bool>(m_surv);
+  }
+
+  arma::vec to_arma_vec(vector<Type> const &x){
+    arma::vec out(x.size());
+    for(int i = 0; i < x.size(); ++i)
+      out[i] = asDouble(x[i]);
+    return out;
+  }
+
+public:
+  splines_n_cum_haz_T(
+    size_t const n_nodes, vector<Type> const &scoefs,
+    vector<Type> const &gcoefs, vector<Type> const &mcoefs,
+    size_t const n_y, bool const use_log, vector<Type> const& mcoefs_surv,
+    vector<Type> const& gcoefs_surv):
+  use_log(use_log),
+  b(get_basis<Basis>(to_arma_vec(scoefs))),
+  g(get_basis<Basis>(to_arma_vec(gcoefs))),
+  m(get_basis<Basis>(to_arma_vec(mcoefs))),
+  g_surv(get_basis<Basis>(to_arma_vec(gcoefs_surv))),
+  m_surv(get_basis<Basis>(to_arma_vec(mcoefs_surv))),
+  cum_haz("cum haz integral", n_nodes, b.get(), g_surv.get(), m_surv.get(),
+          n_y, use_log)
+  {
+    if((!has_g() and has_g_surv()) or (
+        has_g_surv() and gcoefs.size() != gcoefs_surv.size()))
+      throw std::invalid_argument(
+          "splines_n_cum_haz_T(): invalid gcoefs_surv");
+    else if(
+        (!has_m() and has_m_surv()) or (
+          has_m_surv() and mcoefs.size() != mcoefs_surv.size()))
+      throw std::invalid_argument(
+          "splines_n_cum_haz_T(): invalid mcoefs_surv");
+  }
+
+  void eval_b(arma::vec &out, double x) const {
+    if(use_log)
+      x = log(x);
+
+    b->operator()(out, x);
+  }
+  void eval_g(arma::vec &out, double const x) const {
+    g->operator()(out, x);
+  }
+  void eval_m(arma::vec &out, double const x) const {
+    m->operator()(out, x);
+  }
+  void eval_g_surv(arma::vec &out, double const x) const {
+    g_surv->operator()(out, x);
+  }
+  void eval_m_surv(arma::vec &out, double const x) const {
+    m_surv->operator()(out, x);
+  }
+
+  vector<Type> get_x(
+      Type const lb, Type const ub, vector<Type> const &omega,
+      vector<Type> const &alpha, matrix<Type> const &B,
+      vector<Type> const &U, vector<Type> const &k,
+      matrix<Type> const &lambda) const {
+    return cum_haz.get_x(lb, ub, omega, alpha, B, U, k, lambda);
+  }
+
+  Type eval_int(vector<Type> const &params) {
+    vector<Type> y(1L);
+    cum_haz(params, y);
+    return y[0];
+  }
+};
+
+template<class Type>
+size_t get_basis_dim(vector<Type> const &coefs, size_t const basis_type){
+  if(basis_type == INT_NS)
+    return coefs.size();
+  else if(basis_type == INT_POLY)
+    return coefs.size() / 2L;
+
+  throw std::runtime_error("'basis_type' not impemented");
+  return 0L;
+}
+
+/** class for a natural cubic spline. */
+using splines::ns;
+template<class Type>
+using splines_n_cum_haz_ns = splines_n_cum_haz_T<Type, ns>;
+
+/** class for orthogonal polynomials. */
+using pol = poly::orth_poly;
+template<class Type>
+using splines_n_cum_haz_pol = splines_n_cum_haz_T<Type, pol>;
 
 template<class Type>
 class VA_worker {
@@ -16,18 +166,22 @@ class VA_worker {
   const DATA_MATRIX(markers);
   const DATA_IVECTOR(n_markers);
   const DATA_VECTOR(m_time);
-  const DATA_VECTOR(mknots);
-  const DATA_VECTOR(gknots);
+  const DATA_VECTOR(mcoefs);
+  const DATA_VECTOR(gcoefs);
+  const DATA_VECTOR(mcoefs_surv);
+  const DATA_VECTOR(gcoefs_surv);
   const DATA_MATRIX(X);
 
   const DATA_VECTOR(tstart);
   const DATA_VECTOR(tstop);
   const DATA_VECTOR(outcomes);
-  const DATA_VECTOR(sknots);
+  const DATA_VECTOR(scoefs);
   const DATA_MATRIX(Z);
 
+  const DATA_INTEGER(basis_type);
   const DATA_INTEGER(n_threads);
   const DATA_LOGICAL(sparse_hess);
+  const DATA_LOGICAL(use_log);
   const DATA_INTEGER(n_nodes);
 
   const PARAMETER_MATRIX(gamma);
@@ -47,73 +201,34 @@ public:
 #endif
 
 public:
-  std::size_t const n_y = markers.rows(),
-                  dim_m = mknots.size(),
-                  dim_g = gknots.size(),
-                  n_fix = gamma.rows(),
-                  dim_b = sknots.size(),
-                      K = n_y * dim_m,
-                    n_Z = Z.rows(),
-           n_obs_marker = markers.cols(),
-               n_groups = outcomes.size(),
-                 n_pars = gamma.rows() * gamma.cols() + B.rows() * B.cols() +
-                   Psi.size() + Sigma.size() + delta.size() + omega.size() +
-                   alpha.size() + va_par.size();
+  std::size_t const n_y = markers.rows();
 
-  using cum_integral =
-    fastgl::joint::snva_integral
-    <typename Type::value_type, splines::ns, splines::ns, splines::ns>;
-
-  /* small class to hold spline bases and object to compute the cumulative
-   * hazard */
-  class splines_n_cum_haz {
-    std::unique_ptr<splines::ns>
-    get_basis(vector<Type> const &knots) const {
-      if(knots.size() < 2L)
-        return std::unique_ptr<splines::ns>();
-
-      arma::vec bk(2L);
-      bk[0L] = asDouble(knots[0L]);
-      bk[1L] = asDouble(knots[knots.size() - 1L]);
-
-      arma::vec ik(knots.size() - 2L);
-      for(int i = 1L; i < knots.size() - 1L; ++i)
-        ik[i - 1L] = asDouble(knots[i]);
-
-      return std::unique_ptr<splines::ns>(new splines::ns(bk, ik, true));
-    }
-
-  public:
-    std::unique_ptr<splines::ns> b, g, m;
-    cum_integral cum_haz;
-
-    splines_n_cum_haz(
-      size_t const n_nodes, vector<Type> const &sknots,
-      vector<Type> const &gknots, vector<Type> const &mknots,
-      size_t const n_y):
-      b(get_basis(sknots)),
-      g(get_basis(gknots)),
-      m(get_basis(mknots)),
-      cum_haz("cum haz integral", n_nodes, b.get(), g.get(), m.get(), n_y)
-      { }
-  };
-
-  std::vector<std::unique_ptr<splines_n_cum_haz> > get_splines_n_cum_ints()
+  using cum_base_T = splines_n_cum_haz_base<Type>;
+  std::vector<std::unique_ptr<cum_base_T> >
+    get_splines_n_cum_ints()
     const {
-    using output_T = std::unique_ptr<splines_n_cum_haz>;
+    using output_T = std::unique_ptr<cum_base_T>;
 
     std::vector<output_T> out;
     out.reserve(n_blocks);
     for(size_t i = 0; i < n_blocks; ++i)
-      out.emplace_back(new splines_n_cum_haz(
-          n_nodes, sknots, gknots, mknots, n_y));
+      if     (basis_type == INT_NS)
+        out.emplace_back(new splines_n_cum_haz_ns<Type>(
+            n_nodes, scoefs, gcoefs, mcoefs, n_y, use_log, mcoefs_surv,
+            gcoefs_surv));
+      else if(basis_type == INT_POLY)
+        out.emplace_back(new splines_n_cum_haz_pol<Type>(
+            n_nodes, scoefs, gcoefs, mcoefs, n_y, use_log, mcoefs_surv,
+            gcoefs_surv));
+      else
+        throw std::invalid_argument("'basis_type' not implemented");
 
     return out;
   }
 
 private:
-  splines_n_cum_haz &get_splines_n_cum_haz(
-      std::vector<std::unique_ptr<splines_n_cum_haz> > &splines_n_cum_ints)
+  cum_base_T &get_splines_n_cum_haz(
+      std::vector<std::unique_ptr<cum_base_T> > &splines_n_cum_ints)
   const {
 #ifdef _OPENMP
     return *splines_n_cum_ints[omp_get_thread_num()];
@@ -123,6 +238,19 @@ private:
   }
 
 public:
+  std::size_t const dim_m = get_basis_dim(mcoefs, basis_type),
+                    dim_g = get_basis_dim(gcoefs, basis_type),
+                    n_fix = gamma.rows(),
+                    dim_b = get_basis_dim(scoefs, basis_type),
+                        K = n_y * dim_m,
+                      n_Z = Z.rows(),
+             n_obs_marker = markers.cols(),
+                 n_groups = outcomes.size(),
+                   n_pars =
+                     gamma.rows() * gamma.cols() + B.rows() * B.cols() +
+                     Psi.size() + Sigma.size() + delta.size() +
+                     omega.size() + alpha.size() + va_par.size();
+
   VA_worker(Rcpp::List data, Rcpp::List parameters):
     data(data), parameters(parameters) {
 #ifdef _OPENMP
@@ -153,13 +281,6 @@ public:
 
     if((size_t)m_time.size() != n_obs_marker)
       throw std::invalid_argument("VA_worker: invalid m_time");
-
-    else if(mknots.size() < 2L && mknots.size() != 0L)
-      throw std::invalid_argument("VA_worker: invalid mknots");
-    else if(sknots.size() < 2L && sknots.size() != 0L)
-      throw std::invalid_argument("VA_worker: invalid sknots");
-    else if(sknots.size() < 2L && sknots.size() != 0L)
-      throw std::invalid_argument("VA_worker: invalid sknots");
 
     else if((size_t)B.cols() != n_y or (size_t)B.rows() != dim_g)
       throw std::invalid_argument("VA_worker: invalid B");
@@ -209,7 +330,7 @@ public:
 
   Type operator()
     (vector<Type> &args,
-     std::vector<std::unique_ptr<splines_n_cum_haz> > &splines_n_cum_ints)
+     std::vector<std::unique_ptr<cum_base_T> > &splines_n_cum_ints)
     const {
     if((size_t)args.size() != n_pars)
       throw std::invalid_argument("VA_worker::operator(): invalid args");
@@ -255,29 +376,36 @@ public:
       vector<Type> U(K), k(K);
       matrix<Type> Lambda(K, K);
 
-      return my_int.cum_haz.get_x(Type(1.) /* lb */, Type(2.) /* ub */,
-                                  aomega, aalpha, aB, U, k, Lambda);
+      return my_int.get_x(Type(1.) /* lb */, Type(2.) /* ub */, aomega,
+                          aalpha, aB, U, k, Lambda);
     })();
 
     /* evaluates the cumulative hazard integral */
+    bool const is_in_parallel = CppAD::thread_alloc::in_parallel(),
+                   has_b      = my_int.has_b(),
+                   has_g      = my_int.has_g(),
+                   has_m      = my_int.has_m(),
+                   has_g_surv = my_int.has_g_surv(),
+                   has_m_surv = my_int.has_m_surv();
     auto comp_cum_haz = [&](
       Type const lb, Type const ub, vector<Type> const &U,
       vector<Type> const &k, matrix<Type> const &Lambda){
       cum_int_arg[0L] = lb;
       cum_int_arg[1L] = ub;
 
-      Type *x = &cum_int_arg[2L + dim_b + n_y + dim_g * n_y];
-      for(size_t i = 0; i < K; ++i)
-        *x++ = U[i];
-      for(size_t i = 0; i < K; ++i)
-        *x++ = k[i];
-      for(size_t j = 0; j < K; ++j)
+      Type *x = &cum_int_arg[
+        2L + has_b * dim_b + n_y + has_g_surv * dim_g * n_y];
+      if(has_m_surv){
         for(size_t i = 0; i < K; ++i)
-          *x++ = Lambda(i, j);
+          *x++ = U[i];
+        for(size_t i = 0; i < K; ++i)
+          *x++ = k[i];
+        for(size_t j = 0; j < K; ++j)
+          for(size_t i = 0; i < K; ++i)
+            *x++ = Lambda(i, j);
+      }
 
-      vector<Type> y(1L);
-      my_int.cum_haz(cum_int_arg, y);
-      return y[0L];
+      return my_int.eval_int(cum_int_arg);
     };
 
     /* compute other intermediaries */
@@ -295,10 +423,6 @@ public:
 
     /* evaluate the lower bound */
     survTMB::accumulator_mock<Type> result;
-    bool const is_in_parallel = CppAD::thread_alloc::in_parallel(),
-                        has_b = static_cast<bool>(my_int.b),
-                        has_g = static_cast<bool>(my_int.g),
-                        has_m = static_cast<bool>(my_int.m);
     arma::vec b_wrk(has_b ? dim_b : 0L),
               g_wrk(has_g ? dim_g : 0L),
               m_wrk(has_m ? dim_m : 0L);
@@ -329,12 +453,6 @@ public:
       })();
       vector<Type> const U_mean = va_mu + sqrt_two_pi * k;
 
-      auto eval_basis = [&](splines::ns const &basis, arma::vec &wrk,
-                            double const x){
-        basis(wrk, x);
-        return vec_eigen_arma<Type>(wrk);
-      };
-
       /* evaluate fixed time-invariant effect */
       vector<Type> fix_invariant(n_y);
       for(size_t j = 0; j < n_y; ++j){
@@ -360,23 +478,23 @@ public:
 
           double const double_ub = asDouble(tstop [g]);
           if(has_b){
-            my_int.b->operator()(b_wrk, log(double_ub));
+            my_int.eval_b(b_wrk, double_ub);
 
             for(size_t j = 0; j < b_wrk.n_elem; ++j)
               surv_term += Type(b_wrk[j]) * aomega[j];
           }
 
-          if(has_g){
-            vector<Type> const type_g_wrk =
-              eval_basis(*my_int.g, g_wrk, double_ub);
+          if(has_g_surv){
+            my_int.eval_g_surv(g_wrk, double_ub);
+            vector<Type> const type_g_wrk = vec_eigen_arma<Type>(g_wrk);
             for(size_t j = 0; j < n_y; ++j)
               for(size_t i = 0; i < dim_g; ++i)
                 surv_term += aalpha[j] * type_g_wrk[i] * aB(i, j);
           }
 
-          if(has_m){
-            vector<Type> const type_m_wrk =
-              eval_basis(*my_int.m, m_wrk, double_ub);
+          if(has_m_surv){
+            my_int.eval_m_surv(m_wrk, double_ub);
+            vector<Type> const type_m_wrk = vec_eigen_arma<Type>(m_wrk);
 
             Type const *u_ptr = &U_mean[0L];
             for(size_t j = 0; j < n_y; ++j)
@@ -403,8 +521,8 @@ public:
 
           double const obs_time_i = asDouble(m_time[marker_idx]);
           if(has_g){
-            vector<Type> const type_g_wrk =
-              eval_basis(*my_int.g, g_wrk, obs_time_i);
+            my_int.eval_g(g_wrk, obs_time_i);
+            vector<Type> const type_g_wrk = vec_eigen_arma<Type>(g_wrk);
 
             for(size_t j = 0; j < n_y; ++j)
               for(size_t i = 0; i < dim_g; ++i)
@@ -412,8 +530,8 @@ public:
           }
 
           if(has_m){
-            vector<Type> const type_m_wrk =
-              eval_basis(*my_int.m, m_wrk, obs_time_i);
+            my_int.eval_m(m_wrk, obs_time_i);
+            vector<Type> const type_m_wrk = vec_eigen_arma<Type>(m_wrk);
 
             {
               Type const *mu_i = &U_mean[0L];
@@ -500,11 +618,8 @@ public:
     return n_pars;
   }
 
-  template<class Type>
-  using splines_n_cum_haz = typename VA_worker<Type>::splines_n_cum_haz;
-  std::vector<std::unique_ptr<splines_n_cum_haz<ADd> > >
+  std::vector<std::unique_ptr<splines_n_cum_haz_base<ADd> > >
     splines_n_cum_ints_ADd;
-
   std::vector<std::unique_ptr<ADFun<double> > > funcs;
 
   VA_func(Rcpp::List data, Rcpp::List parameters){

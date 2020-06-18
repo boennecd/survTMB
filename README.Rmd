@@ -402,8 +402,8 @@ system.time(
     sformula =  Surv(left_trunc, y, event) ~ Z1 + Z2, 
     mformula = cbind(Y1, Y2) ~ X1, 
     id_var = id, time_var = obs_time, 
-    sdata = s_data, mdata = m_data, mknots = dat$params$m_attr$knots,
-    sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
+    sdata = s_data, mdata = m_data, m_coefs = dat$params$m_attr$knots,
+    s_coefs = dat$params$b_attr$knots, g_coefs = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 ```
 
@@ -534,6 +534,7 @@ c_data <- lapply(dat$sim_data, function(x){
 })
 length(c_data)    # number of clusters/families
 str(c_data[[1L]]) # example with the first cluster/family
+sapply(c_data, function(x) NCOL(x$cor_mats[[1L]]))
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
@@ -548,7 +549,7 @@ system.time(
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
 
--func$fn(func$par) # log-likelihood at the starting values
+-func$fn(func$par) # lower bound of the log-likelihood
 
 # optimize and compare the results with the true parameters
 library(lbfgs)

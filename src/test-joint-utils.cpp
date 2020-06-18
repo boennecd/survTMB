@@ -1,6 +1,7 @@
 #include "testthat-wrap.h"
 #include "joint-utils.h"
 #include "splines.h"
+#include "orth_poly.h"
 #include <vector>
 
 using namespace fastgl::joint;
@@ -62,7 +63,7 @@ context("joint-utils unit tests") {
     splines::ns b(b_bk, b_ik, false);
 
     snva_integral<double, splines::ns, splines::ns, splines::ns> func(
-          "snva_integral", n_nodes, &b, &g, &m, dim_a);
+          "snva_integral", n_nodes, &b, &g, &m, dim_a, true);
 
     auto x = func.get_x(lb, ub, omega, alpha, B, U, k, Lambda);
     {
@@ -225,7 +226,7 @@ context("joint-utils unit tests") {
     splines::ns g(g_bk, g_ik, true);;
 
     snva_integral<double, splines::ns, splines::ns, splines::ns> func(
-        "snva_integral", n_nodes, nullptr, &g, &m, dim_a);
+        "snva_integral", n_nodes, nullptr, &g, &m, dim_a, true);
 
     auto x = func.get_x(lb, ub, omega, alpha, B, U, k, Lambda);
     {
@@ -339,7 +340,7 @@ context("joint-utils unit tests") {
     splines::ns b(b_bk, b_ik, false);
 
     snva_integral<double, splines::ns, splines::ns, splines::ns> func(
-        "snva_integral", n_nodes, &b, nullptr, &m, dim_a);
+        "snva_integral", n_nodes, &b, nullptr, &m, dim_a, true);
 
     auto x = func.get_x(lb, ub, omega, alpha, B, U, k, Lambda);
     {
@@ -447,7 +448,7 @@ context("joint-utils unit tests") {
     splines::ns b(b_bk, b_ik, false);
 
     snva_integral<double, splines::ns, splines::ns, splines::ns> func(
-        "snva_integral", n_nodes, &b, &g, nullptr, dim_a);
+        "snva_integral", n_nodes, &b, &g, nullptr, dim_a, true);
 
     auto x = func.get_x(lb, ub, omega, alpha, B, U, k, Lambda);
     {
@@ -499,6 +500,113 @@ context("joint-utils unit tests") {
         /* Lambda */
         /*for(size_t j = 0; j < K * K; ++j, ++i)
           expect_equal(grad[i], dx[i + 2L]);*/
+      }
+    }
+  }
+
+  test_that("eval_snva_integral gives the correct result with poly") {
+   using ADd = AD<double>;
+    constexpr size_t const dim_o(3L),
+                           dim_a(2L),
+                           dim_m(3L),
+                               K = dim_a * dim_m,
+                           dim_g(3L),
+                           dim_B = dim_g * dim_a,
+                         n_nodes(30L);
+
+    vector<ADd> omega(dim_o);
+    omega << -0.74, 0.76, 0.10;
+
+    vector<ADd> alpha(dim_a);
+    alpha << 0.7, 0.6;
+
+    vector<ADd> U(K),
+    k(K);
+    U << -0.79, -0.67, 0.05, -0.71, -0.13, -0.33;
+    k << -0.155666233880193, -0.202626997173659, 0.480913001875679,
+         -0.185234121879782, 0.138273358586317, -0.056526844705098;
+
+    matrix<ADd> B(dim_g, dim_a),
+    Lambda(K, K);
+    B << 0.97, -0.78, 0.01, -0.86, 0.02, -0.03;
+    Lambda <<  1.08, 0.12, -0.36, -0.48, 0.36, -0.12, 0.12, 0.36,
+               0, 0.12, 0, -0.12, -0.36, 0, 0.84, 0.12, 0.12, 0.12, -0.48, 0.12,
+               0.12, 0.84, -0.12, 0.24, 0.36, 0, 0.12, -0.12, 0.84, -0.12, -0.12,
+               -0.12, 0.12, 0.24, -0.12, 0.6;
+
+    ADd const lb(1.2), ub(9.5);
+
+    arma::vec const norm2 = { 1, 10, 82.5, 528 },
+                alpha_bas = { 5.5, 5.5 };
+    poly::orth_poly basis(alpha_bas, norm2);
+
+    snva_integral<double, poly::orth_poly, poly::orth_poly, poly::orth_poly>
+      func("snva_integral", n_nodes, &basis, &basis, &basis, dim_a, false);
+
+    auto x = func.get_x(lb, ub, omega, alpha, B, U, k, Lambda);
+    {
+      CppAD::vector<ADd> y(1L);
+      CppAD::Independent(x);
+      func(x, y);
+      CppAD::ADFun<double> afunc(x, y);
+      afunc.optimize();
+
+      constexpr double const intgral_val = 1.93275883396364;
+      expect_equal(intgral_val, asDouble(y[0L]));
+
+      CppAD::vector<double> xx(x.size());
+      for(size_t i = 0; i < x.size(); ++i)
+        xx[i] = asDouble(x[i]);
+
+      auto yy = afunc.Forward(0, xx);
+      expect_equal(intgral_val, yy[0L]);
+
+      constexpr size_t n_grad_ele = 59L;
+      constexpr double const grad[n_grad_ele] = {
+        1.93275883396364, -0.055395964164137, -0.188715441586022, 1.08256160708092,
+        -2.70908312809649, 1.35293118377455, -0.0387771749148959, -0.132100809110215,
+        1.15965530037818, -0.0332375784984822, -0.113229264951613, 1.35293118377455,
+        -0.0387771749148959, -0.132100809110215, 1.15965530037818, -0.0332375784984822,
+        -0.113229264951613, 1.3024621971615, -0.0303328693807489, -0.142722723590974,
+        1.11639616899557, -0.0259996023263562, -0.122333763077978, 0.473525914321091,
+        -0.0135720112202136, -0.0462352831885753, 0.405879355132364,
+        -0.0116331524744688, -0.0396302427330646, -0.0135720112202136,
+        0.034474943880245, -0.00401101113211889, -0.0116331524744688,
+        0.0295499518973529, -0.00343800954181619, -0.0462352831885753,
+        -0.00401101113211889, 0.0298400473867932, -0.0396302427330646,
+        -0.00343800954181619, 0.0255771834743942, 0.405879355132364,
+        -0.0116331524744688, -0.0396302427330646, 0.347896590113455,
+        -0.00997127354954466, -0.0339687794854839, -0.0116331524744688,
+        0.0295499518973529, -0.00343800954181619, -0.00997127354954466,
+        0.025328530197731, -0.00294686532155673, -0.0396302427330646,
+        -0.00343800954181619, 0.0255771834743942, -0.0339687794854839,
+        -0.00294686532155673, 0.0219233001209093 };
+
+      vector<double> w(1L);
+      w[0L] = 1.;
+      auto dx = afunc.Reverse(1, w);
+      expect_true(dx.size() == n_grad_ele + 2L);
+
+      {
+        size_t i = 0L;
+        /* omega  */
+        for(size_t j = 0; j < dim_o; ++j, ++i)
+          expect_equal(grad[i], dx[i + 2L]);
+        /* alpha */
+        for(size_t j = 0; j < dim_a; ++j, ++i)
+          expect_equal(grad[i], dx[i + 2L]);
+        /* B */
+        for(size_t j = 0; j < dim_B; ++j, ++i)
+          expect_equal(grad[i], dx[i + 2L]);
+        /* U */
+        for(size_t j = 0; j < K; ++j, ++i)
+         expect_equal(grad[i], dx[i + 2L]);
+        /* k */
+        for(size_t j = 0; j < K; ++j, ++i)
+         expect_equal(grad[i], dx[i + 2L]);
+        /* Lambda */
+        for(size_t j = 0; j < K * K; ++j, ++i)
+         expect_equal(grad[i], dx[i + 2L]);
       }
     }
   }

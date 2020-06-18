@@ -16,8 +16,8 @@ for(n_threads in 1:2){
         mformula = cbind(Y1, Y2) ~ X1,
         id_var = id, time_var = obs_time, skew_start = -1e-16,
         sdata = dat$survival_data, mdata = dat$marker_data,
-        mknots = dat$params$m_attr$knots, sknots = dat$params$b_attr$knots,
-        gknots = dat$params$g_attr$knots, n_nodes = 15L,
+        m_coefs = dat$params$m_attr$knots, s_coefs = dat$params$b_attr$knots,
+        g_coefs = dat$params$g_attr$knots, n_nodes = 15L,
         n_threads = n_threads, opt_func = opt_func)
 
       expect_known_value(

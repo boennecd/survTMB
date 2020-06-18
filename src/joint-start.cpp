@@ -1,19 +1,21 @@
 #define INCLUDE_RCPP
 #include "tmb_includes.h"
-#include "splines.h"
 #include "fastgl.h"
+#include "bases-wrapper.h"
 
-template<bool grad>
+template<class Basis>
 arma::vec joint_start_ll_inner
   (arma::vec const &Y, arma::vec const &tstart, arma::vec const &tstop,
    arma::vec const &omega, arma::vec const &delta, arma::mat const &Z,
-   unsigned const n_nodes, arma::vec const &bound_knots,
-   arma::vec const &inter_knots){
-  splines::ns basis(bound_knots, inter_knots, true);
-  size_t const n_out = grad ? basis.get_n_basis() + delta.size() : 1L;
+   unsigned const n_nodes, arma::vec const &coefs, bool const grad,
+   bool const use_log){
+  auto const basis = get_basis<Basis>(coefs);
+  bool const has_b = static_cast<bool>(basis.get());
+  size_t const dim_basis = has_b ? basis->get_n_basis() : 0L;
+  size_t const n_out = grad ? dim_basis  + delta.size() : 1L;
   arma::vec out(n_out, arma::fill::zeros);
   auto const &xw = fastgl::GLPairsCached<double>(n_nodes);
-  arma::vec wrk(basis.get_n_basis()), term_v(n_out);
+  arma::vec wrk(dim_basis), term_v(n_out);
 
   bool const has_delta = delta.n_elem > 0;
   size_t const o_idx_start = 0L,
@@ -29,13 +31,18 @@ arma::vec joint_start_ll_inner
     throw std::invalid_argument("joint_start_ll: invalid tstop");
   else if(Z.n_rows != delta.n_elem)
     throw std::invalid_argument("joint_start_ll: invalid Z");
-  else if(bound_knots.n_elem != 2L)
-    throw std::invalid_argument("joint_start_ll: invalid bound_knots");
-  else if(omega.n_elem != basis.get_n_basis() or omega.n_elem < 1L)
+  else if(omega.n_elem < 1L or omega.n_elem != basis->get_n_basis())
     throw std::invalid_argument("joint_start_ll: invalid omega");
   else if(n_nodes == 0L)
     throw std::invalid_argument("joint_start_ll: invalid n_nodes");
 #endif
+
+  auto eval_basis = [&](double x){
+    if(use_log)
+      x = log(x);
+    if(has_b)
+      basis->operator()(wrk, x);
+  };
 
   for(size_t i = 0; i < n; ++i){
     double term_s(0.);
@@ -46,7 +53,7 @@ arma::vec joint_start_ll_inner
        fixed_effect = has_delta ? arma::dot(Z.col(i), delta) : 0.;
     for(auto const &xwi : xw){
       double const node = d1 * xwi.x + d2;
-      basis(wrk, log(node));
+      eval_basis(node);
       double const g = xwi.weight * exp(arma::dot(wrk, omega));
       if(grad){
         term_v.subvec(o_idx_start, o_idx_end) -= g * wrk;
@@ -62,7 +69,7 @@ arma::vec joint_start_ll_inner
       term_s *= d1 * exp(fixed_effect);
 
     if(Y[i] > 0){
-      basis(wrk, log(tstop[i]));
+      eval_basis(tstop[i]);
       if(grad){
         term_v.subvec(o_idx_start, o_idx_end) += wrk;
         if(has_delta)
@@ -90,23 +97,28 @@ arma::vec joint_start_ll_inner
     Z: design matrix.
     offsets: offsets.
     n_nodes: integer with number of Gauss-Legendre quadrature nodes.
-    bound_knots: boundary knots.
-    inter_knots: interior knots.
+    coefs: input for the basis.
     grad: logical for whether to compute the gradient og the log-likelihood.
+    use_log: logical for whether to use log(time) in the basis.
+    basis_type: string with the basis type.
  */
 
 // [[Rcpp::export(rng = false)]]
 arma::vec joint_start_ll
   (arma::vec const &Y, arma::vec const &tstart, arma::vec const &tstop,
    arma::vec const &omega, arma::vec const &delta, arma::mat const &Z,
-   unsigned const n_nodes, arma::vec const &bound_knots,
-   arma::vec const &inter_knots, bool const grad){
-  if(grad)
-    return(joint_start_ll_inner<true>
-             (Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots,
-              inter_knots));
+   unsigned const n_nodes, arma::vec const &coefs,
+   bool const grad, bool const use_log, std::string const basis_type){
+  if     (basis_type == "ns")
+    return(joint_start_ll_inner<splines::ns>
+             (Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad,
+              use_log));
+  else if(basis_type == "poly")
+    return(joint_start_ll_inner<poly::orth_poly>
+             (Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad,
+              use_log));
 
-  return(joint_start_ll_inner<false>
-           (Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots,
-            inter_knots));
+  throw std::invalid_argument(
+      "joint_start_ll: 'basis_type' not implemented");
+  return arma::vec();
 }

@@ -61,6 +61,8 @@ class snva_integral : public CppAD::atomic_base<Type> {
                dim_B     = dim_g * dim_alpha,
                dim_m     = has_m ? m->get_n_basis() : 0L,
                dim_U     = dim_alpha * dim_m;
+  bool const use_log;
+
   /* objects needed for function evaluation */
   mutable arma::vec fbi = arma::vec(dim_omega),
                     fgi = arma::vec(dim_g),
@@ -91,12 +93,13 @@ class snva_integral : public CppAD::atomic_base<Type> {
 public:
   snva_integral(char const *name, size_t const n_nodes,
                 B const *b_in, G const *g_in, M const *m_in,
-                size_t const dim_alpha):
+                size_t const dim_alpha, bool const use_log):
   CppAD::atomic_base<Type>(name), n_nodes(n_nodes),
   b(b_in ? new B(*b_in) : nullptr),
   g(g_in ? new G(*g_in) : nullptr),
   m(m_in ? new M(*m_in) : nullptr),
-  dim_alpha(dim_alpha) {
+  dim_alpha(dim_alpha),
+  use_log(use_log) {
     this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
 
@@ -120,15 +123,19 @@ public:
           x[j] = asDouble(tx[i++]);
       };
 
-      set_vec(fomega);
+      if(has_b)
+        set_vec(fomega);
       set_vec(falpha);
-      set_vec(fB);
-      set_vec(fU);
-      set_vec(fk);
+      if(has_g)
+        set_vec(fB);
+      if(has_m){
+        set_vec(fU);
+        set_vec(fk);
 
-      for(size_t j = 0; j < dim_U; ++j)
-        for(size_t k = 0; k < dim_U; ++k)
-          fLambda(k, j) = asDouble(tx[i++]);
+        for(size_t j = 0; j < dim_U; ++j)
+          for(size_t k = 0; k < dim_U; ++k)
+            fLambda(k, j) = asDouble(tx[i++]);
+      }
     }
 
     /* perform an approximation of the integral */
@@ -158,7 +165,10 @@ public:
       }
 
       if(has_b)
-        b->operator()(fbi, log(node));
+        if(use_log)
+          b->operator()(fbi, log(node));
+        else
+          b->operator()(fbi,     node );
 
       /* evalute integrand */
       double const v1 = pnorm_log(vec_dot(fma, fk)),
@@ -205,15 +215,19 @@ public:
           x[j] = tx[i++];
       };
 
-      set_vec(romega);
+      if(has_b)
+        set_vec(romega);
       set_vec(ralpha);
-      set_vec(rB);
-      set_vec(rU);
-      set_vec(rk);
+      if(has_g)
+        set_vec(rB);
+      if(has_m){
+        set_vec(rU);
+        set_vec(rk);
 
-      for(size_t j = 0; j < dim_U; ++j)
-        for(size_t k = 0; k < dim_U; ++k)
-          rLambda(k, j) = tx[i++];
+        for(size_t j = 0; j < dim_U; ++j)
+          for(size_t k = 0; k < dim_U; ++k)
+            rLambda(k, j) = tx[i++];
+      }
     }
 
     /* perform an approximation of the integral */
@@ -251,7 +265,10 @@ public:
       }
 
       if(has_b){
-        b->operator()(fbi, log(node));
+        if(use_log)
+          b->operator()(fbi, log(node));
+        else
+          b->operator()(fbi,     node );
         for(size_t i = 0; i < fbi.size(); ++i)
           rbi[i] = Type(fbi[i]);
       }
@@ -348,17 +365,19 @@ public:
     size_t const n_ele =
       2L + dim_omega + dim_alpha + dim_B + dim_U * (2L + dim_U);
 #ifdef DO_CHECKS
-    if(omega.size() != (int)dim_omega)
+    if(has_b and omega.size() != (int)dim_omega)
       throw std::runtime_error("get_x: invalid omega");
     if(alpha.size() != (int)dim_alpha)
       throw std::runtime_error("get_x: invalid alpha");
-    if(b_arg.cols() != (int)dim_alpha or b_arg.rows() != (int)dim_g)
+    if(b_arg.cols() != (int)dim_alpha or
+         (has_g and b_arg.rows() != (int)dim_g))
       throw std::runtime_error("get_x: invalid b_arg");
-    if(U.size() != (int)dim_U)
+    if(has_m and U.size() != (int)dim_U)
       throw std::runtime_error("get_x: invalid U");
-    if(k.size() != (int)dim_U)
+    if(has_m and k.size() != (int)dim_U)
       throw std::runtime_error("get_x: invalid k");
-    if(Lambda.rows() != (int)dim_U or Lambda.cols() != (int)dim_U)
+    if(has_m and
+         (Lambda.rows() != (int)dim_U or Lambda.cols() != (int)dim_U))
       throw std::runtime_error("get_x: invalid Lambda");
 #endif
     CppAD::vector<AD<Type> > tx(n_ele);
@@ -376,12 +395,16 @@ public:
           tx[i++] = X(k, j);
     };
 
-    add_vec(omega);
+    if(has_b)
+      add_vec(omega);
     add_vec(alpha);
-    add_mat(b_arg);
-    add_vec(U);
-    add_vec(k);
-    add_mat(Lambda);
+    if(has_g)
+      add_mat(b_arg);
+    if(has_m){
+      add_vec(U);
+      add_vec(k);
+      add_mat(Lambda);
+    }
 
     return tx;
   }

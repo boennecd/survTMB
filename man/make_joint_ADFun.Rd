@@ -12,11 +12,15 @@ make_joint_ADFun(
   mdata,
   id_var,
   time_var,
-  mknots,
-  sknots,
-  gknots,
+  m_coefs,
+  s_coefs,
+  g_coefs,
+  m_coefs_surv = m_coefs,
+  g_coefs_surv = g_coefs,
   n_nodes = 20L,
   skew_start = -1e-04,
+  use_log = TRUE,
+  basis_type = c("ns", "poly"),
   opt_func = .opt_default,
   n_threads = 1L,
   sparse_hess = FALSE,
@@ -27,7 +31,8 @@ make_joint_ADFun(
   alpha = NULL,
   delta = NULL,
   gamma = NULL,
-  va_par = NULL
+  va_par = NULL,
+  trace = FALSE
 )
 }
 \arguments{
@@ -48,14 +53,26 @@ more than one marker.}
 
 \item{time_var}{name of the time variable in \code{mdata}.}
 
-\item{mknots}{numeric vector with knots for the processes' random mean
-term or number of knots to use.}
+\item{m_coefs}{numeric vector with knots for the processes' random mean
+term or number of knots to use. Can also be a combined
+vector of the \code{alpha} and \code{norm2} from
+\code{\link{poly}}. See \code{basis_type}.}
 
-\item{sknots}{numeric vector with knots for the baseline hazard
-or number of knots to use.}
+\item{s_coefs}{numeric vector with knots for the baseline hazard
+or number of knots to use.  Can also be a combined
+vector of the \code{alpha} and \code{norm2} from
+\code{\link{poly}}. See \code{basis_type}.}
 
-\item{gknots}{numeric vector with knots for the processes' fixed mean
-term or number of knots to use.}
+\item{g_coefs}{numeric vector with knots for the processes' fixed mean
+term or number of knots to use. Can also be a combined
+vector of the \code{alpha} and \code{norm2} from
+\code{\link{poly}}. See \code{basis_type}.}
+
+\item{m_coefs_surv}{like \code{m_coefs} but for the basis used in the
+log hazard. E.g. useful if one wants derivatives.}
+
+\item{g_coefs_surv}{like \code{g_coefs} but for the basis used in the
+log hazard. E.g. useful if one wants derivatives.}
 
 \item{n_nodes}{number of nodes to use with Gauss-Legendre quadrature for
 the cumulative hazard and nodes to use with Gauss-Hermite
@@ -64,6 +81,12 @@ quadrature for the entropy term.}
 \item{skew_start}{starting value for the Pearson's moment coefficient of
 skewness parameter when a SNVA is used. Currently, a
 somewhat arbitrary value.}
+
+\item{use_log}{logical for whether to use \code{log(time)} in the
+baseline survival function.}
+
+\item{basis_type}{character for the type of basis to use for the basis
+functions.}
 
 \item{opt_func}{general optimization function to use. It
 needs to have an interface like \code{\link{optim}}.}
@@ -89,6 +112,8 @@ available. Memory and computation time is saved if it is
 \item{gamma}{staring value for gamma.}
 
 \item{va_par}{staring value for variational parameters.}
+
+\item{trace}{logical for whether to print tracing information.}
 }
 \description{
 Construct Objective Functions with Derivatives for a Joint Survival and

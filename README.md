@@ -982,11 +982,11 @@ system.time(
     sformula =  Surv(left_trunc, y, event) ~ Z1 + Z2, 
     mformula = cbind(Y1, Y2) ~ X1, 
     id_var = id, time_var = obs_time, 
-    sdata = s_data, mdata = m_data, mknots = dat$params$m_attr$knots,
-    sknots = dat$params$b_attr$knots, gknots = dat$params$g_attr$knots, 
+    sdata = s_data, mdata = m_data, m_coefs = dat$params$m_attr$knots,
+    s_coefs = dat$params$b_attr$knots, g_coefs = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  43.038   0.024   9.607
+#>  46.818   0.048  10.440
 ```
 
 Next, we fit the model using the default optimization function.
@@ -996,7 +996,7 @@ system.time(
   opt_out <- out$opt_func(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#>   160.1     0.0    26.9
+#> 187.652   0.156  31.653
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -1236,6 +1236,11 @@ str(c_data[[1L]]) # example with the first cluster/family
 #>   .. ..- attr(*, "dimnames")=List of 2
 #>   .. .. ..$ : chr [1:32] "8" "9" "10" "16" ...
 #>   .. .. ..$ : chr [1:32] "8" "9" "10" "16" ...
+sapply(c_data, function(x) NCOL(x$cor_mats[[1L]]))
+#>   [1] 32 42 37 34 36 35 33 38 28 32 32 35  8 35  3 31 31 35 29 39 34 36 33  4  4
+#>  [26] 35 38  3 33 34 34 35 36  5 35 29 30 39  1 33  2 34  1 38 12 35 35 33 33 29
+#>  [51] 31 33 31 43 38 32 33 40 35 28 32 37 32 34  2 34 33  2  2 35 38 36 34 40 37
+#>  [76] 38 30 13 30  2  5 33 35 35 38 37 37  4 35 33 33 32 35 33 35 31 37 36 31  6
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
@@ -1254,9 +1259,9 @@ system.time(
 #> Creating ADFun...
 #> Finding starting values for variational parameters...
 #>    user  system elapsed 
-#>  17.867   0.421   8.410
+#>   20.00    0.52    9.70
 
--func$fn(func$par) # log-likelihood at the starting values
+-func$fn(func$par) # lower bound of the log-likelihood
 #> [1] -1575
 
 # optimize and compare the results with the true parameters
@@ -1264,8 +1269,8 @@ library(lbfgs)
 system.time(
   opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
                    max_iterations = 10000L, invisible = 1))
-#>    user  system elapsed 
-#> 3051.18    8.48  513.15
+#>     user   system  elapsed 
+#> 3234.060    0.323  542.645
 ```
 
 We show the estimates below and compare them with the true values.
@@ -1276,12 +1281,12 @@ rbind(
   Estimates = head(opt_out$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
-#> Starting values             0.0150              0.076               0.140
-#> Estimates                   0.0198              0.100               0.184
-#> True values                 0.0200              0.100               0.175
+#> Starting values             0.0150             0.0760               0.140
+#> Estimates                   0.0198             0.0999               0.184
+#> True values                 0.0200             0.1000               0.175
 #>                 beta:Z.1 beta:Z.2 log_sds1
 #> Starting values   -0.792    0.217   -0.693
-#> Estimates         -1.033    0.279   -0.169
+#> Estimates         -1.032    0.279   -0.171
 #> True values       -1.000    0.250   -0.223
 ```
 

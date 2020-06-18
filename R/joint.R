@@ -20,15 +20,37 @@
   tcrossprod(eg$vectors %*% diag(vals), eg$vectors)
 }
 
-.get_joint_knots <- function(n_knots, times)
-  stop(".get_joint_knots not implemented")
+#' @importFrom stats poly
+.get_joint_b_coefs <- function(n_arg, times, basis_type){
+  stopifnot(is.integer(n_arg), length(n_arg) == 1L)
+
+  if(basis_type == "poly"){
+    stopifnot(n_arg > -1L)
+    if(n_arg == 0L)
+      return(numeric())
+
+    # TODO: slow. replace this with the C++ version. See
+    #          https://stackoverflow.com/a/62385880/5861244
+    P <- poly(times, degree = n_arg)
+    alpha <- attr(P, "coefs")$alpha
+    names(alpha) <- paste0("alpha", seq_along(alpha))
+    norm2 <- attr(P, "coefs")$norm2
+    names(norm2) <- paste0("norm2", seq_along(norm2))
+    return(c(alpha, norm2))
+  }
+
+  stop("'basis_type' is not implemented")
+}
 
 #' @importFrom stats model.response model.frame terms model.matrix logLik
 #' @importFrom reshape2 melt
 #' @importFrom splines ns
 #' @importFrom lme4 lmer lmerControl fixef VarCorr .makeCC
 get_marker_start_params <- function(
-  formula, data, mknots, gknots, time_var, id_var, need_start_vals = TRUE){
+  formula, data, m_coefs, g_coefs, m_coefs_surv, g_coefs_surv, time_var,
+  id_var, need_start_vals = TRUE, basis_type = basis_type, trace){
+  if(trace)
+    cat("Finding starting values for marker parameters...\n")
   mf <- model.frame(formula, data)
   X <- model.matrix(terms(mf), mf)
   X <- X[, colnames(X) != "(Intercept)", drop = FALSE]
@@ -36,12 +58,19 @@ get_marker_start_params <- function(
               id = eval(id_var, data),
               time = eval(time_var, data))
 
-  if(is.integer(mknots) && length(mknots) == 1L)
-    mknots <- .get_joint_knots(mknots, out$time)
-  out$mknots <- mknots
-  if(is.integer(gknots) && length(gknots) == 1L)
-    gknots <- .get_joint_knots(gknots, out$time)
-  out$gknots <- gknots
+  if(is.integer(m_coefs) && length(m_coefs) == 1L)
+    m_coefs <- .get_joint_b_coefs(m_coefs, out$time, basis_type)
+  out$m_coefs <- m_coefs
+  if(is.integer(g_coefs) && length(g_coefs) == 1L)
+    g_coefs <- .get_joint_b_coefs(g_coefs, out$time, basis_type)
+  out$g_coefs <- g_coefs
+  if(is.integer(m_coefs_surv) && length(m_coefs_surv) == 1L)
+    m_coefs_surv <- .get_joint_b_coefs(m_coefs_surv, out$time, basis_type)
+  out$m_coefs_surv <- m_coefs_surv
+  if(is.integer(g_coefs_surv) && length(g_coefs_surv) == 1L)
+    g_coefs_surv <- .get_joint_b_coefs(g_coefs_surv, out$time, basis_type)
+  out$g_coefs_surv <- g_coefs_surv
+
 
   if(!need_start_vals){
     out$Psi <- out$Sigma <- out$B <- out$ll <- out$gamma <- numeric()
@@ -57,28 +86,48 @@ get_marker_start_params <- function(
     variable.name = "XXTHEVARIABLEXX", value.name = "XXTHEVALUEXX")
 
   # fit mixed model
-  m_bk <- mknots[ c(1L, length(mknots))]
-  m_ik <- mknots[-c(1L, length(mknots))]
+  t_val <- eval(time_var, data)
+  if(basis_type == "ns"){
+    m_bk <- m_coefs[ c(1L, length(m_coefs))]
+    m_ik <- m_coefs[-c(1L, length(m_coefs))]
+    data$M <- ns(
+      t_val, knots = m_ik, Boundary.knots = m_bk, intercept = TRUE)
 
-  g_bk <- gknots[ c(1L, length(gknots))]
-  g_ik <- gknots[-c(1L, length(gknots))]
+    g_bk <- g_coefs[ c(1L, length(g_coefs))]
+    g_ik <- g_coefs[-c(1L, length(g_coefs))]
+    data$G <- ns(
+      t_val, knots = g_ik, Boundary.knots = g_bk, intercept = TRUE)
+
+  } else if(basis_type == "poly"){
+    is_norm2 <- (length(m_coefs) / 2):length(m_coefs)
+    alpha <- m_coefs[-is_norm2]
+    norm2 <- m_coefs[ is_norm2]
+    M <- poly(t_val, coefs = list(alpha = alpha, norm2 = norm2),
+              degree = length(alpha))
+    data$M <- cbind(1, M)
+
+    is_norm2 <- (length(g_coefs) / 2):length(g_coefs)
+    alpha <- g_coefs[-is_norm2]
+    norm2 <- g_coefs[ is_norm2]
+    G <- poly(t_val, coefs = list(alpha = alpha, norm2 = norm2),
+              degree = length(alpha))
+    data$G <- cbind(1, G)
+  } else
+    stop("'basis_type' not implemented")
 
   frm <- substitute(
     XXTHEVALUEXX ~ -1 +
-      XXTHEVARIABLEXX : ns(ti, knots = g_ik, Boundary.knots = g_bk,
-                           intercept = TRUE) +
-      (XXTHEVARIABLEXX : ns(ti, knots = m_ik, Boundary.knots = m_bk,
-                            intercept = TRUE) - 1L | i),
-    list(ti = time_var, i = id_var, g_ik = g_ik, g_bk = g_bk,
-         m_ik = m_ik, m_bk = m_bk))
-  frm <- eval(frm)
+      XXTHEVARIABLEXX : G +
+      (XXTHEVARIABLEXX : M - 1L | i),
+    list(i = id_var))
+  frm <- eval(frm, environment())
 
   if(length(X_names) > 0)
     for(x_nam in rev(X_names)){
       frm_call <- substitute(
         update(frm, . ~ XXTHEVARIABLEXX : x_var + .),
         list(x_var = as.name(x_nam)))
-      frm <- eval(frm_call)
+      frm <- eval(frm_call, environment())
     }
 
   fit <- lmer(frm, data, control = lmerControl(
@@ -103,6 +152,22 @@ get_marker_start_params <- function(
   Sigma <- diag(attr(vc, "sc")^2, n_y)
   Sigma <- .rescale_cov(Sigma)
 
+  if(trace){
+    cat("Found starting values...\n")
+    . <- function(var_name, x){
+      cat(sprintf("%s is starting at\n", var_name))
+      print(x)
+      cat("\n")
+    }
+    .("Gamma", gamma)
+    .("B", B)
+    .("Psi", Psi)
+    .("Sigma", Sigma)
+    cat(sprintf(
+      "Log-likelihood at starting values for the marker model is %.2f\n",
+      c(logLik(fit))))
+  }
+
   out[c("gamma", "B", "Psi", "Sigma", "ll")] <-
     list(gamma, B, Psi, Sigma, ll = c(logLik(fit)))
   out
@@ -112,8 +177,11 @@ get_marker_start_params <- function(
 #' @importFrom survival tmerge coxph Surv
 #' @importFrom utils head tail
 get_surv_start_params <- function(
-  formula, data, mformula, mdata, id_var, time_var, knots, n_nodes,
-  need_start_vals = TRUE){
+  formula, data, mformula, mdata, id_var, time_var, b_coefs, n_nodes,
+  need_start_vals = TRUE, use_log, basis_type, trace){
+  if(trace)
+    cat("Finding starting values for the survival parameters...\n")
+
   # get the outcome
   out <- local({
     mf <- model.frame(formula, data)
@@ -130,9 +198,14 @@ get_surv_start_params <- function(
          id = id[keep], keep = keep)
   })
 
-  if(is.integer(knots) && length(knots) == 1L)
-    knots <- .get_joint_knots(knots, out$Y[out$Y[, 3] == 1, 2])
-  out$knots <- knots
+  if(is.integer(b_coefs) && length(b_coefs) == 1L){
+    y_ev <- out$Y[2, out$Y[3, ] == 1]
+    if(use_log)
+      y_ev <- log(y_ev)
+    # TODO: needs to do something different
+    b_coefs <- .get_joint_b_coefs(b_coefs, y_ev, basis_type)
+  }
+  out$b_coefs <- b_coefs
 
   if(!need_start_vals){
     out$delta <- out$alpha <- out$omega <- out$ll <- numeric()
@@ -184,9 +257,12 @@ get_surv_start_params <- function(
   mf <- model.frame(cformula, tdat)
   Sy <- .trunc_counting(model.response(mf))
   SZ <- t(model.matrix(terms(mf), mf)[Sy$keep, , drop = FALSE])
-  bk <- knots[ c(1L, length(knots))]
-  ik <- knots[-c(1L, length(knots))]
-  omega <- rep(0, length(knots))
+  if(basis_type == "ns")
+    omega <- rep(0, length(b_coefs))
+  else if(basis_type == "poly")
+    omega <- rep(0, length(b_coefs) / 2)
+  else
+    stop("'basis_type' not implemented")
 
   tstart <- Sy$Y[, 1]
   tstop  <- Sy$Y[, 2]
@@ -197,8 +273,8 @@ get_surv_start_params <- function(
     d <- par[-seq_along(omega)]
     -drop(joint_start_ll(
       Y = Y, tstart = tstart, tstop = tstop, omega = o,
-      delta = d, Z = SZ, n_nodes = n_nodes, bound_knots = bk,
-      inter_knots = ik, grad = grad))
+      delta = d, Z = SZ, n_nodes = n_nodes, coefs = b_coefs, grad = grad,
+      use_log = use_log, basis_type = basis_type))
   }
   fn <- func
   formals(fn)$grad <- FALSE
@@ -213,6 +289,22 @@ get_surv_start_params <- function(
   stopifnot(opt_out$convergence == 0L,
             all(is.finite(omega)), all(is.finite(delta)),
             all(is.finite(alpha)))
+
+  if(trace){
+    cat("Found starting values...\n")
+    . <- function(var_name, x){
+      cat(sprintf("%s is starting at\n", var_name))
+      print(x)
+      cat("\n")
+    }
+    .("delta", delta)
+    .("alpha", alpha)
+    .("omega", omega)
+    cat(sprintf(
+      "Log-likelihood at starting values for the survival model is %.2f\n",
+      -opt_out$value))
+  }
+
   out[c("delta", "alpha", "omega", "ll")] <- list(
     delta, alpha, omega, -opt_out$value)
   out
@@ -290,24 +382,38 @@ get_surv_start_params <- function(
 #' @param id_var name of the individual identifier. Must be present in both
 #'               \code{sdata} and \code{mdata}.
 #' @param time_var name of the time variable in \code{mdata}.
-#' @param mknots numeric vector with knots for the processes' random mean
-#'               term or number of knots to use.
-#' @param gknots numeric vector with knots for the processes' fixed mean
-#'               term or number of knots to use.
-#' @param sknots numeric vector with knots for the baseline hazard
-#'               or number of knots to use.
+#' @param m_coefs numeric vector with knots for the processes' random mean
+#'                term or number of knots to use. Can also be a combined
+#'                vector of the \code{alpha} and \code{norm2} from
+#'                \code{\link{poly}}. See \code{basis_type}.
+#' @param m_coefs_surv like \code{m_coefs} but for the basis used in the
+#'                     log hazard. E.g. useful if one wants derivatives.
+#' @param g_coefs numeric vector with knots for the processes' fixed mean
+#'                term or number of knots to use. Can also be a combined
+#'                vector of the \code{alpha} and \code{norm2} from
+#'                \code{\link{poly}}. See \code{basis_type}.
+#' @param g_coefs_surv like \code{g_coefs} but for the basis used in the
+#'                     log hazard. E.g. useful if one wants derivatives.
+#' @param s_coefs numeric vector with knots for the baseline hazard
+#'                or number of knots to use.  Can also be a combined
+#'                vector of the \code{alpha} and \code{norm2} from
+#'                \code{\link{poly}}. See \code{basis_type}.
 #' @param n_nodes number of nodes to use with Gauss-Legendre quadrature for
 #'                the cumulative hazard and nodes to use with Gauss-Hermite
 #'                quadrature for the entropy term.
 #' @param skew_start starting value for the Pearson's moment coefficient of
 #'                   skewness parameter when a SNVA is used. Currently, a
 #'                   somewhat arbitrary value.
+#' @param basis_type character for the type of basis to use for the basis
+#'                   functions.
 #' @param opt_func general optimization function to use. It
 #'                 needs to have an interface like \code{\link{optim}}.
 #' @param n_threads integer with number of threads to use.
 #' @param sparse_hess logical for whether to make sparse Hessian computation
 #'                    available. Memory and computation time is saved if it is
 #'                    \code{FALSE}.
+#' @param use_log logical for whether to use \code{log(time)} in the
+#'                baseline survival function.
 #' @param B staring value for B.
 #' @param Psi staring value for Psi.
 #' @param Sigma staring value for Sigma.
@@ -316,26 +422,36 @@ get_surv_start_params <- function(
 #' @param delta staring value for delta.
 #' @param gamma staring value for gamma.
 #' @param va_par staring value for variational parameters.
+#' @param trace logical for whether to print tracing information.
 #'
 #' @export
 make_joint_ADFun <- function(
-  sformula, mformula, sdata, mdata, id_var, time_var, mknots, sknots,
-  gknots, n_nodes = 20L, skew_start = -.0001,
+  sformula, mformula, sdata, mdata, id_var, time_var, m_coefs, s_coefs,
+  g_coefs, m_coefs_surv = m_coefs, g_coefs_surv = g_coefs,
+  n_nodes = 20L, skew_start = -.0001, use_log = TRUE,
+  basis_type = c("ns", "poly"),
   opt_func = .opt_default, n_threads = 1L, sparse_hess = FALSE, B = NULL,
   Psi = NULL, Sigma = NULL, omega = NULL, alpha = NULL, delta = NULL,
-  gamma = NULL, va_par = NULL){
+  gamma = NULL, va_par = NULL, trace = FALSE){
   # checks
-  check_knots_num <- function(x){
-    if(length(x) == 0L)
-      stop("Model without terms is not implemented")
-    length(x) == 0L ||
-      (is.numeric(x) && all(is.finite(x)) && length(x) > 1L)
+  check_b_coefs_num <- function(x){
+    if(basis_type %in% c("ns", "poly"))
+      return(length(x) == 0L ||
+        (is.numeric(x) && all(is.finite(x)) && length(x) > 1L))
+
+    stop("'basis_type' not implemented")
   }
-  check_knots_int <- function(x){
+  check_b_coefs_int <- function(x){
     if(is.integer(x) && x == 0L)
-      stop("Model without terms is not implemented")
-    is.integer(x) && length(x) == 1L && x != 1L
+      warning("Model without terms is not tested")
+    if(basis_type == "ns")
+      is.integer(x) && length(x) == 1L && x != 1L
+    else if(basis_type == "poly")
+      is.integer(x) && length(x) == 1L
+    else
+      stop("'basis_type' not implemented")
   }
+  basis_type <- basis_type[1L]
   stopifnot(
     inherits(sformula, "formula"),
     inherits(mformula, "formula"),
@@ -343,12 +459,17 @@ make_joint_ADFun <- function(
     is.data.frame(mdata),
     !missing(id_var),
     !missing(time_var),
-    check_knots_num(mknots) || check_knots_int(mknots),
-    check_knots_num(gknots) || check_knots_int(gknots),
-    check_knots_num(sknots) || check_knots_int(sknots),
+    is.character(basis_type), basis_type %in% c("ns", "poly"),
+    check_b_coefs_num(m_coefs) || check_b_coefs_int(m_coefs),
+    check_b_coefs_num(g_coefs) || check_b_coefs_int(g_coefs),
+    check_b_coefs_num(s_coefs) || check_b_coefs_int(s_coefs),
+    check_b_coefs_num(m_coefs_surv) || check_b_coefs_int(m_coefs_surv),
+    check_b_coefs_num(g_coefs_surv) || check_b_coefs_int(g_coefs_surv),
     is.integer(n_nodes), length(n_nodes) == 1L && n_nodes > 0L,
     is.integer(n_threads), length(n_threads) == 1L, n_threads > 0L,
-    is.logical(sparse_hess), length(sparse_hess) == 1L)
+    is.logical(sparse_hess), length(sparse_hess) == 1L,
+    is.logical(use_log), length(use_log) == 1L,
+    is.logical(trace), length(trace) == 1L)
   skew_boundary <- 0.99527
   eval(bquote(stopifnot(
     .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
@@ -359,13 +480,15 @@ make_joint_ADFun <- function(
   # get data needed for the estimation
   mark <- get_marker_start_params(
     mformula, data = mdata, time_var = time_var, id_var = id_var,
-    mknots = mknots, gknots = gknots,
+    m_coefs = m_coefs, g_coefs = g_coefs, basis_type = basis_type,
+    m_coefs_surv = m_coefs_surv, g_coefs_surv = g_coefs_surv, trace = trace,
     need_start_vals =
       is.null(B) || is.null(Psi) || is.null(Sigma) || is.null(gamma))
   sr_dat <- get_surv_start_params(
     formula = sformula, data = sdata, mformula = mformula, mdata = mdata,
-    id_var = id_var, time_var = time_var, knots = sknots, n_nodes = n_nodes,
-    need_start_vals = is.null(omega) || is.null(alpha) || is.null(delta))
+    id_var = id_var, time_var = time_var, b_coefs = s_coefs, n_nodes = n_nodes,
+    need_start_vals = is.null(omega) || is.null(alpha) || is.null(delta),
+    use_log = use_log, basis_type = basis_type, trace = trace)
 
   # assign the variables we need
   if(is.null(gamma))
@@ -382,9 +505,11 @@ make_joint_ADFun <- function(
     alpha <- sr_dat$alpha
   if(is.null(delta))
     delta <- sr_dat$delta
-  mknots <- mark$mknots
-  gknots <- mark$gknots
-  sknots <- sr_dat$knots
+  m_coefs <- mark$m_coefs
+  g_coefs <- mark$g_coefs
+  s_coefs <- sr_dat$b_coefs
+  m_coefs_surv <- mark$m_coefs_surv
+  g_coefs_surv <- mark$g_coefs_surv
 
   markers <- mark$Y
   X <- mark$X
@@ -408,8 +533,18 @@ make_joint_ADFun <- function(
 
   # checks
   n_y <- NROW(mark$Y)
-  dim_m <- length(mknots)
-  dim_g <- length(gknots)
+  if(basis_type == "ns"){
+    dim_m <- length(m_coefs)
+    dim_g <- length(g_coefs)
+    dim_s <- length(s_coefs)
+  } else if(basis_type == "poly") {
+    dim_m <- length(m_coefs) %/% 2L
+    dim_g <- length(g_coefs) %/% 2L
+    dim_s <- length(s_coefs) %/% 2L
+
+
+  } else
+    stop("'basis_type' not implemented")
   K <- n_y * dim_m
   n_Z <- NROW(Z)
   n_groups <- length(unique(s_id))
@@ -423,19 +558,26 @@ make_joint_ADFun <- function(
     c_num(Sigma), is.matrix(Sigma), NROW(Sigma) == n_y, NCOL(Sigma) == n_y,
     c_num(alpha), length(alpha) == n_y,
     c_num(delta), length(delta) == n_Z,
-    c_num(omega), length(omega) == length(sknots),
+    c_num(omega), length(omega) == dim_s,
     c_num(markers), is.matrix(markers),
     c_num(X), is.matrix(X), NCOL(X) == NCOL(markers),
     setequal(unique(s_id), unique(m_id)),
     n_groups == length(s_id),
-    check_knots_num(mknots),
-    check_knots_num(sknots),
-    check_knots_num(gknots))
+    check_b_coefs_num(m_coefs),
+    check_b_coefs_num(s_coefs),
+    check_b_coefs_num(g_coefs),
+    check_b_coefs_num(m_coefs_surv),
+    length(m_coefs_surv) %in% c(0L, length(m_coefs)),
+    check_b_coefs_num(g_coefs_surv),
+    length(g_coefs_surv) %in% c(0L, length(g_coefs)))
 
   # prepare VA parameters
-  if(missed_va <- is.null(va_par))
+  if(missed_va <- is.null(va_par)){
+    if(trace)
+      cat("Finding starting values for the variational parameters...\n")
     va_par <- .get_joint_va_start(skew_start = skew_start, Psi = Psi,
                                   n_groups = n_groups)
+  }
   stopifnot(length(va_par) == n_groups * (2L * K + (K * (K + 1L)) / 2L),
             all(is.finite(va_par)))
 
@@ -444,16 +586,21 @@ make_joint_ADFun <- function(
 
   data <- list(
     markers = markers, n_markers = n_markers, m_time = m_time, X = X,
-    mknots = mknots, gknots = gknots,
+    mcoefs = m_coefs, gcoefs = g_coefs,
+    mcoefs_surv = m_coefs_surv, gcoefs_surv = g_coefs_surv,
     tstart = outcomes[1, ], tstop = outcomes[2, ], outcomes = outcomes[3, ],
-    sknots = sknots, Z = Z,
-    n_threads = n_threads, sparse_hess = sparse_hess, n_nodes = n_nodes)
+    scoefs = s_coefs, Z = Z, use_log = use_log,
+    n_threads = n_threads, sparse_hess = sparse_hess, n_nodes = n_nodes,
+    basis_type = switch(basis_type, ns = 0L, poly = 1L,
+                        stop("unkown 'basis_type'")))
   parameters <- list(
     gamma = gamma, B = B, Psi = cov_to_theta(Psi),
     Sigma = cov_to_theta(Sigma), delta = delta, omega = omega,
     alpha = alpha, va_par = va_par)
 
   setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = "")
+  if(trace)
+    cat("Creating AD function...\n")
   func <- get_joint_funcs(data = data, parameters = parameters)
 
   # create parameter vector and return
@@ -485,11 +632,21 @@ make_joint_ADFun <- function(
       stop("get_params not implemented"),
     opt_func = opt_func,
     sparse_hess = sparse_hess,
-    cl = match.call()
+    cl = match.call(),
+    m_coefs = m_coefs,
+    g_coefs = g_coefs,
+    s_coefs = s_coefs,
+    m_coefs_surv = m_coefs_surv,
+    g_coefs_surv = g_coefs_surv,
+    basis_type = basis_type
     # TODO: save terms
     )
 
   if(missed_va){
+    if(trace)
+      cat(
+        "Finding better starting values for the variational parameters...\n")
+
     # make a quick search where we set all VA parameters to the same value
     is_va_regex <- "^g\\d+"
     par <- .opt_sub(

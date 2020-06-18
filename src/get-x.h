@@ -18,10 +18,11 @@ vector<Type> get_vec(SEXP obj){
   Rcpp::NumericVector org(obj);
   size_t const n = org.size();
   vector<Type> out(n);
-
-  double const *o = &org(0);
-  for(unsigned i = 0; i < n; i++, o++)
-    out[i] = Type(*o);
+  if(n > 0){
+    double const *o = &org(0);
+    for(unsigned i = 0; i < n; i++, o++)
+      out[i] = Type(*o);
+  }
 
   return out;
 }

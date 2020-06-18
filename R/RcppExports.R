@@ -57,8 +57,8 @@ herita_funcs_eval_grad <- function(p, par) {
     .Call(`_survTMB_herita_funcs_eval_grad`, p, par)
 }
 
-joint_start_ll <- function(Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad) {
-    .Call(`_survTMB_joint_start_ll`, Y, tstart, tstop, omega, delta, Z, n_nodes, bound_knots, inter_knots, grad)
+joint_start_ll <- function(Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad, use_log, basis_type) {
+    .Call(`_survTMB_joint_start_ll`, Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad, use_log, basis_type)
 }
 
 get_joint_funcs <- function(data, parameters) {

@@ -5,7 +5,7 @@
 ^rstudio-build-script\.sh$
 ^cache
 ^.travis.yml
-^src/test-joint-utils\.R
+^src/test-joint-utils
 ^tmp
 ^inst/test-data/gen-test-data\.R
 ^inst/test-data/large-joint-all\.RDS
