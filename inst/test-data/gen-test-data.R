@@ -1,7 +1,7 @@
 # install package
 if(FALSE)
   devtools::install_github("boennecd/SimSurvNMarker",
-                           ref = "cb2f777e065b229e5739c372460f88b18b5f5d38")
+                           ref = "743e14f3a6a15ae833bc774e4673be1dcef0d6d3")
 
 #####
 # heritability data
