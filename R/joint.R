@@ -138,7 +138,7 @@ get_marker_start_params <- function(
 
   gamma <- t(matrix(fixef(fit)[seq_len(d_x * n_y)], nrow = n_y))
 
-  B <- matrix(fixef(fit)[-seq_along(gamma)], ncol = n_y)
+  B <- t(matrix(fixef(fit)[-seq_along(gamma)], nrow = n_y))
 
   vc <- VarCorr(fit)
   Psi <- vc$id
@@ -646,16 +646,7 @@ make_joint_ADFun <- function(
     if(trace)
       cat(
         "Finding better starting values for the variational parameters...\n")
-
-    # make a quick search where we set all VA parameters to the same value
-    is_va_regex <- "^g\\d+"
-    par <- .opt_sub(
-      par = par, which_par = is_va_regex, extract_name = "^(g\\d+:)(.+)",
-      replacement = "\\2", fn = out$fn, gr = out$gr,
-      opt_func = opt_func, control = list(maxit = 1000L))
-
-    # refine by optimizing each individually
-    is_va <- which(grepl(is_va_regex, names(par)))
+    is_va <- which(grepl("^g\\d+", names(par)))
     fn_va <- function(x, ...){
       par[is_va] <- x
       out$fn(par)
