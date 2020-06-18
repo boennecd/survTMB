@@ -25,7 +25,7 @@ for(n_threads in 1:2){
         file.path(test_res_dir, "joint-all-par.RDS"),
         tolerance = sqrt(eps) * 10)
       # dput(out$fn(out$par))
-      expect_equal(out$fn(out$par), 236.663415083742,
+      expect_equal(out$fn(out$par), 211.604180900273,
                    tolerance = sqrt(eps) * 10)
       expect_known_value(
         head(out$gr(out$par), 45),

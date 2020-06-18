@@ -233,6 +233,31 @@ RcppExport SEXP _survTMB_joint_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
+// get_orth_poly
+List get_orth_poly(arma::vec const& x, unsigned const degree);
+RcppExport SEXP _survTMB_get_orth_poly(SEXP xSEXP, SEXP degreeSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::RNGScope rcpp_rngScope_gen;
+  Rcpp::traits::input_parameter< arma::vec const& >::type x(xSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type degree(degreeSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_orth_poly(x, degree));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// predict_orth_poly
+arma::mat predict_orth_poly(arma::vec const& x, arma::vec const& alpha, arma::vec const& norm2);
+RcppExport SEXP _survTMB_predict_orth_poly(SEXP xSEXP, SEXP alphaSEXP, SEXP norm2SEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::RNGScope rcpp_rngScope_gen;
+  Rcpp::traits::input_parameter< arma::vec const& >::type x(xSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type alpha(alphaSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type norm2(norm2SEXP);
+  rcpp_result_gen = Rcpp::wrap(predict_orth_poly(x, alpha, norm2));
+  return rcpp_result_gen;
+  END_RCPP
+}
 // fix_atomic_seqfault
 void fix_atomic_seqfault();
 RcppExport SEXP _survTMB_fix_atomic_seqfault() {
@@ -278,6 +303,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_get_herita_funcs", (DL_FUNC) &_survTMB_get_herita_funcs, 2},
   {"_survTMB_herita_funcs_eval_lb", (DL_FUNC) &_survTMB_herita_funcs_eval_lb, 2},
   {"_survTMB_herita_funcs_eval_grad", (DL_FUNC) &_survTMB_herita_funcs_eval_grad, 2},
+  {"_survTMB_get_orth_poly", (DL_FUNC) &_survTMB_get_orth_poly, 2},
+  {"_survTMB_predict_orth_poly", (DL_FUNC) &_survTMB_predict_orth_poly, 3},
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},

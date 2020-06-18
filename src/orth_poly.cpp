@@ -16,7 +16,6 @@ void orth_poly::operator()(vec &out, double const x) const {
   }
 
   out /= sqrt_norm2.subvec(1L, sqrt_norm2.n_elem - 1L);
-  out[0] = 1.;
 }
 
 orth_poly orth_poly::get_poly_basis(vec x, uword const degree, mat &X){
@@ -60,9 +59,40 @@ orth_poly orth_poly::get_poly_basis(vec x, uword const degree, mat &X){
       alpha[c] = x_z_sq / z_sq + x_bar;
   }
 
+  norm2 /= static_cast<double>(n);
   orth_poly out(alpha, norm2);
   X.each_row() /= out.sqrt_norm2.subvec(1L, out.sqrt_norm2.n_elem - 1L).t();
-  X.col(0).ones();
   return out;
 }
 } // namespace poly
+
+
+using namespace Rcpp;
+using namespace poly;
+
+// [[Rcpp::export]]
+List get_orth_poly
+  (arma::vec const &x, unsigned const degree){
+  arma::mat X;
+  auto const &basis = orth_poly::get_poly_basis(x, degree, X);
+
+  return List::create(
+    Named("X") = X, Named("alpha") = basis.alpha,
+    Named("norm2") = basis.norm2);
+}
+
+// [[Rcpp::export]]
+arma::mat predict_orth_poly(arma::vec const &x, arma::vec const &alpha,
+                            arma::vec const &norm2){
+  orth_poly basis(alpha, norm2);
+  size_t const n = x.n_elem,
+               m = basis.get_n_basis();
+  arma::vec dum(m);
+  arma::mat out(n, m);
+  for(size_t i = 0; i < n; ++i){
+    basis(dum, x[i]);
+    out.row(i) = dum.t();
+  }
+
+  return out;
+}

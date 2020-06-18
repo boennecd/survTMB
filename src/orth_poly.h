@@ -20,7 +20,10 @@ struct orth_poly {
       throw std::invalid_argument("invalid alpha");
   }
 
-  /** behaves like predict(<poly object>, newdata). */
+  /**
+   behaves like predict(<poly object>, newdata) except the scale is
+   different. See ::get_poly_basis().
+   */
   void operator()(vec&, double const) const;
   vec operator()(double const x) const {
     vec out(get_n_basis());
@@ -29,8 +32,22 @@ struct orth_poly {
   };
 
   /**
-   behaves like poly(x, degree). The orthogonal polynomial is returned by
-   reference.
+   behaves like poly(x, degree) though the output is not scaled to have unit
+   norm buth rather a norm that scales like the number of samples and there
+   is an intercept. I.e. similar to
+
+      x <- rnorm(10)
+      B <- poly(x, degree = 4)
+      B <- cbind(1, B * sqrt(NROW(B)))
+      B
+      crossprod(B)
+
+      # same as
+      B <- poly(x, degree = 4)
+      attr(B, "coefs")$norm2 <- attr(B, "coefs")$norm2 / NROW(B)
+      cbind(1, predict(B, x))
+
+   The orthogonal polynomial is returned by reference.
    */
   static orth_poly get_poly_basis(vec, uword const, mat&);
 

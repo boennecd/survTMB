@@ -20,7 +20,7 @@
   tcrossprod(eg$vectors %*% diag(vals), eg$vectors)
 }
 
-#' @importFrom stats poly
+#' @importFrom stats poly quantile
 .get_joint_b_coefs <- function(n_arg, times, basis_type){
   stopifnot(is.integer(n_arg), length(n_arg) == 1L)
 
@@ -29,14 +29,18 @@
     if(n_arg == 0L)
       return(numeric())
 
-    # TODO: slow. replace this with the C++ version. See
-    #          https://stackoverflow.com/a/62385880/5861244
-    P <- poly(times, degree = n_arg)
-    alpha <- attr(P, "coefs")$alpha
+    # TODO: do something smarter
+    P <- get_orth_poly(x = times, degree = n_arg)
+    alpha <- P$alpha
     names(alpha) <- paste0("alpha", seq_along(alpha))
-    norm2 <- attr(P, "coefs")$norm2
+    norm2 <- P$norm2
     names(norm2) <- paste0("norm2", seq_along(norm2))
     return(c(alpha, norm2))
+  } else if(basis_type == "ns"){
+    if(n_arg < 2L)
+      return(numeric())
+
+    return(quantile(times, probs = seq(0, 1, length.out = n_arg)))
   }
 
   stop("'basis_type' is not implemented")
@@ -199,10 +203,21 @@ get_surv_start_params <- function(
   })
 
   if(is.integer(b_coefs) && length(b_coefs) == 1L){
-    y_ev <- out$Y[2, out$Y[3, ] == 1]
+    # TODO: needs to do something different
+    y_ev <- out$Y[1:2, out$Y[3, ] == 1]
+    t1 <- y_ev[1, ]
+    t2 <- y_ev[2, ]
+    delta <- t2 - t1
+    t1 <- t1 + .001 * delta
+    t2 <- t2 - .001 * delta
+    y_ev <- c(
+      t1,
+      .25 * (t2 - t1) + t1,
+      .5  * (t2 - t1) + t1,
+      .75 * (t2 - t1) + t1,
+      t2)
     if(use_log)
       y_ev <- log(y_ev)
-    # TODO: needs to do something different
     b_coefs <- .get_joint_b_coefs(b_coefs, y_ev, basis_type)
   }
   out$b_coefs <- b_coefs
@@ -646,7 +661,15 @@ make_joint_ADFun <- function(
     if(trace)
       cat(
         "Finding better starting values for the variational parameters...\n")
-    is_va <- which(grepl("^g\\d+", names(par)))
+
+    # start with a GVA (ignoring that the skew many not be equal to zero)
+    is_gva <- which(grepl("^g\\d+:(?!alpha)", names(par), perl = TRUE))
+    is_snva <- which(grepl("^g\\d+", names(par)))
+    stopifnot(length(is_snva) < length(par),
+              length(is_gva) < length(is_snva),
+              all(is_gva %in% is_snva))
+
+    is_va <- is_gva
     fn_va <- function(x, ...){
       par[is_va] <- x
       out$fn(par)
@@ -659,6 +682,21 @@ make_joint_ADFun <- function(
     opt_va <- opt_func(
       par[is_va], fn_va, gr_va, control = list(maxit = 1000L))
     par[is_va] <- opt_va$par
+
+    . <- function(nam)
+      if(trace)
+        cat(sprintf(
+          "Finished %s update. Lower bound is %2.f and convergence code is %d...\n",
+          nam, -opt_va$value, opt_va$convergence))
+    .("GVA")
+
+    # then update as SNVA
+    is_va <- is_snva
+    opt_va <- opt_func(
+      par[is_va], fn_va, gr_va, control = list(maxit = 1000L))
+    par[is_va] <- opt_va$par
+
+    .("SNVA")
   }
 
   out$par <- par

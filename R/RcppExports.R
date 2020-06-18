@@ -73,6 +73,14 @@ joint_funcs_eval_grad <- function(p, par) {
     .Call(`_survTMB_joint_funcs_eval_grad`, p, par)
 }
 
+get_orth_poly <- function(x, degree) {
+    .Call(`_survTMB_get_orth_poly`, x, degree)
+}
+
+predict_orth_poly <- function(x, alpha, norm2) {
+    .Call(`_survTMB_predict_orth_poly`, x, alpha, norm2)
+}
+
 fix_atomic_seqfault <- function() {
     invisible(.Call(`_survTMB_fix_atomic_seqfault`))
 }

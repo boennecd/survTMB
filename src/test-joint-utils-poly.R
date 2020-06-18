@@ -8,6 +8,8 @@ without_m <- FALSE
 # parameters
 bas <- with(new.env(), {
   bas <- poly(1:10, 2)
+  attr(bas, "coefs")$norm2 <- attr(bas, "coefs")$norm2 / NROW(bas)
+  dput(attr(bas, "coefs"))
   function(x){
     out <- predict(bas, x)
     cbind(1, out)
