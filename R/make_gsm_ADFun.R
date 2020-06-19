@@ -2,7 +2,7 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
-.MGSM_defaul_eps <- .Machine$double.eps^(1/2)
+.MGSM_defaul_eps <- .Machine$double.eps
 .MGSM_default_kappa <- 1e8
 
 #' Maps Between Centralized and Direct Parameters
@@ -591,18 +591,55 @@ make_mgsm_ADFun <- function(
     n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link)
 
   # set the initial values
-  n_mu     <- n_rng
-  n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
-  n_p_grp  <- n_mu + n_Lambda
-  theta_VA <- rep(NA_real_, n_p_grp * n_grp)
+  grp_end <- cumsum(data_ad_func$grp_size)
+  grp_start <- c(1L, head(grp_end, -1) + 1L)
+  b <- params$b
+  sig <- theta_to_cov(params$theta)
+  if(!is.matrix(sig))
+    sig <- as.matrix(sig)
+  sig_inv <- solve(sig)
+  chol_sig_inv <- chol(sig_inv)
 
-  # set means to zero
-  idx_mean <- sapply(1:n_grp - 1L, function(i) i * n_p_grp + 1:n_mu)
-  theta_VA[idx_mean] <- 0.
-  # set parameters for Lambda
-  idx_Lambda <- sapply(1:n_grp - 1L, function(i)
-    i * n_p_grp + n_mu + 1:n_Lambda)
-  theta_VA[idx_Lambda] <- params$theta
+  theta_VA <- mapply(function(istart, iend){
+    # get the data we need
+    idx <- istart:iend
+    n <- length(idx)
+    X  <- t(data_ad_func$X [idx, ])
+    XD <- t(data_ad_func$XD[idx, ])
+    Z  <- t(data_ad_func$Z[idx, ])
+    X_arg <- matrix(nrow = 0, ncol = n)
+    y <- data_ad_func$event[idx]
+
+    # get the offset
+    if(length(b) > 0){
+      offset_eta  <- drop(b %*% X)
+      offset_etaD <- drop(b %*% XD)
+    } else
+      offset_eta <- offset_etaD <- numeric(n)
+
+    # make Taylor approximation
+    opt_obj <- get_gsm_pointer(
+      X = X_arg, XD = X_arg, Z = Z, y = y, eps = params$eps,
+      kappa = params$kappa, link = data_ad_func$link,
+      n_threads = 1L, offset_eta = offset_eta, offset_etaD = offset_etaD)
+
+    fn <- function(x, ...)
+      -gsm_eval_ll(ptr = opt_obj, beta = numeric(), gamma = x) +
+        sum((chol_sig_inv %*% x)^2) / 2
+    gr <- function(x, ...)
+      -gsm_eval_grad(ptr = opt_obj, beta = numeric(), gamma = x) +
+        drop(sig_inv %*% x)
+    he <- function(x, ...)
+      -gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
+
+    opt_ret <- opt_func(numeric(NCOL(sig)), fn, gr)
+    mu <- opt_ret$par
+    sig_use <- solve(he(mu))
+
+    c(mu, cov_to_theta(sig_use))
+  }, istart = grp_start, iend = grp_end)
+  theta_VA <- c(theta_VA)
+
   # set names
   theta_VA_names <- c(paste0("mu", 1:n_rng), names(params$theta))
   theta_VA_names <- c(outer(
@@ -687,27 +724,7 @@ make_mgsm_ADFun <- function(
     })
   }
 
-  # find initial VA params
-  func <- get_gva_out(theta_VA)
-  coefs_start <- c(params$b, params$theta)
-
-  # find parameters for each group
-  par <- c(coefs_start, theta_VA)
-  do_drop <- seq_along(coefs_start)
-  get_x <- function(x){
-    par[-do_drop] <- x
-    par
-  }
-
-  fn <- function(x)
-    func$fn(get_x(x))
-  gr <- function(x)
-    func$gr(get_x(x))[-do_drop]
-
-  opt_out <- opt_func(theta_VA, fn = fn, gr = gr,
-                      control = list(maxit = 1000L,
-                                     reltol = .Machine$double.eps^(1/5)))
-  get_gva_out(opt_out$par)
+  get_gva_out(theta_VA)
 }
 
 .get_snva_out <- function(n_rng, n_grp, gva_out, params, skew_start,

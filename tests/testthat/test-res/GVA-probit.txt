@@ -10,7 +10,7 @@ Estimated fixed effects:
                             (Intercept)                                     trt 
                                  -4.054                                   0.525 
 nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-                                  2.902                                   5.553 
+                                  2.902                                   5.552 
 nsx(log(y), df = 3, intercept = FALSE)3 
                                   2.838 
 

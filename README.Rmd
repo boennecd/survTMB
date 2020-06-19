@@ -555,12 +555,14 @@ system.time(
 library(lbfgs)
 system.time(
   opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
-                   max_iterations = 10000L, invisible = 1))
+                   max_iterations = 5000L, invisible = 1))
 ```
 
 We show the estimates below and compare them with the true values.
 
 ```{r herita_show_est}
+opt_out$value # lower bound on the marginal log-likelihood in the end
+
 rbind(
   `Starting values` = head(func$par, 6), 
   Estimates = head(opt_out$par, 6),

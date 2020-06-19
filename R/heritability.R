@@ -144,13 +144,13 @@ make_heritability_ADFun <- function(
     chol_sig_inv <- chol(sig_inv)
 
     fn <- function(x, ...)
-      gsm_eval_ll(ptr = opt_obj, beta = numeric(), gamma = x) +
+      -gsm_eval_ll(ptr = opt_obj, beta = numeric(), gamma = x) +
       sum((chol_sig_inv %*% x)^2) / 2
     gr <- function(x, ...)
-      gsm_eval_grad(ptr = opt_obj, beta = numeric(), gamma = x) +
+      -gsm_eval_grad(ptr = opt_obj, beta = numeric(), gamma = x) +
       drop(sig_inv %*% x)
     he <- function(x, ...)
-      gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
+      -gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
 
     opt_ret <- opt_func(par, fn, gr)
     mu <- opt_ret$par

@@ -8,11 +8,11 @@ MGSM estimated with method 'SNVA' with link 'PO' from call:
 
 Estimated fixed effects:
                             (Intercept)                                     trt 
-                                 -8.912                                   0.877 
+                                 -8.910                                   0.877 
 nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-                                  6.426                                  13.443 
+                                  6.425                                  13.440 
 nsx(log(y), df = 3, intercept = FALSE)3 
-                                  5.418 
+                                  5.417 
 
 Estimated random effect covariance matrix (correlation matrix) is:
             (Intercept)       (Intercept)
