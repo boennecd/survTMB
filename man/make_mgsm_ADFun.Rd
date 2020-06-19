@@ -82,7 +82,7 @@ available. Memory and computation time is saved if it is
 \value{
 An object of class \code{MGSM_ADFun}. The elements are:
 \item{laplace}{object to perform a Laplace approximation if \code{do_setup} contains \code{"Laplace"}.}
-\item{gva}{object to perform a GVA if \code{do_setup} contains \code{"GVA"} or \code{"SNVA"}.}
+\item{gva}{object to perform a GVA if \code{do_setup} contains \code{"GVA"}.}
 \item{snva}{object to perform a SNVA if \code{do_setup} contains \code{"SNVA"}.}
 \item{y}{numeric vector with outcomes.}
 \item{event}{numeric vector with event indicators.}

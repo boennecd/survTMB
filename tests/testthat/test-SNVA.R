@@ -28,7 +28,6 @@ for(link in c("PH", "PO", "probit"))
           func <- get_func_eortc(link, n_threads, param_type)
           expect_s3_class(func, "MGSM_ADFun")
           expect_setequal(names(func), .MGSM_ADFun_members)
-          expect_true(!is.null(func$gva)) # change the RD file if this fails
 
           eps <- .Machine$double.eps^(3/5)
           res <- fit_mgsm(func, "SNVA", control = list(reltol = eps))

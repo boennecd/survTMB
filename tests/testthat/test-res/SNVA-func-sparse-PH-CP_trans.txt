@@ -7,7 +7,7 @@ MGSM objective function with link 'PH' from call:
 
 The following is available:
 Laplace approximation    No
-GVA                     Yes
+GVA                      No
 SNVA                    Yes
 Dense Hessian with VA    No
 Sparse Hessian with VA  Yes

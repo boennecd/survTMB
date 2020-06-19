@@ -335,7 +335,7 @@ theta_to_cov <- function(theta){
 #' @return
 #' An object of class \code{MGSM_ADFun}. The elements are:
 #' \item{laplace}{object to perform a Laplace approximation if \code{do_setup} contains \code{"Laplace"}.}
-#' \item{gva}{object to perform a GVA if \code{do_setup} contains \code{"GVA"} or \code{"SNVA"}.}
+#' \item{gva}{object to perform a GVA if \code{do_setup} contains \code{"GVA"}.}
 #' \item{snva}{object to perform a SNVA if \code{do_setup} contains \code{"SNVA"}.}
 #' \item{y}{numeric vector with outcomes.}
 #' \item{event}{numeric vector with event indicators.}
@@ -498,7 +498,7 @@ make_mgsm_ADFun <- function(
 
   #####
   # setup ADFun object for the GVA
-  gva_out <- if(.gva_char %in% do_setup || .snva_char %in% do_setup)
+  gva_out <- if(.gva_char %in% do_setup)
     .get_gva_func(n_rng, n_grp, params, data_ad_func, n_nodes, dense_hess,
                   sparse_hess, inits, opt_func)
   else
@@ -507,7 +507,7 @@ make_mgsm_ADFun <- function(
   #####
   # setup ADFun object for the SNVA
   snva_out <- if(.snva_char %in% do_setup)
-    .get_snva_out(n_rng, n_grp, gva_out, params, skew_start, param_type,
+    .get_snva_out(n_rng, n_grp, params, skew_start, param_type,
                   skew_boundary, data_ad_func, n_nodes, dense_hess,
                   sparse_hess, opt_func)
   else
@@ -520,6 +520,83 @@ make_mgsm_ADFun <- function(
          link = link, opt_func = opt_func, dense_hess = dense_hess,
          sparse_hess = sparse_hess),
     class = "MGSM_ADFun")
+}
+
+.get_MGSM_VA_start <- function(
+  n_rng, params, data_ad_func, opt_func, skew_start = NULL, is_cp = NULL,
+  skew_boundary = NULL){
+  # set the initial values
+  grp_end <- cumsum(data_ad_func$grp_size)
+  grp_start <- c(1L, head(grp_end, -1) + 1L)
+  b <- params$b
+  sig <- theta_to_cov(params$theta)
+  if(!is.matrix(sig))
+    sig <- as.matrix(sig)
+  sig_inv <- solve(sig)
+  chol_sig_inv <- chol(sig_inv)
+
+  is_snva <-
+    !is.null(skew_start) && !is.null(is_cp) && !is.null(skew_boundary)
+  theta_VA <- mapply(function(istart, iend){
+    # get the data we need
+    idx <- istart:iend
+    n <- length(idx)
+    X  <- t(data_ad_func$X [idx, ])
+    XD <- t(data_ad_func$XD[idx, ])
+    Z  <- t(data_ad_func$Z[idx, ])
+    X_arg <- matrix(nrow = 0, ncol = n)
+    y <- data_ad_func$event[idx]
+
+    # get the offset
+    if(length(b) > 0){
+      offset_eta  <- drop(b %*% X)
+      offset_etaD <- drop(b %*% XD)
+    } else
+      offset_eta <- offset_etaD <- numeric(n)
+
+    # make Taylor approximation
+    opt_obj <- get_gsm_pointer(
+      X = X_arg, XD = X_arg, Z = Z, y = y, eps = params$eps,
+      kappa = params$kappa, link = data_ad_func$link,
+      n_threads = 1L, offset_eta = offset_eta, offset_etaD = offset_etaD)
+
+    fn <- function(x, ...)
+      -gsm_eval_ll(ptr = opt_obj, beta = numeric(), gamma = x) +
+      sum((chol_sig_inv %*% x)^2) / 2
+    gr <- function(x, ...)
+      -gsm_eval_grad(ptr = opt_obj, beta = numeric(), gamma = x) +
+      drop(sig_inv %*% x)
+    he <- function(x, ...)
+      -gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
+
+    opt_ret <- opt_func(numeric(NCOL(sig)), fn, gr)
+    mu <- opt_ret$par
+    sig_use <- solve(he(mu))
+
+    if(is_snva)
+      # SNVA
+      if(is_cp){
+        # centralized parameters
+        get_skew_trans <- function(x)
+          log((skew_boundary + x) / (skew_boundary - x))
+
+        dp_pars <- cp_to_dp(mu = mu, Sigma = sig_use, gamma = skew_start)
+        cp_pars <- dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
+                            alpha = dp_pars$alpha)
+        c(cp_pars$mu, cov_to_theta(cp_pars$Sigma),
+          get_skew_trans(cp_pars$gamma))
+
+      } else {
+        # direct parameters
+        dp_pars <- cp_to_dp(mu = mu, Sigma = sig_use, gamma = skew_start)
+        c(dp_pars$xi, cov_to_theta(dp_pars$Psi), dp_pars$alpha)
+
+      }
+    else
+      # GVA
+      c(mu, cov_to_theta(sig_use))
+  }, istart = grp_start, iend = grp_end)
+  c(theta_VA)
 }
 
 .get_laplace_func <- function(data_ad_func, params, n_rng, n_grp, inits) {
@@ -590,57 +667,10 @@ make_mgsm_ADFun <- function(
   setup_atomic_cache(
     n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link)
 
-  # set the initial values
-  grp_end <- cumsum(data_ad_func$grp_size)
-  grp_start <- c(1L, head(grp_end, -1) + 1L)
-  b <- params$b
-  sig <- theta_to_cov(params$theta)
-  if(!is.matrix(sig))
-    sig <- as.matrix(sig)
-  sig_inv <- solve(sig)
-  chol_sig_inv <- chol(sig_inv)
-
-  theta_VA <- mapply(function(istart, iend){
-    # get the data we need
-    idx <- istart:iend
-    n <- length(idx)
-    X  <- t(data_ad_func$X [idx, ])
-    XD <- t(data_ad_func$XD[idx, ])
-    Z  <- t(data_ad_func$Z[idx, ])
-    X_arg <- matrix(nrow = 0, ncol = n)
-    y <- data_ad_func$event[idx]
-
-    # get the offset
-    if(length(b) > 0){
-      offset_eta  <- drop(b %*% X)
-      offset_etaD <- drop(b %*% XD)
-    } else
-      offset_eta <- offset_etaD <- numeric(n)
-
-    # make Taylor approximation
-    opt_obj <- get_gsm_pointer(
-      X = X_arg, XD = X_arg, Z = Z, y = y, eps = params$eps,
-      kappa = params$kappa, link = data_ad_func$link,
-      n_threads = 1L, offset_eta = offset_eta, offset_etaD = offset_etaD)
-
-    fn <- function(x, ...)
-      -gsm_eval_ll(ptr = opt_obj, beta = numeric(), gamma = x) +
-        sum((chol_sig_inv %*% x)^2) / 2
-    gr <- function(x, ...)
-      -gsm_eval_grad(ptr = opt_obj, beta = numeric(), gamma = x) +
-        drop(sig_inv %*% x)
-    he <- function(x, ...)
-      -gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
-
-    opt_ret <- opt_func(numeric(NCOL(sig)), fn, gr)
-    mu <- opt_ret$par
-    sig_use <- solve(he(mu))
-
-    c(mu, cov_to_theta(sig_use))
-  }, istart = grp_start, iend = grp_end)
-  theta_VA <- c(theta_VA)
-
   # set names
+  theta_VA <- .get_MGSM_VA_start(
+    n_rng = n_rng, params = params, data_ad_func = data_ad_func,
+    opt_func = opt_func)
   theta_VA_names <- c(paste0("mu", 1:n_rng), names(params$theta))
   theta_VA_names <- c(outer(
     theta_VA_names, paste0("g", 1:n_grp), function(x, y)
@@ -727,70 +757,23 @@ make_mgsm_ADFun <- function(
   get_gva_out(theta_VA)
 }
 
-.get_snva_out <- function(n_rng, n_grp, gva_out, params, skew_start,
-                          param_type, skew_boundary, data_ad_func, n_nodes,
-                          dense_hess, sparse_hess, opt_func) {
+.get_snva_out <- function(
+  n_rng, n_grp, params, skew_start, param_type, skew_boundary, data_ad_func,
+  n_nodes, dense_hess, sparse_hess, opt_func) {
   # setup cache
   setup_atomic_cache(
     n_nodes = n_nodes, type = .snva_char, link = data_ad_func$link)
 
-  # set the initial values
-  n_mu     <- n_rng
-  n_rho    <- n_rng
-  n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
-  n_p_grp  <- n_mu + n_Lambda + n_rho
-  theta_VA <- rep(NA_real_, n_p_grp * n_grp)
-
   #####
   # setup starting values for VA parameters
   # find GVA solution
-  beta <- params$b
-  theta <- params$theta
-  gva_opt <- with(gva_out, opt_func(par, fn, gr,
-                                    control = list(maxit = 1000L)))
-  gva_va_vals <- gva_opt$par[-seq_len(length(beta) + length(theta))]
-
-  params$b     <- gva_opt$par[1:length(beta)]
-  params$theta <- gva_opt$par[1:length(theta) + length(beta)]
-
-  if(length(skew_start) == 1L && n_rng > 1L)
+  if(length(skew_start) != n_rng)
     skew_start <- rep(skew_start, n_rng)
-  n_p_grp_gva <-  n_p_grp - n_rho
-
-  theta_VA <- if(param_type == "DP"){
-    n_lower_tri <- (n_rng * (n_rng - 1L)) / 2L
-
-    vapply(1:n_grp, function(i){
-      # setup mean and VA variance
-      gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
-      Sig <- theta_to_cov(gva_par[-seq_len(n_mu)])
-
-      dp_pars <- cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
-                          gamma = skew_start)
-
-      c(dp_pars$xi, cov_to_theta(dp_pars$Psi), dp_pars$alpha)
-    }, numeric(n_p_grp), USE.NAMES = FALSE)
-
-  } else {
-    stopifnot(param_type == "CP_trans")
-    get_skew_trans <- function(x)
-      log((skew_boundary + x) / (skew_boundary - x))
-
-    vapply(1:n_grp, function(i){
-      # setup mean and VA variance
-      gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
-
-      Sig <- theta_to_cov(gva_par[-seq_len(n_mu)])
-      dp_pars <- cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
-                          gamma = skew_start)
-
-      cp_pars <- dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
-                           alpha = dp_pars$alpha)
-
-      out <- c(cp_pars$mu, cov_to_theta(cp_pars$Sigma),
-               get_skew_trans(cp_pars$gamma))
-    }, numeric(n_p_grp), USE.NAMES = FALSE)
-  }
+  stopifnot(length(skew_start) == n_rng)
+  theta_VA <- .get_MGSM_VA_start(
+    n_rng = n_rng, params = params, data_ad_func = data_ad_func,
+    opt_func = opt_func, skew_start = skew_start,
+    is_cp = param_type != "DP", skew_boundary = skew_boundary)
 
   # set names
   theta_VA_names <- local({
@@ -840,6 +823,8 @@ make_mgsm_ADFun <- function(
 
   # we make a wrapper object to account for the eps and kappa and allow the
   # user to change these
+  beta <- params$b
+  theta <- params$theta
   get_snva_out <- function(theta_VA){
     with(new.env(), {
       eps <- adfunc_VA$par["eps"]

@@ -8,15 +8,15 @@ MGSM estimated with method 'SNVA' with link 'probit' from call:
 
 Estimated fixed effects:
                             (Intercept)                                     trt 
-                                 -4.055                                   0.525 
+                                 -4.054                                   0.525 
 nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-                                  2.903                                   5.555 
+                                  2.902                                   5.553 
 nsx(log(y), df = 3, intercept = FALSE)3 
-                                  2.839 
+                                  2.838 
 
 Estimated random effect covariance matrix (correlation matrix) is:
             (Intercept)       (Intercept)
-(Intercept)      0.0447             0.211
+(Intercept)      0.0447             0.212
 (standard deviations are in the diagonal of the correlation matrix)
 
 Estimated lower bound is -3629.13
