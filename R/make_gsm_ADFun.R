@@ -2,8 +2,8 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
-.MGSM_defaul_eps <- .Machine$double.eps
-.MGSM_default_kappa <- 1e8
+.MGSM_defaul_eps <- sqrt(.Machine$double.xmin)
+.MGSM_default_kappa <- 10
 
 #' Maps Between Centralized and Direct Parameters
 #'
@@ -395,6 +395,9 @@ make_mgsm_ADFun <- function(
   eval(bquote(stopifnot(
     .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
 
+  eps <- .MGSM_defaul_eps
+  kappa <- .MGSM_default_kappa
+
   #####
   # get the cluster variable
   cluster <- substitute(cluster)
@@ -420,7 +423,8 @@ make_mgsm_ADFun <- function(
 
   gsm_output <- gsm(formula = formula, tformula = tformula, data = data,
                     df = df, link = link, n_threads = n_threads,
-                    do_fit = need_beta, opt_func = opt_func)
+                    do_fit = need_beta, opt_func = opt_func, eps = eps,
+                    kappa = kappa)
 
   mt_X <- gsm_output$mt_Z
   X <- gsm_output$Z
@@ -487,9 +491,7 @@ make_mgsm_ADFun <- function(
   names(beta) <- colnames(X)
 
   # assign parameter list
-  params = list(
-    eps = .MGSM_defaul_eps, kappa = .MGSM_default_kappa, b = beta,
-    theta = theta)
+  params <- list(eps = eps, kappa = kappa, b = beta, theta = theta)
 
   laplace_out <- if(.laplace_char %in% do_setup)
     .get_laplace_func(data_ad_func, params, n_rng, n_grp, inits)
@@ -509,7 +511,7 @@ make_mgsm_ADFun <- function(
   snva_out <- if(.snva_char %in% do_setup)
     .get_snva_out(n_rng, n_grp, params, skew_start, param_type,
                   skew_boundary, data_ad_func, n_nodes, dense_hess,
-                  sparse_hess, opt_func)
+                  sparse_hess, opt_func, gva_obj = gva_out, inits = inits)
   else
     NULL
 
@@ -759,21 +761,75 @@ make_mgsm_ADFun <- function(
 
 .get_snva_out <- function(
   n_rng, n_grp, params, skew_start, param_type, skew_boundary, data_ad_func,
-  n_nodes, dense_hess, sparse_hess, opt_func) {
+  n_nodes, dense_hess, sparse_hess, opt_func, gva_obj, inits) {
   # setup cache
   setup_atomic_cache(
     n_nodes = n_nodes, type = .snva_char, link = data_ad_func$link)
 
   #####
   # setup starting values for VA parameters
-  # find GVA solution
-  if(length(skew_start) != n_rng)
+  # get GVA object if needed
+  if(is.null(gva_obj))
+    gva_obj <- .get_gva_func(
+      n_rng, n_grp, params, data_ad_func, n_nodes, dense_hess = FALSE,
+      sparse_hess = FALSE, inits, opt_func)
+
+  # set the initial values
+  n_mu     <- n_rng
+  n_rho    <- n_rng
+  n_Lambda <- (n_rng * (n_rng + 1L)) / 2L
+  n_p_grp  <- n_mu + n_Lambda + n_rho
+  theta_VA <- rep(NA_real_, n_p_grp * n_grp)
+
+  # find gva solution
+  gva_opt <- with(gva_obj, opt_func(par, fn, gr,
+                                    control = list(maxit = 1000L)))
+  beta  <- params$b     <-
+    gva_opt$par[1:length(params$b)]
+  theta <- params$theta <-
+    gva_opt$par[1:length(params$theta) + length(beta)]
+  gva_va_vals <- gva_opt$par[
+    -seq_len(length(beta) + length(theta))]
+
+  if(length(skew_start) == 1L && n_rng > 1L)
     skew_start <- rep(skew_start, n_rng)
-  stopifnot(length(skew_start) == n_rng)
-  theta_VA <- .get_MGSM_VA_start(
-    n_rng = n_rng, params = params, data_ad_func = data_ad_func,
-    opt_func = opt_func, skew_start = skew_start,
-    is_cp = param_type != "DP", skew_boundary = skew_boundary)
+
+  n_p_grp_gva <-  n_p_grp - n_rho
+  theta_VA <- if(param_type == "DP"){
+    n_lower_tri <- (n_rng * (n_rng - 1L)) / 2L
+
+    vapply(1:n_grp, function(i){
+      # setup mean and VA variance
+      gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
+      Sig <- theta_to_cov(gva_par[-seq_len(n_mu)])
+
+      dp_pars <- cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
+                          gamma = skew_start)
+
+      c(dp_pars$xi, cov_to_theta(dp_pars$Psi), dp_pars$alpha)
+    }, numeric(n_p_grp), USE.NAMES = FALSE)
+
+  } else {
+    stopifnot(param_type == "CP_trans")
+    get_skew_trans <- function(x)
+      log((skew_boundary + x) / (skew_boundary - x))
+
+    vapply(1:n_grp, function(i){
+      # setup mean and VA variance
+      gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]
+
+      Sig <- theta_to_cov(gva_par[-seq_len(n_mu)])
+      dp_pars <- cp_to_dp(mu = gva_par[1:n_mu], Sigma = Sig,
+                          gamma = skew_start)
+
+      cp_pars <- dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
+                          alpha = dp_pars$alpha)
+
+      out <- c(cp_pars$mu, cov_to_theta(cp_pars$Sigma),
+               get_skew_trans(cp_pars$gamma))
+    }, numeric(n_p_grp), USE.NAMES = FALSE)
+
+  }
 
   # set names
   theta_VA_names <- local({

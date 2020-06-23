@@ -14,7 +14,9 @@ gsm_get_XD <- function(time_var, mt_X, data){
 # fits a GSM
 #' @importFrom stats ecdf
 gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
-                do_fit, opt_func = .opt_default){
+                do_fit, opt_func = .opt_default,
+                eps = .MGSM_defaul_eps,
+                kappa = .MGSM_default_kappa){
   # checks
   stopifnot(
     inherits(formula, "formula"),
@@ -52,13 +54,14 @@ gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
     return(out)
 
   out$fit <- gsm_fit(X, XD, Z, y, link, n_threads, opt_func, numeric(),
-                     numeric())
+                     numeric(), eps = eps, kappa = kappa)
   out
 }
 
 # fits a GSM
 gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default,
-                    offset_eta, offset_etaD, beta = NULL, gamma = NULL){
+                    offset_eta, offset_etaD, beta = NULL, gamma = NULL,
+                    eps = .MGSM_defaul_eps, kappa = .MGSM_default_kappa){
   # checks
   n <- NROW(y)
   stopifnot(NROW(X) == n, is.matrix(X),
@@ -109,7 +112,7 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default,
 
   # get object for ML estimation and perform the estimation
   opt_obj <- get_gsm_pointer(
-    X = t(X), XD = t(XD), Z = t(Z), y = event, eps = 1e-16, kappa = 1e8,
+    X = t(X), XD = t(XD), Z = t(Z), y = event, eps = eps, kappa = kappa,
     link = link, n_threads = n_threads, offset_eta = offset_eta,
     offset_etaD = offset_etaD)
 
@@ -127,5 +130,6 @@ gsm_fit <- function(X, XD, Z, y, link, n_threads, opt_func = .opt_default,
 
   list(beta  = opt_out$par[is_beta],
        gamma = opt_out$par[is_gamma],
-       optim = opt_out, mlogli = fn, grad = gr, hess = he)
+       optim = opt_out, mlogli = fn, grad = gr, hess = he,
+       start_coef = par)
 }

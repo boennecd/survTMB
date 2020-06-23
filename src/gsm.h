@@ -119,19 +119,24 @@ public:
       double const eta =
         arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
       Family fam(eta);
+      double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
+                     haz = -fam.gp_g() * eta_p;
+      bool const valid = haz > eps;
 
-      if(y[i] > 0){
-        double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
-                         h = -fam.gp() * eta_p;
-        if(__builtin_expect(h > eps, 1))
-          /*   valid h */
-          out += log(h);
+
+      if(y[i] > 0)
+        if(__builtin_expect(valid, 1))
+          out += log(-fam.gp() * eta_p);
         else
-          /* invalid h */
-          out += eps_log - h * h * kappa;
-
-      } else
+          out += eps_log + fam.g_log();
+      else
         out += fam.g_log();
+
+      if(__builtin_expect(valid, 1))
+        continue;
+
+      double const delta = haz - eps;
+      out -= kappa * delta * delta;
     }
 
     return out;
@@ -158,35 +163,41 @@ public:
                    * const xdi = XD.colptr(i),
                    * const zi  = Z .colptr(i);
       double const eta =
-        arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
+          arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
       Family fam(eta);
+      double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
+                     haz = -fam.gp_g() * eta_p;
+      bool const valid = haz > eps;
 
       if(y[i] > 0){
-        double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
-                         h = -fam.gp() * eta_p;
-
-        if(__builtin_expect(h > eps, 1)){
-          /*   valid h */
+        if(__builtin_expect(valid, 1)){
           double const f = fam.gpp_gp();
           arma_inplace_add(db_loc, f         , xi);
           arma_inplace_add(dg_loc, f         , zi);
           arma_inplace_add(db_loc, 1. / eta_p, xdi);
 
         } else {
-          /* invalid h */
-          double const fpp = 2. * kappa * fam.gpp(),
-                        fp = 2. * kappa * fam. gp();
-          arma_inplace_add(db_loc, -fpp, xi);
-          arma_inplace_add(dg_loc, -fpp, zi);
-          arma_inplace_add(db_loc, - fp, xdi);
+          double const fac = fam.gp_g();
+          arma_inplace_add(db_loc, fac, xi);
+          arma_inplace_add(dg_loc, fac, zi);
 
         }
       } else {
-        double const f = fam.gp_g();
-        arma_inplace_add(db_loc, f, xi);
-        arma_inplace_add(dg_loc, f, zi);
+        double const fac = fam.gp_g();
+        arma_inplace_add(db_loc, fac, xi);
+        arma_inplace_add(dg_loc, fac, zi);
 
       }
+
+      if(__builtin_expect(valid, 1))
+        continue;
+
+      double const fac = -2. * kappa * (haz - eps),
+                    f1 = -fac * fam.d_gp_g() * eta_p,
+                    f2 = -fac * fam.gp_g();
+      arma_inplace_add(db_loc, f1, xi);
+      arma_inplace_add(dg_loc, f1, zi);
+      arma_inplace_add(db_loc, f2, xdi);
     }
 
 #ifdef _OPENMP
@@ -224,32 +235,31 @@ public:
       double const * const xi  = X .colptr(i),
                    * const xdi = XD.colptr(i),
                    * const zi  = Z .colptr(i);
-        double const eta =
-          arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
-        Family fam(eta);
+      double const eta =
+        arma_dot(beta, xi) + arma_dot(gamma, zi) + offset_eta[i];
+      Family fam(eta);
+      double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
+                     haz = -fam.gp_g() * eta_p;
+      bool const valid = haz > eps;
 
-        if(y[i] > 0){
-          double const eta_p = arma_dot(beta, xdi) + offset_etaD[i],
-                           h = -fam.gp() * eta_p;
-
-          if(__builtin_expect(h > eps, 1)){
-            /*   valid h */
-            double const f = fam.d_gpp_gp();
-            /* TODO: do something smarter */
-            bm_loc  += (f * X.col(i)) * X.col(i).t();
-            gm_loc  += (f * Z.col(i)) * Z.col(i).t();
-            gbm_loc += (f * Z.col(i)) * X.col(i).t();
-            bm_loc  -= (XD.col(i) / (eta_p * eta_p)) * XD.col(i).t();
-
-          }
-        } else {
+      if(y[i] > 0){
+        if(__builtin_expect(valid, 1)){
+          double const f = fam.d_gpp_gp();
           /* TODO: do something smarter */
-          double const f = fam.d_gp_g();
           bm_loc  += (f * X.col(i)) * X.col(i).t();
           gm_loc  += (f * Z.col(i)) * Z.col(i).t();
           gbm_loc += (f * Z.col(i)) * X.col(i).t();
+          bm_loc  -= (XD.col(i) / (eta_p * eta_p)) * XD.col(i).t();
 
         }
+      } else {
+        /* TODO: do something smarter */
+        double const f = fam.d_gp_g();
+        bm_loc  += (f * X.col(i)) * X.col(i).t();
+        gm_loc  += (f * Z.col(i)) * Z.col(i).t();
+        gbm_loc += (f * Z.col(i)) * X.col(i).t();
+
+      }
     }
 
 #ifdef _OPENMP
@@ -277,7 +287,9 @@ public:
 
 /** probit link function. */
 struct gsm_probit {
-  double const eta;
+  double const eta,
+          dnrm_log = Rf_dnorm4(-eta, 0, 1, 1),
+          pnrm_log = Rf_pnorm5(-eta, 0, 1, 1, 1);
 
   gsm_probit(double const eta): eta(eta) { }
 

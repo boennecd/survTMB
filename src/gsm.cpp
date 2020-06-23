@@ -2,23 +2,22 @@
 
 namespace gsm_objs {
 double gsm_probit::g_log() const {
-  return Rf_pnorm5(-eta, 0, 1, 1, 1);
+  return pnrm_log;
 }
 double gsm_probit::gp() const{
-  return -Rf_dnorm4(-eta, 0, 1, 0);
+  return -exp(dnrm_log);
 }
 double gsm_probit::gp_g() const{
-  return -exp(Rf_dnorm4(-eta, 0, 1, 1) - Rf_pnorm5(-eta, 0, 1, 1, 1));
+  return -exp(dnrm_log - pnrm_log);
 }
 double gsm_probit::gpp_gp() const {
   return -eta;
 }
 double gsm_probit::gpp() const {
-  return eta * Rf_dnorm4(-eta, 0, 1, 0);
+  return eta * exp(dnrm_log);
 }
 double gsm_probit::d_gp_g() const {
-  double const log_gp_g =
-    Rf_dnorm4(-eta, 0, 1, 1) - Rf_pnorm5(-eta, 0, 1, 1, 1),
+  double const log_gp_g = dnrm_log - pnrm_log,
                 gpp_g = eta * exp(log_gp_g),
               gp_sq_g_sq = exp(2 * log_gp_g);
   return gpp_g - gp_sq_g_sq;

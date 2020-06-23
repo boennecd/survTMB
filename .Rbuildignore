@@ -10,3 +10,4 @@
 ^inst/test-data/gen-test-data\.R
 ^inst/test-data/large-joint-all\.RDS
 ^inst/test-data/README\.md
+^tests/testthat/local-tests
