@@ -28,8 +28,8 @@ test_that("Gradients are correct with a high epsilon", {
   # dput(with(fit, numDeriv::grad(mlogli, start_coef)))
   expect_equal(
     drop(with(fit, grad(start_coef))),
-    c(-267.988148455606, 76.1320534565749, 298.740066381521,
-      78.4837230074173, -190.722172637887, -105.395726242187),
+    c(-4462.51544524202, -1477.02030303319, 695.465371884567,
+      -5634.08636135467, -1501.32718063916, -3658.98920614737),
     tolerance = 1e-5)
 
   fit <- get_fit("PO", eps = 1)
@@ -41,8 +41,8 @@ test_that("Gradients are correct with a high epsilon", {
   # dput(with(fit, numDeriv::grad(mlogli, start_coef)))
   expect_equal(
     drop(with(fit, grad(start_coef))),
-    c(-200.08884765849, -15.4083728748582, 106.693482823233,
-      -123.895063426942, -99.7090137336823, -133.106028981174),
+    c(-2987.58250085956, -932.702279672211, 512.066111198917,
+      -3635.17501093579, -993.50437332079, -2417.89958934265),
     tolerance = 1e-5)
 
   fit <- get_fit("probit")
@@ -54,6 +54,6 @@ test_that("Gradients are correct with a high epsilon", {
   # dput(with(fit, numDeriv::grad(mlogli, start_coef)))
   expect_equal(
     drop(with(fit, grad(start_coef))),
-    c(1180.59297436751, -3238.7442226338, 2435.97387283985,
-      3644.49430227336, 3638.23404178443, 3398.05918852532))
+    c(11115.8432497678, -33621.8717162036, 22883.8510911714,
+      32976.8315701619, 36842.5634464707, 32730.3964620881))
 })

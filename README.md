@@ -39,6 +39,8 @@ dat <- coxme::eortc
 
 # assign function to estimate the model
 library(survTMB)
+#> Loading required package: splines
+#> Loading required package: survival
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", dense_hess = FALSE, 
@@ -223,12 +225,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 318.51 318.74 324.28 320.40 323.10 349.58
-#>               Compute sparse Hessian  18.52  18.95  19.15  19.12  19.44  19.75
-#>         Invert dense Hessian (naive)   5.26   5.38   5.56   5.48   5.56   6.67
-#>        Invert sparse Hessian (naive)   1.02   1.07   1.19   1.17   1.32   1.36
-#>   Invert dense Hessian (alternative)   1.27   1.32   1.38   1.35   1.39   1.65
-#>  Invert sparse Hessian (alternative)   2.73   2.92   2.98   2.99   3.05   3.21
+#>                Compute dense Hessian 320.90 324.78 331.20 331.93 334.36 348.27
+#>               Compute sparse Hessian  19.92  20.22  20.89  21.02  21.38  22.02
+#>         Invert dense Hessian (naive)   5.27   5.33   5.58   5.45   5.67   6.79
+#>        Invert sparse Hessian (naive)   1.07   1.11   1.22   1.21   1.33   1.45
+#>   Invert dense Hessian (alternative)   1.34   1.38   1.41   1.40   1.45   1.55
+#>  Invert sparse Hessian (alternative)   2.83   2.99   3.13   3.14   3.24   3.46
 #>  neval
 #>     10
 #>     10
@@ -253,10 +255,10 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 #> Unit: milliseconds
-#>               expr   min    lq  mean median    uq   max neval
-#>  W/o Hessians       28.2  28.8  39.4   29.4  30.5 129.8    10
-#>  W/ dense Hessian   79.0  79.3  80.7   80.0  81.7  86.4    10
-#>  W/ sparse Hessian 627.7 630.1 639.7  634.5 646.9 664.3    10
+#>               expr   min    lq  mean median    uq max neval
+#>  W/o Hessians       28.9  30.2  30.7   30.8  31.2  32    10
+#>  W/ dense Hessian   82.0  85.0 107.8   86.9  91.0 196    10
+#>  W/ sparse Hessian 647.1 650.5 663.4  660.0 666.7 708    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -676,29 +678,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           922  923  932    935  936  944     5
-#>  PH     (2L)  542  555  566    569  576  587     5
-#>  PH     (4L)  397  401  415    406  426  448     5
-#>  PO          1116 1129 1137   1136 1142 1164     5
-#>  PO     (2L)  674  681  691    690  699  711     5
-#>  PO     (4L)  482  483  493    484  488  527     5
-#>  probit      1620 1626 1653   1655 1668 1694     5
-#>  probit (2L)  975  986  992    993 1002 1004     5
-#>  probit (4L)  670  701  707    713  715  737     5
+#>  PH           851  862  867    864  875  884     5
+#>  PH     (2L)  509  511  525    531  536  537     5
+#>  PH     (4L)  362  367  375    375  383  389     5
+#>  PO          1183 1231 1241   1259 1260 1269     5
+#>  PO     (2L)  725  728  738    740  742  757     5
+#>  PO     (4L)  505  524  528    532  536  541     5
+#>  probit      1428 1434 1453   1456 1467 1479     5
+#>  probit (2L)  851  853  868    875  879  882     5
+#>  probit (4L)  588  597  600    598  599  618     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr   min    lq mean median    uq   max neval
-#>  PH          194.8 199.8  199  200.1 200.8 201.7     5
-#>  PH     (2L) 117.5 122.5  125  124.3 126.9 132.9     5
-#>  PH     (4L)  90.5  92.2   93   93.1  94.5  94.8     5
-#>  PO          457.9 461.7  469  462.6 480.2 481.6     5
-#>  PO     (2L) 265.7 271.4  276  275.2 283.2 284.9     5
-#>  PO     (4L) 184.7 188.0  191  189.3 190.1 203.5     5
-#>  probit      609.0 618.2  632  621.2 643.8 668.1     5
-#>  probit (2L) 355.5 355.8  365  361.8 367.5 382.6     5
-#>  probit (4L) 243.3 245.2  253  254.3 259.9 264.7     5
+#>         expr   min    lq  mean median  uq   max neval
+#>  PH          187.1 189.1 189.2  189.1 190 191.4     5
+#>  PH     (2L) 119.9 121.0 121.7  122.0 123 123.3     5
+#>  PH     (4L)  92.5  93.4  94.2   94.9  95  95.3     5
+#>  PO          453.5 455.5 458.1  456.4 457 468.1     5
+#>  PO     (2L) 270.9 272.2 277.0  273.4 281 287.4     5
+#>  PO     (4L) 187.9 187.9 188.8  188.3 188 191.4     5
+#>  probit      619.8 624.9 629.5  630.2 636 636.5     5
+#>  probit (2L) 371.3 372.1 373.0  372.6 374 374.8     5
+#>  probit (4L) 252.0 254.1 258.4  258.4 263 264.7     5
 ```
 
 ``` r
@@ -725,30 +727,30 @@ for(param_type in c("DP", "CP_trans")){
 #> Method: SNVA (DP)
 #> -----------------
 #> Unit: milliseconds
-#>         expr min  lq mean median  uq max neval
-#>  PH          227 229  230    229 232 233     5
-#>  PH     (2L) 142 144  144    144 144 146     5
-#>  PH     (4L) 109 110  110    110 111 111     5
-#>  PO          531 533  535    535 535 539     5
-#>  PO     (2L) 325 331  331    331 332 334     5
-#>  PO     (4L) 230 231  232    233 233 233     5
-#>  probit      964 970  973    971 977 983     5
-#>  probit (2L) 589 595  598    596 600 608     5
-#>  probit (4L) 417 419  421    421 422 424     5
+#>         expr  min   lq mean median   uq  max neval
+#>  PH           227  228  229    228  229  232     5
+#>  PH     (2L)  144  146  149    146  146  162     5
+#>  PH     (4L)  110  111  114    113  114  122     5
+#>  PO           541  542  543    543  543  548     5
+#>  PO     (2L)  334  335  337    337  340  340     5
+#>  PO     (4L)  234  235  238    239  239  241     5
+#>  probit      1046 1056 1056   1056 1060 1062     5
+#>  probit (2L)  625  625  631    631  632  642     5
+#>  probit (4L)  439  439  451    440  443  493     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           313  315  317    317  319  321     5
-#>  PH     (2L)  197  198  202    201  201  212     5
-#>  PH     (4L)  146  147  151    150  152  162     5
-#>  PO           533  534  542    544  546  550     5
-#>  PO     (2L)  332  336  339    337  339  349     5
-#>  PO     (4L)  231  232  234    233  234  240     5
-#>  probit      1001 1001 1013   1009 1012 1042     5
-#>  probit (2L)  597  597  606    604  615  616     5
-#>  probit (4L)  414  424  427    427  430  439     5
+#>  PH           319  320  323    322  323  329     5
+#>  PH     (2L)  202  205  206    206  207  209     5
+#>  PH     (4L)  149  150  150    150  151  153     5
+#>  PO           544  550  554    557  557  561     5
+#>  PO     (2L)  342  342  345    344  348  350     5
+#>  PO     (4L)  238  238  239    238  238  242     5
+#>  probit      1015 1027 1030   1028 1035 1047     5
+#>  probit (2L)  650  656  655    656  657  658     5
+#>  probit (4L)  445  452  454    455  457  459     5
 ```
 
 ## Joint Models
@@ -984,7 +986,7 @@ system.time(
     s_coefs = dat$params$b_attr$knots, g_coefs = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  22.796   0.051   6.577
+#>  25.595   0.028   7.045
 ```
 
 Next, we fit the model using the default optimization function.
@@ -994,7 +996,7 @@ system.time(
   opt_out <- out$opt_func(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#> 129.492   0.021  21.833
+#> 140.800   0.027  23.742
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -1257,7 +1259,7 @@ system.time(
 #> Creating ADFun...
 #> Finding starting values for variational parameters...
 #>    user  system elapsed 
-#>  12.250   0.356   6.206
+#>  13.403   0.436   7.032
 
 -func$fn(func$par) # lower bound of the log-likelihood
 #> [1] -1575
@@ -1267,8 +1269,8 @@ library(lbfgs)
 system.time(
   opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
                    max_iterations = 5000L, invisible = 1))
-#>     user   system  elapsed 
-#> 1501.950    0.079  252.651
+#>    user  system elapsed 
+#> 1592.21    0.22  268.51
 ```
 
 We show the estimates below and compare them with the true values.
@@ -1282,12 +1284,12 @@ rbind(
   Estimates = head(opt_out$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
-#> Starting values             0.0150              0.076               0.140
-#> Estimates                   0.0198              0.100               0.184
-#> True values                 0.0200              0.100               0.175
+#> Starting values             0.0150             0.0760               0.140
+#> Estimates                   0.0191             0.0968               0.178
+#> True values                 0.0200             0.1000               0.175
 #>                 beta:Z.1 beta:Z.2 log_sds1
 #> Starting values   -0.792    0.217   -0.693
-#> Estimates         -1.031    0.279   -0.167
+#> Estimates         -0.993    0.270   -0.255
 #> True values       -1.000    0.250   -0.223
 ```
 

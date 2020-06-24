@@ -2,8 +2,8 @@
 .gva_char     <- "GVA"
 .snva_char    <- "SNVA"
 
-.MGSM_defaul_eps <- sqrt(.Machine$double.xmin)
-.MGSM_default_kappa <- 10
+.MGSM_defaul_eps <- .Machine$double.xmin^(1/5)
+.MGSM_default_kappa <- 100
 
 #' Maps Between Centralized and Direct Parameters
 #'
