@@ -38,15 +38,13 @@ get_vcov_from_trian(Type const *vals, unsigned const dim){
   matrix<Type> out(dim, dim);
   out.setZero();
 
-  /* fill the diagonal */
-  for(unsigned i = 0; i < dim; ++i)
-    out(i, i) = exp(*(vals + i));
-
-  /* fill the off-diagonal */
-  Type const * t = vals + dim;
-  for(unsigned cl = 0; cl < dim; cl++)
+  /* fill in the lower diagonal matrix */
+  Type const * t = vals;
+  for(unsigned cl = 0; cl < dim; cl++){
+    out(cl, cl) = exp(*t++);
     for(unsigned rw = cl + 1L; rw < dim; rw++)
-      out(rw, cl) = out(rw, rw) * *t++;
+      out(rw, cl) = *t++;
+  }
 
   return out * out.transpose();
 }

@@ -10,13 +10,11 @@ context("Utils unit tests") {
     /*
      Sigma <- matrix(c(4, 2, 1, 2, 2, .5, 1, .5, 1), 3L, 3L)
      ch <- t(chol(Sigma))
-     sigs <- diag(ch)
-     L <- diag(sigs^(-1)) %*% ch
-     dput(c(log(sigs), L[lower.tri(L)]))
+     diag(ch) <- log(diag(ch))
+     dput(ch[lower.tri(ch, TRUE)])
      */
     vector<double> theta(6);
-    theta << 0.693147180559945, 0, -0.143841036225891, 1,
-             0.577350269189626, 0;
+    theta << 0.693147180559945, 1, 0.5, 0, 0, -0.143841036225891;
     auto Sigma = get_vcov_from_trian(&theta[0L], 3L);
 
     std::vector<double> const ex { 4, 2, 1, 2, 2, .5, 1, .5, 1 };

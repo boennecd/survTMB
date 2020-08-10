@@ -5,14 +5,11 @@
 using namespace GaussHermite;
 using namespace GaussHermite::SNVA;
 
-namespace {
-template<class C1, class C2>
-void do_test(C1 const &ex, C2 const &re){
-  expect_true(ex.size() == (unsigned)re.size());
-  for(unsigned i = 0; i < ex.size(); ++i)
-    expect_equal(ex[i], *(re.data() + i));
-}
-} // namespace
+#define DO_TEST(ex, re)                                        \
+  expect_true(static_cast<size_t>(ex.size()) ==                \
+                static_cast<size_t>(re.size()));               \
+  for(size_t i = 0; i < static_cast<size_t>(ex.size()); ++i)   \
+     expect_equal(ex[i], *(re.data() + i));
 
 context("snva-utils unit tests") {
   test_that("entropy_term gives the correct result") {
@@ -262,15 +259,14 @@ context("snva-utils unit tests") {
      rho <- c(5, 7, 9)
      dput(alpha <- rho * sqrt(diag(Sig)))
      ch <- t(chol(Sig))
-     log_sigs <- log(diag(ch))
-     L <- diag(diag(ch)^(-1)) %*% ch
-     dput(c(mu, log_sigs, L[lower.tri(L)], rho))
+     diag(ch) <- log(diag(ch))
+     dput(ch[lower.tri(ch, TRUE)])
      */
     using Type = double;
     vector<Type> theta(12);
-    theta << 4, 3, 8, 0, 0.549306144334055, 0.255412811882995,
-             0.577350269189626,
-             1.54919333848297, 0.447213595499958,
+    theta << 4, 3, 8,
+             0, 1, 2,
+             0.549306144334055, 0.577350269189626, 0.255412811882995,
              5, 14, 22.0454076850486;
 
     auto input = SNVA_MD_theta_DP_to_DP(&theta[0], theta.size(), 3L);
@@ -280,9 +276,9 @@ context("snva-utils unit tests") {
 
     expect_true(input.va_mus.size() == 1L);
 
-    do_test(mu , input.va_mus[0]);
-    do_test(Sig, input.va_lambdas[0]);
-    do_test(rho, input.va_rhos[0]);
+    DO_TEST(mu , input.va_mus[0]);
+    DO_TEST(Sig, input.va_lambdas[0]);
+    DO_TEST(rho, input.va_rhos[0]);
   }
   {
     /*
@@ -305,8 +301,7 @@ context("snva-utils unit tests") {
     using Type = double;
     vector<Type> theta(12);
     theta << -1., 0., 1.,
-             1.38629436111989, 0, 1.09861228866811, 2, 0.333333333333333,
-             0.666666666666667,
+             1.38629436111989, 2, 1, 0, 2, 1.09861228866811,
              0.01, -0.01, 0;
 
     auto input = SNVA_MD_theta_CP_trans_to_DP(&theta[0], theta.size(), 3L);
@@ -320,8 +315,8 @@ context("snva-utils unit tests") {
 
     expect_true(input.va_mus.size() == 1L);
 
-    do_test(mu , input.va_mus[0]);
-    do_test(Sig, input.va_lambdas[0]);
-    do_test(rho, input.va_rhos[0]);
+    DO_TEST(mu , input.va_mus[0]);
+    DO_TEST(Sig, input.va_lambdas[0]);
+    DO_TEST(rho, input.va_rhos[0]);
   }
 }

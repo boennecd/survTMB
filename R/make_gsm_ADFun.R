@@ -203,18 +203,13 @@ dp_to_cp <- function(xi, Psi, alpha){
 #'
 #' @description
 #' Let \eqn{C} be a \eqn{K}-dimensional covariance matrix. Let
-#' \eqn{C = LL^\top} where \eqn{L} is the Cholesky decomposition
-#' and \eqn{L = diag(\psi) H} where  \eqn{H} is a lower triangular matrix
-#' with ones in the diagonal. Then the two functions map between \eqn{C} and
-#' a vector where the first \eqn{K} elements are the log of \eqn{psi} and
-#' the remaining \eqn{K (K - 1) / 2} elements are the non-zero and
-#' non-diagonal entries of \eqn{H}.
+#' \eqn{C = LL^\top} where \eqn{L} is the Cholesky decomposition.
+#' Then the two functions map between \eqn{C} and
+#' a vector where containing the non-zero elements of L where the diagonal
+#' entries have been log transformed.
 #'
 #' @param cov the covariance matrix.
-#' @param theta numeric vector where the
-#'              first \eqn{K} elements are the log of \eqn{psi} and the
-#'              remaining \eqn{K (K - 1) / 2} elements are the non-zero and
-#'              non-diagonal entries of \eqn{H}.
+#' @param theta numeric vector with log-cholesky parametrization.
 #'
 #' @examples
 #' set.seed(1)
@@ -227,13 +222,12 @@ dp_to_cp <- function(xi, Psi, alpha){
 cov_to_theta <- function(cov){
   n_rng <- NCOL(cov)
   ch <- t(chol(cov))
-  log_sd <- structure(log(diag(ch)), names = paste0("log_sd", 1:n_rng))
-  keep <- lower.tri(ch)
-  lower_tri <-(diag(diag(ch)^(-1), n_rng) %*% ch)[keep]
-  if(n_rng > 1L)
-    names(lower_tri) <-
-      outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
-  c(log_sd, lower_tri)
+  diag(ch) <- log(diag(ch))
+  keep <- lower.tri(ch, TRUE)
+  lower_tri <- ch[keep]
+  names(lower_tri) <-
+    outer(1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
+  lower_tri
 }
 
 #' @rdname cov_to_theta
@@ -244,9 +238,9 @@ theta_to_cov <- function(theta){
   if(dim < 2L)
     return(exp(2 * theta))
 
-  L <- diag(dim)
-  L[lower.tri(L)] <- tail(theta, -dim)
-  L <- diag(exp(head(theta, dim))) %*% L
+  L <- matrix(0, dim, dim)
+  L[lower.tri(L, TRUE)] <- theta
+  diag(L) <- exp(diag(L))
   tcrossprod(L)
 }
 
@@ -665,7 +659,6 @@ make_mgsm_ADFun <- function(
 
 .get_gva_func <- function(n_rng, n_grp, params, data_ad_func, n_nodes,
                           dense_hess, sparse_hess, inits, opt_func) {
-  # setup cache
   setup_atomic_cache(
     n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link)
 
