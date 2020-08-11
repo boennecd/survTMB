@@ -201,7 +201,9 @@ make_heritability_ADFun <- function(
                      kappa = .MGSM_default_kappa)
 
   # setup cache
-  setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link)
+  cluster_sizes <- sapply(c_data, function(x) NCOL(x$cor_mats[[1L]]))
+  setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link,
+                     triag_sizes = unique(cluster_sizes))
 
   adfun <- get_herita_funcs(data = data, parameters = parameters)
   par <- c(parameters$omega, parameters$beta, parameters$log_sds,

@@ -1,4 +1,55 @@
+#include "fast-commutation.h"
 #include <Rcpp.h>
+
+std::unique_ptr<size_t[]> get_commutation_unequal_vec
+  (unsigned const n, unsigned const m, bool const transpose){
+  unsigned const nm = n * m,
+            nnm_p1 = n * nm + 1L,
+             nm_pm = nm + m;
+  std::unique_ptr<size_t[]> out(new size_t[nm]);
+  size_t * const o_begin = out.get();
+  size_t idx = 0L;
+  for(unsigned i = 0; i < n; ++i, idx += nm_pm){
+    size_t idx1 = idx;
+    for(unsigned j = 0; j < m; ++j, idx1 += nnm_p1)
+      if(transpose)
+        *(o_begin + idx1 / nm) = (idx1 % nm);
+      else
+        *(o_begin + idx1 % nm) = (idx1 / nm);
+  }
+
+  return out;
+}
+
+size_t const * get_commutation_unequal_vec_cached(unsigned const n){
+  constexpr std::size_t n_cache = 1000L;
+  if(n > n_cache or n == 0L)
+    throw std::invalid_argument(
+        "get_commutation_unequal_vec_cached: invalid n (too large or zero)");
+
+  static std::array<std::unique_ptr<size_t[]>, n_cache> cached_values;
+
+  unsigned const idx = n - 1L;
+  bool has_value = cached_values[idx].get();
+
+  if(has_value)
+    return cached_values[idx].get();
+
+#ifdef _OPENMP
+#pragma omp critical (coomuCached)
+{
+#endif
+  has_value = cached_values[idx].get();
+  if(!has_value){
+    std::unique_ptr<size_t[]> new_val =
+      get_commutation_unequal_vec(n, n, false);
+    cached_values[idx].swap(new_val);
+  }
+#ifdef _OPENMP
+}
+#endif
+  return cached_values[idx].get();
+}
 
 Rcpp::NumericMatrix get_commutation_unequal
   (unsigned const n, unsigned const m){

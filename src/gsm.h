@@ -246,18 +246,26 @@ public:
         if(__builtin_expect(valid, 1)){
           double const f = fam.d_gpp_gp();
           /* TODO: do something smarter */
-          bm_loc  += (f * X.col(i)) * X.col(i).t();
-          gm_loc  += (f * Z.col(i)) * Z.col(i).t();
-          gbm_loc += (f * Z.col(i)) * X.col(i).t();
-          bm_loc  -= (XD.col(i) / (eta_p * eta_p)) * XD.col(i).t();
+          if(n_g > 0)
+            gm_loc  += (f * Z.col(i)) * Z.col(i).t();
+          if(n_b > 0){
+            bm_loc  += (f * X.col(i)) * X.col(i).t();
+            if(n_g > 0)
+              gbm_loc += (f * Z.col(i)) * X.col(i).t();
+            bm_loc  -= (XD.col(i) / (eta_p * eta_p)) * XD.col(i).t();
+          }
 
         }
       } else {
         /* TODO: do something smarter */
         double const f = fam.d_gp_g();
-        bm_loc  += (f * X.col(i)) * X.col(i).t();
-        gm_loc  += (f * Z.col(i)) * Z.col(i).t();
-        gbm_loc += (f * Z.col(i)) * X.col(i).t();
+        if(n_g > 0)
+          gm_loc  += (f * Z.col(i)) * Z.col(i).t();
+        if(n_b > 0){
+          bm_loc  += (f * X.col(i)) * X.col(i).t();
+          if(n_g > 0)
+            gbm_loc += (f * Z.col(i)) * X.col(i).t();
+        }
 
       }
     }

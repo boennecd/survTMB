@@ -85,7 +85,7 @@ fix_atomic_seqfault <- function() {
     invisible(.Call(`_survTMB_fix_atomic_seqfault`))
 }
 
-setup_atomic_cache <- function(n_nodes, type, link = "") {
-    invisible(.Call(`_survTMB_setup_atomic_cache`, n_nodes, type, link))
+setup_atomic_cache <- function(n_nodes, type, triag_sizes, link = "") {
+    invisible(.Call(`_survTMB_setup_atomic_cache`, n_nodes, type, triag_sizes, link))
 }
 

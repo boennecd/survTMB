@@ -2,6 +2,7 @@
 #define SURVTMB_UTILS_H
 
 #include "tmb_includes.h"
+#include "fast-commutation.h"
 #ifdef _OPENMP
 #include "omp.h"
 #endif
@@ -19,34 +20,155 @@ unsigned get_rng_dim(vector<Type> x){
   return get_rng_dim(x.size());
 }
 
-/* Returns a covariance matix given a vector containing log standard
- * deviations, s, and lower triangular matrix elements theta. E.g. in 3x3
-
- \begin{align*}
- (\log \vec\sigma)^\top &= (s_1, s_2, s_3)
- & L &= \begin{pmatrix}
- 1 & 0 & 0 \       \
- \theta_1 & 1 & 0 \\
- \theta_2 & \theta_3 & 1
- \end{pmatrix} \\
- \Sigma &= \text{diag}(\sigma)LL^\top\text{diag}(\sigma)
- \end{align*}
+/* Returns the covariance matrix from a log Cholesky decomposition
 */
 template<class Type>
-matrix<Type>
-get_vcov_from_trian(Type const *vals, unsigned const dim){
-  matrix<Type> out(dim, dim);
-  out.setZero();
+class get_vcov_from_trian_atomic : public CppAD::atomic_base<Type> {
+  size_t const n,
+              nn = n * n,
+           n_ele = (n * (n + 1L)) / 2L;
 
-  /* fill in the lower diagonal matrix */
-  Type const * t = vals;
-  for(unsigned cl = 0; cl < dim; cl++){
-    out(cl, cl) = exp(*t++);
-    for(unsigned rw = cl + 1L; rw < dim; rw++)
-      out(rw, cl) = *t++;
+public:
+  get_vcov_from_trian_atomic(char const *name, size_t const n):
+  CppAD::atomic_base<Type>(name), n(n) {
+    this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
 
-  return out * out.transpose();
+  template<class T>
+  static void comp(T const *x, T * y, size_t const n_arg){
+    // TODO: can be done smarter...
+    typename
+    Eigen::Map<Eigen::Matrix<T,Eigen::Dynamic,Eigen::Dynamic> >
+      out(y, n_arg, n_arg);
+    out.setZero();
+
+    for(size_t c = 0; c < n_arg; ++c){
+      for(size_t r = c; r < n_arg; ++r)
+        out(r, c) = *x++;
+    }
+
+    // out * out.t()
+    for(size_t c = n_arg; c-- > 0;){
+      for(size_t r = c + 1L; r-- > 0;){
+        Type new_term(0);
+        for(size_t k = 0; k <= r; ++k)
+          new_term += out(c, k) * out(r, k);
+        out(c, r) = new_term;
+        out(r, c) = new_term;
+      }
+    }
+  }
+
+  virtual bool forward(std::size_t p, std::size_t q,
+                       const CppAD::vector<bool> &vx,
+                       CppAD::vector<bool> &vy,
+                       const CppAD::vector<Type> &tx,
+                       CppAD::vector<Type> &ty){
+    if(q > 0)
+      return false;
+
+    comp(&tx[0], &ty[0], n);
+
+    /* set variable flags */
+    if (vx.size() > 0) {
+      bool anyvx = false;
+      for (std::size_t i = 0; i < vx.size(); i++)
+        anyvx |= vx[i];
+      for (std::size_t i = 0; i < vy.size(); i++)
+        vy[i] = anyvx;
+    }
+
+    return true;
+  }
+
+  virtual bool reverse(std::size_t q, const CppAD::vector<Type> &tx,
+                       const CppAD::vector<Type> &ty,
+                       CppAD::vector<Type> &px,
+                       const CppAD::vector<Type> &py){
+    if(q > 0)
+      return false;
+
+    size_t const * const com_vec = get_commutation_unequal_vec_cached(n);
+    size_t bri(0L),
+           brl(0L);
+
+    for(size_t i = 0; i < px.size(); ++i)
+      px[i] = Type(0.);
+
+    for(size_t i = 0L; i < nn;
+        bri = bri + 1L >= n ? 0L : bri + 1L,
+        brl = bri == 0L ? brl + 1L : brl,
+        ++i){
+      size_t const idx_l = *(com_vec + i);
+      Type const lfs = py[idx_l] + py[i];
+
+      size_t idx_k(bri);
+      for(size_t k = 0; k <= bri; idx_k += n - k, ++k){
+        if(brl >= k){
+          Type const rfs = tx[
+            brl - k /* row index */ + idx_k - bri /* col index */];
+          px[idx_k - k] += lfs * rfs;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
+                              CppAD::vector<bool>& st) {
+    bool anyrt = false;
+    for (std::size_t i = 0; i < rt.size(); i++)
+      anyrt |= rt[i];
+    for (std::size_t i = 0; i < st.size(); i++)
+      st[i] = anyrt;
+    return true;
+  }
+
+  static get_vcov_from_trian_atomic &get_cached(size_t const);
+};
+
+
+template<class Type>
+matrix<AD<Type> >
+get_vcov_from_trian(AD<Type> const *vals, unsigned const dim){
+  size_t const n_ele = (dim * (dim + 1L)) / 2L;
+  matrix<AD<Type> > out(dim, dim);
+  CppAD::vector<AD<Type> > x_vals(n_ele);
+
+  for(size_t i = 0; i < n_ele; ++i)
+    x_vals[i] = *(vals + i);
+  size_t cc = 0L;
+  for(size_t i = dim + 1L; i-- > 1; cc += i)
+    x_vals[cc] = exp(x_vals[cc]);
+
+  get_vcov_from_trian_atomic<Type> &functor =
+    get_vcov_from_trian_atomic<Type>::get_cached(dim);
+
+  typename Eigen::Map<Eigen::Matrix<AD<Type> ,Eigen::Dynamic,1> >
+    tx(x_vals.data(), n_ele),
+    ty(out.data(), dim * dim);
+
+  functor(tx, ty);
+
+  return out;
+}
+
+inline matrix<double>
+get_vcov_from_trian(double const *vals, unsigned const dim){
+  matrix<double> out(dim, dim);
+  size_t const n_ele = (dim * (dim + 1L)) / 2L;
+  vector<double> x_vals(n_ele);
+  for(size_t i = 0; i < n_ele; ++i)
+    x_vals[i] = *(vals + i);
+  size_t cc = 0L;
+  for(size_t i = dim + 1L; i-- > 1; cc += i)
+    x_vals[cc] = exp(x_vals[cc]);
+
+  double *p_out = out.data();
+  get_vcov_from_trian_atomic<double>::comp(x_vals.data(), p_out, dim);
+
+  return out;
 }
 
 template<class Type>

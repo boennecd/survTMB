@@ -62,12 +62,14 @@ for(link in c("PH", "PO", "probit"))
       my_fit <- fit_mgsm(my_func, "GVA")
 
       par <- with(my_fit, c(params, va_params))
+
+      # check Hessian
+      eps <- .Machine$double.eps^(3/5)
       my_hes <- my_func$gva$he(par)
       sp_hes <- sp_func$gva$he_sp(par)
       expect_s4_class(sp_hes, "dsCMatrix")
       tm_hes <- tm_func$gva$he(par)
 
-      eps <- .Machine$double.eps^(3/5)
       nu_hes <- numDeriv::jacobian(
         my_func$gva$gr, par, method.args = list(eps = eps))
 

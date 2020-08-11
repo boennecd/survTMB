@@ -1,6 +1,7 @@
 #include <string>
 #include "gva-utils.h"
 #include "snva-utils.h"
+#include "utils.h"
 
 namespace {
 /* the atomic_base class has a static list here
@@ -44,11 +45,21 @@ void fix_atomic_seqfault(){
 
 // [[Rcpp::export(rng = false)]]
 void setup_atomic_cache(size_t const n_nodes, std::string const type,
+                        std::vector<int> const &triag_sizes,
                         std::string const link = ""){
   if(CppAD::thread_alloc::in_parallel())
     throw std::runtime_error("setup_atomic_cache called in parallel mode");
 
-  if(type == "GVA"){
+  for(auto t : triag_sizes){
+    survTMB::get_vcov_from_trian_atomic<      double    >::get_cached(t);
+    survTMB::get_vcov_from_trian_atomic<   AD<double>   >::get_cached(t);
+    survTMB::get_vcov_from_trian_atomic<AD<AD<double> > >::get_cached(t);
+
+  }
+
+  if(type == "Laplace") {
+    return;
+  } else if(type == "GVA"){
     if(link == "PO")
       get_cached_atomic_objs
       <GaussHermite::GVA::mlogit_integral_atomic>(n_nodes);

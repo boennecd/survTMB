@@ -267,13 +267,14 @@ RcppExport SEXP _survTMB_fix_atomic_seqfault() {
   END_RCPP
 }
 // setup_atomic_cache
-void setup_atomic_cache(size_t const n_nodes, std::string const type, std::string const link);
-RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEXP linkSEXP) {
+void setup_atomic_cache(size_t const n_nodes, std::string const type, std::vector<int> const& triag_sizes, std::string const link);
+RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEXP triag_sizesSEXP, SEXP linkSEXP) {
   BEGIN_RCPP
   Rcpp::traits::input_parameter< size_t const >::type n_nodes(n_nodesSEXP);
   Rcpp::traits::input_parameter< std::string const >::type type(typeSEXP);
+  Rcpp::traits::input_parameter< std::vector<int> const& >::type triag_sizes(triag_sizesSEXP);
   Rcpp::traits::input_parameter< std::string const >::type link(linkSEXP);
-  setup_atomic_cache(n_nodes, type, link);
+  setup_atomic_cache(n_nodes, type, triag_sizes, link);
   return R_NilValue;
   END_RCPP
 }
@@ -306,7 +307,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_get_orth_poly", (DL_FUNC) &_survTMB_get_orth_poly, 2},
   {"_survTMB_predict_orth_poly", (DL_FUNC) &_survTMB_predict_orth_poly, 3},
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
-  {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
+  {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 4},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };
