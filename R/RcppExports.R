@@ -53,8 +53,12 @@ herita_funcs_eval_lb <- function(p, par) {
     .Call(`_survTMB_herita_funcs_eval_lb`, p, par)
 }
 
-herita_funcs_eval_grad <- function(p, par) {
-    .Call(`_survTMB_herita_funcs_eval_grad`, p, par)
+herita_funcs_eval_grad <- function(p, par, out) {
+    invisible(.Call(`_survTMB_herita_funcs_eval_grad`, p, par, out))
+}
+
+herita_get_size <- function(p) {
+    .Call(`_survTMB_herita_get_size`, p)
 }
 
 joint_start_ll <- function(Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad, use_log, basis_type) {

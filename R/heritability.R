@@ -212,6 +212,7 @@ make_heritability_ADFun <- function(
   #####
   # find variational parameters
   is_va <- -seq_len(length(omega) + length(beta) + length(sds))
+  gr_vec <- numeric(length(par))
   new_vas <- local({
     if(trace)
       cat("Finding starting values for variational parameters...\n")
@@ -226,7 +227,8 @@ make_heritability_ADFun <- function(
     }
     gr_va <- function(x, ...){
       par[exclude] <- x
-      herita_funcs_eval_grad(p = adfun, par)[exclude]
+      herita_funcs_eval_grad(p = adfun, par, out = gr_vec)
+      gr_vec[exclude]
     }
 
     va_opt <- opt_func(par[exclude], fn_va, gr_va,
@@ -250,7 +252,8 @@ make_heritability_ADFun <- function(
       herita_funcs_eval_lb(p = adfun, x)
     },
     gr = function(x, ...){
-      herita_funcs_eval_grad(p = adfun, x)
+      herita_funcs_eval_grad(p = adfun, x, out = gr_vec)
+      gr_vec
     },
     he = function(x, ...){
       stop("he not implemented")

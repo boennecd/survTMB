@@ -553,6 +553,17 @@ system.time(
 
 -func$fn(func$par) # lower bound of the log-likelihood
 
+# check memory usage
+# TODO: export the function
+siz <- survTMB:::herita_get_size(environment(func$fn)$adfun)
+
+# the amount of work and memory necessary for computing function values 
+# and derivatives using f is roughly proportional to ...
+siz$size_var 
+
+# the number of parameters in the operation sequence
+siz$size_par 
+
 # optimize and compare the results with the true parameters
 library(lbfgs)
 system.time(
@@ -563,7 +574,7 @@ system.time(
 We show the estimates below and compare them with the true values.
 
 ```{r herita_show_est}
-opt_out$value # lower bound on the marginal log-likelihood in the end
+-opt_out$value # lower bound on the marginal log-likelihood in the end
 
 rbind(
   `Starting values` = head(func$par, 6), 

@@ -87,6 +87,20 @@ Type vec_dot(vector<Type> const &x, vector<Type> const &y){
   return out;
 }
 
+template<class Type>
+Type vec_dot
+  (Eigen::Map<const Eigen::Matrix<Type,Eigen::Dynamic,1> > &x,
+   vector<Type> const &y){
+#ifdef DO_CHECKS
+  if(x.size() != y.size())
+    throw std::invalid_argument("vec_dot<Type>: dimension do not match");
+#endif
+  Type out(0.);
+  for(int i = 0; i < x.size(); ++i)
+    out += x[i] * y[i];
+  return out;
+}
+
 #ifdef INCLUDE_RCPP
 inline double vec_dot(vector<double> const &x, arma::vec const &y){
 #ifdef DO_CHECKS

@@ -166,16 +166,17 @@ public:
 
     Type const *a = &args[0];
     auto set_vec = [&](size_t const n){
-      vector<Type> out(n);
-      for(size_t i = 0; i < n; ++i, ++a)
-        out[i] = *a;
+      typename Eigen::Map<const Eigen::Matrix<Type,Eigen::Dynamic,1> >
+        out(a, n);
+      a += n;
       return out;
     };
 
-    vector<Type> const aomega = set_vec(omega.size()),
-                        abeta = set_vec(beta.size()),
-                     alog_sds = set_vec(log_sds.size()),
-                        a_var = ([&](){
+    auto aomega = set_vec(omega.size()),
+          abeta = set_vec(beta.size()),
+       alog_sds = set_vec(log_sds.size());
+
+    vector<Type> const a_var = ([&](){
                          vector<Type> out(alog_sds.size());
                          for(size_t i = 0; i < (size_t)out.size(); ++i)
                            out[i] = exp(two * alog_sds[i]);
@@ -249,23 +250,7 @@ public:
             dist_mean, dist_var);
         else
           error("'%s' not implemented", link.c_str());
-
-        // TODO: delete
-        // Rcpp::Rcout << asDouble(term) << ": "
-        //             << asDouble(eta_fix) << ' '
-        //             << asDouble(etaD_fix) << ' '
-        //             << asDouble(c_dat.event[i]) << ' '
-        //             << asDouble(mu[i]) << ' '
-        //             << asDouble(sd) << ' '
-        //             << asDouble(rho) << ' '
-        //             << asDouble(d) << ' '
-        //             << asDouble(sd_sq) << ' '
-        //             << asDouble(dist_mean) << ' '
-        //             << asDouble(dist_var) << '\n';
       }
-
-      // TODO: delete
-      // Rcpp::Rcout << "Term: " << asDouble(term) << '\t';
 
       /* add prior and entropy terms */
       matrix<Type> sigma(n_members, n_members);
@@ -286,9 +271,6 @@ public:
       term -= sqrt_2_pi * quad_form(mu, sigma_inv, delta) + type_M_LN2
         + entropy_term(vec_dot(va_rho_scaled, va_rho_scaled), n_nodes);
 
-      // TODO: delete
-      // Rcpp::Rcout << "w/ prior: " << asDouble(term) << '\n';
-
       result -= term;
     }
 
@@ -308,6 +290,21 @@ class VA_func {
 public:
   size_t get_n_pars() const {
     return n_pars;
+  }
+
+  struct size_out {
+    size_t size_var = 0L,
+           size_par = 0L;
+  };
+
+  size_out get_size() const {
+    size_out out;
+    for(auto const &f : funcs){
+      out.size_var += f->size_var();
+      out.size_par += f->size_par();
+    }
+
+    return out;
   }
 
   std::vector<std::unique_ptr<ADFun<double> > >   funcs;
@@ -377,7 +374,7 @@ double herita_funcs_eval_lb(SEXP p, SEXP par){
 }
 
 // [[Rcpp::export(rng = false)]]
-Rcpp::NumericVector herita_funcs_eval_grad(SEXP p, SEXP par){
+void herita_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out){
   shut_up();
 
   Rcpp::XPtr<VA_func > ptr(p);
@@ -386,9 +383,12 @@ Rcpp::NumericVector herita_funcs_eval_grad(SEXP p, SEXP par){
   if((size_t)parv.size() != ptr->get_n_pars())
     throw std::invalid_argument("herita_funcs_eval_grad: invalid par");
 
-  unsigned const n_blocks = ptr->funcs.size();
-  vector<double> grad(parv.size());
-  grad.setZero();
+  size_t const n_blocks = ptr->funcs.size(),
+                      n = parv.size();
+  if(static_cast<size_t>(out.size()) != n)
+    throw std::invalid_argument("herita_funcs_eval_grad: invalid out");
+  for(unsigned i = 0; i < n; ++i)
+    out[i] = 0.;
 
 #ifdef _OPENMP
 #pragma omp parallel for ordered if(n_blocks > 1L) firstprivate(parv) schedule(static, 1)
@@ -403,13 +403,18 @@ Rcpp::NumericVector herita_funcs_eval_grad(SEXP p, SEXP par){
     /* TODO: replace with a reduction */
 #pragma omp ordered
 #endif
-    grad += grad_i;
+    for(unsigned j = 0; j < n; ++j)
+      out[j] += grad_i[j];
   }
+}
 
-  std::size_t const n = grad.size();
-  Rcpp::NumericVector out(n);
-  for(unsigned i = 0; i < n; ++i)
-    out[i] = grad[i];
+// [[Rcpp::export(rng = false)]]
+Rcpp::List herita_get_size(SEXP p){
+  Rcpp::XPtr<VA_func > ptr(p);
 
-  return out;
+  auto const out = ptr->get_size();
+
+  return Rcpp::List::create(
+    Rcpp::Named("size_var") = out.size_var,
+    Rcpp::Named("size_par") = out.size_par);
 }

@@ -169,15 +169,14 @@ RcppExport SEXP _survTMB_herita_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
-// herita_funcs_eval_grad
-Rcpp::NumericVector herita_funcs_eval_grad(SEXP p, SEXP par);
-RcppExport SEXP _survTMB_herita_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP) {
+void herita_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out);
+RcppExport SEXP _survTMB_herita_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP, SEXP outSEXP) {
   BEGIN_RCPP
-  Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
   Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
-  rcpp_result_gen = Rcpp::wrap(herita_funcs_eval_grad(p, par));
-  return rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type out(outSEXP);
+  herita_funcs_eval_grad(p, par, out);
+  return R_NilValue;
   END_RCPP
 }
 // joint_start_ll
@@ -278,6 +277,16 @@ RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEX
   return R_NilValue;
   END_RCPP
 }
+// herita_get_size
+Rcpp::List herita_get_size(SEXP p);
+RcppExport SEXP _survTMB_herita_get_size(SEXP pSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
+  rcpp_result_gen = Rcpp::wrap(herita_get_size(p));
+  return rcpp_result_gen;
+  END_RCPP
+}
 
 
 RcppExport SEXP run_testthat_tests();
@@ -303,11 +312,12 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_gsm_eval_hess", (DL_FUNC) &_survTMB_gsm_eval_hess, 3},
   {"_survTMB_get_herita_funcs", (DL_FUNC) &_survTMB_get_herita_funcs, 2},
   {"_survTMB_herita_funcs_eval_lb", (DL_FUNC) &_survTMB_herita_funcs_eval_lb, 2},
-  {"_survTMB_herita_funcs_eval_grad", (DL_FUNC) &_survTMB_herita_funcs_eval_grad, 2},
+  {"_survTMB_herita_funcs_eval_grad", (DL_FUNC) &_survTMB_herita_funcs_eval_grad, 3},
   {"_survTMB_get_orth_poly", (DL_FUNC) &_survTMB_get_orth_poly, 2},
   {"_survTMB_predict_orth_poly", (DL_FUNC) &_survTMB_predict_orth_poly, 3},
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 4},
+  {"_survTMB_herita_get_size", (DL_FUNC) &_survTMB_herita_get_size, 1},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };
