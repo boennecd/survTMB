@@ -1,5 +1,5 @@
 #define INCLUDE_RCPP
-#include "tmb_includes.h"
+#include "XPtr_wrapper.h"
 #include "get-x.h"
 #include "snva-utils.h"
 
@@ -343,7 +343,9 @@ SEXP get_herita_funcs
 
   unsigned const n_threads(data["n_threads"]);
   setup_parallel_ad setup_ADd(n_threads);
-  return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
+  auto out = new XPtr_wrapper<VA_func>(new VA_func(data, parameters));
+  add_clearable(out);
+  return static_cast<Rcpp::XPtr<VA_func> >(*out);
 }
 
 // [[Rcpp::export(rng = false)]]
@@ -402,9 +404,13 @@ void herita_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out){
 #ifdef _OPENMP
     /* TODO: replace with a reduction */
 #pragma omp ordered
+    {
 #endif
     for(unsigned j = 0; j < n; ++j)
       out[j] += grad_i[j];
+#ifdef _OPENMP
+    }
+#endif
   }
 }
 

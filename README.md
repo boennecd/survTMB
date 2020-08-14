@@ -44,7 +44,8 @@ library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", dense_hess = FALSE, 
-                      sparse_hess = FALSE, do_fit = TRUE)
+                      sparse_hess = FALSE, do_fit = TRUE, 
+                      do_free = FALSE)
   eval(bquote({
     adfun <- make_mgsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
@@ -53,34 +54,15 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
       dense_hess = .(dense_hess), sparse_hess = .(sparse_hess))
     fit <- if(.(do_fit))
       fit_mgsm(adfun, method = .(method)) else NULL
+    if(.(do_free)){
+      free_laplace(adfun)
+      clear_cppad_mem(.(n_threads), keep_work_space = TRUE)
+    }
     list(fit = fit, fun = adfun)
   }), parent.frame())
 
-# estimate the model using different methods. Start w/ Laplace
-(lap_ph <- fit_model("PO"))$fit
-#> 
-#> MGSM estimated with method 'Laplace' with link 'PO' from call:
-#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
-#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
-#>       dense_hess = FALSE, sparse_hess = FALSE)
-#>   fit_mgsm(object = adfun, method = "Laplace")
-#> 
-#> Estimated fixed effects:
-#>                             (Intercept)                                     trt 
-#>                                   -8.05                                    1.03 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                    5.70                                   11.82 
-#> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                    5.59 
-#> 
-#> Estimated random effect covariance matrix (correlation matrix) is:
-#>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0470 0.0554             0.217 0.734
-#> trt              0.0554 0.1210             0.734 0.348
-#> (standard deviations are in the diagonal of the correlation matrix)
-#> 
-#> Estimated log-likelihood is -13031.16
+# # estimate the model using different methods. Start w/ Laplace
+# (lap_ph <- fit_model("PO"))$fit
 
 # w/ GVA
 (gva_fit <- fit_model("PO", method = "GVA"))$fit
@@ -226,14 +208,14 @@ microbenchmark(
   `Invert dense Hessian (alternative)`  = alte_vcov(dense_hess), 
   `Invert sparse Hessian (alternative)` = alte_vcov(sparse_hess),
   times = 10)
-#> Unit: milliseconds
+#> Unit: microseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 298.01 312.30 318.52 313.55 322.27 356.08
-#>               Compute sparse Hessian  18.94  19.03  19.85  19.32  20.55  22.62
-#>         Invert dense Hessian (naive)   5.32   5.33   5.46   5.34   5.41   6.04
-#>        Invert sparse Hessian (naive)   1.08   1.24   1.33   1.38   1.39   1.49
-#>   Invert dense Hessian (alternative)   1.32   1.35   1.42   1.44   1.47   1.51
-#>  Invert sparse Hessian (alternative)   2.82   2.98   3.04   3.06   3.12   3.19
+#>                Compute dense Hessian 318057 318210 319026 318811 319339 320675
+#>               Compute sparse Hessian  18707  18771  18898  18833  19020  19184
+#>         Invert dense Hessian (naive)   5260   5278   5328   5299   5408   5428
+#>        Invert sparse Hessian (naive)    993   1022   1138   1079   1265   1326
+#>   Invert dense Hessian (alternative)   1338   1344   1434   1477   1491   1511
+#>  Invert sparse Hessian (alternative)   2736   2823   2948   2914   3122   3226
 #>  neval
 #>     10
 #>     10
@@ -258,10 +240,10 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 #> Unit: milliseconds
-#>               expr   min    lq  mean median    uq max neval
-#>  W/o Hessians       28.2  28.4  30.2   29.2  30.1  40    10
-#>  W/ dense Hessian   78.8  80.5  84.2   82.5  83.4 105    10
-#>  W/ sparse Hessian 668.2 676.3 693.8  689.9 695.0 763    10
+#>               expr   min    lq  mean median    uq   max neval
+#>  W/o Hessians       28.2  28.4  28.8   28.6  28.9  30.7    10
+#>  W/ dense Hessian   77.4  80.3  82.0   82.1  83.9  86.2    10
+#>  W/ sparse Hessian 653.2 656.9 671.7  669.4 678.8 713.4    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -351,80 +333,11 @@ Again, the skewness parameter have not moved much from the defaults.
 We estimate the same model below with other link functions.
 
 ``` r
-######
-# w/ Laplace
-fit_model("PH"    )$fit
-#> 
-#> MGSM estimated with method 'Laplace' with link 'PH' from call:
-#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
-#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "PH", n_threads = 2L, 
-#>       dense_hess = FALSE, sparse_hess = FALSE)
-#>   fit_mgsm(object = adfun, method = "Laplace")
-#> 
-#> Estimated fixed effects:
-#>                             (Intercept)                                     trt 
-#>                                  -7.822                                   0.719 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   5.394                                  11.389 
-#> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                   4.799 
-#> 
-#> Estimated random effect covariance matrix (correlation matrix) is:
-#>             (Intercept)    trt       (Intercept)  trt
-#> (Intercept)      0.0238 0.0316             0.154 0.93
-#> trt              0.0316 0.0484             0.930 0.22
-#> (standard deviations are in the diagonal of the correlation matrix)
-#> 
-#> Estimated log-likelihood is -13026.67
-fit_model("PO"    )$fit
-#> 
-#> MGSM estimated with method 'Laplace' with link 'PO' from call:
-#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
-#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "PO", n_threads = 2L, 
-#>       dense_hess = FALSE, sparse_hess = FALSE)
-#>   fit_mgsm(object = adfun, method = "Laplace")
-#> 
-#> Estimated fixed effects:
-#>                             (Intercept)                                     trt 
-#>                                   -8.05                                    1.03 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                    5.70                                   11.82 
-#> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                    5.59 
-#> 
-#> Estimated random effect covariance matrix (correlation matrix) is:
-#>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0470 0.0554             0.217 0.734
-#> trt              0.0554 0.1210             0.734 0.348
-#> (standard deviations are in the diagonal of the correlation matrix)
-#> 
-#> Estimated log-likelihood is -13031.16
-fit_model("probit")$fit
-#> 
-#> MGSM estimated with method 'Laplace' with link 'probit' from call:
-#>   make_mgsm_ADFun(formula = Surv(y, uncens) ~ trt, data = dat, 
-#>       df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "Laplace", 
-#>       n_nodes = 15L, param_type = "DP", link = "probit", n_threads = 2L, 
-#>       dense_hess = FALSE, sparse_hess = FALSE)
-#>   fit_mgsm(object = adfun, method = "Laplace")
-#> 
-#> Estimated fixed effects:
-#>                             (Intercept)                                     trt 
-#>                                  -3.740                                   0.599 
-#> nsx(log(y), df = 3, intercept = FALSE)1 nsx(log(y), df = 3, intercept = FALSE)2 
-#>                                   2.660                                   5.004 
-#> nsx(log(y), df = 3, intercept = FALSE)3 
-#>                                   2.972 
-#> 
-#> Estimated random effect covariance matrix (correlation matrix) is:
-#>             (Intercept)    trt       (Intercept)   trt
-#> (Intercept)      0.0184 0.0169             0.136 0.620
-#> trt              0.0169 0.0403             0.620 0.201
-#> (standard deviations are in the diagonal of the correlation matrix)
-#> 
-#> Estimated log-likelihood is -13035.14
+# ######
+# # w/ Laplace
+# fit_model("PH"    , do_free = TRUE)$fit
+# fit_model("PO"    , do_free = TRUE)$fit
+# fit_model("probit", do_free = TRUE)$fit
 
 ######
 # w/ GVA
@@ -658,52 +571,44 @@ We provide a benchmark of the estimation methods used in section
 [example](#example) below.
 
 ``` r
-for(mth in c("Laplace", "GVA")){
+clear_cppad_mem(4L)
+#> [1] 1
+```
+
+``` r
+for(mth in c("GVA")){
+# for(mth in c("Laplace", "GVA")){
   msg <- sprintf("Method: %s", mth)
   cat(sprintf("\n%s\n%s\n", msg, 
               paste0(rep("-", nchar(msg)), collapse = "")))
   print(microbenchmark(
-    `PH         ` = fit_model("PH"    , 1L, mth),
-    `PH     (2L)` = fit_model("PH"    , 2L, mth),
-    `PH     (4L)` = fit_model("PH"    , 4L, mth),
+    `PH         ` = fit_model("PH"    , 1L, mth, do_free = TRUE),
+    `PH     (2L)` = fit_model("PH"    , 2L, mth, do_free = TRUE),
+    `PH     (4L)` = fit_model("PH"    , 4L, mth, do_free = TRUE),
     
-    `PO         ` = fit_model("PO"    , 1L, mth),
-    `PO     (2L)` = fit_model("PO"    , 2L, mth),
-    `PO     (4L)` = fit_model("PO"    , 4L, mth), 
+    `PO         ` = fit_model("PO"    , 1L, mth, do_free = TRUE),
+    `PO     (2L)` = fit_model("PO"    , 2L, mth, do_free = TRUE),
+    `PO     (4L)` = fit_model("PO"    , 4L, mth, do_free = TRUE), 
     
-    `probit     ` = fit_model("probit", 1L, mth),
-    `probit (2L)` = fit_model("probit", 2L, mth),
-    `probit (4L)` = fit_model("probit", 4L, mth),
+    `probit     ` = fit_model("probit", 1L, mth, do_free = TRUE),
+    `probit (2L)` = fit_model("probit", 2L, mth, do_free = TRUE),
+    `probit (4L)` = fit_model("probit", 4L, mth, do_free = TRUE),
     times = 5))
 }
-#> 
-#> Method: Laplace
-#> ---------------
-#> Unit: milliseconds
-#>         expr  min   lq mean median   uq  max neval
-#>  PH           881  883  897    892  910  917     5
-#>  PH     (2L)  527  529  533    530  533  545     5
-#>  PH     (4L)  383  388  394    391  397  411     5
-#>  PO          1513 1525 1532   1536 1543 1544     5
-#>  PO     (2L)  926  942  956    948  981  982     5
-#>  PO     (4L)  657  671  687    678  708  719     5
-#>  probit      2255 2298 2303   2301 2330 2332     5
-#>  probit (2L)  885  900  911    902  930  939     5
-#>  probit (4L)  669  998  939    998 1005 1024     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr   min    lq  mean median  uq max neval
-#>  PH          191.9 194.9 196.0    195 198 201     5
-#>  PH     (2L) 122.9 123.0 129.4    132 133 136     5
-#>  PH     (4L)  94.6  95.3  99.2    101 102 103     5
-#>  PO          585.9 605.6 607.1    607 609 628     5
-#>  PO     (2L) 343.3 352.9 362.1    356 361 398     5
-#>  PO     (4L) 231.3 232.4 244.2    240 254 263     5
-#>  probit      740.1 752.1 756.1    752 759 777     5
-#>  probit (2L) 431.8 435.2 445.1    439 454 465     5
-#>  probit (4L) 289.1 304.2 306.5    308 315 316     5
+#>         expr   min    lq  mean median    uq   max neval
+#>  PH          186.9 189.2 189.8  189.4 189.5 193.8     5
+#>  PH     (2L) 118.6 120.9 121.1  121.0 122.3 122.8     5
+#>  PH     (4L)  91.3  91.7  92.3   92.2  93.1  93.3     5
+#>  PO          593.5 601.1 601.8  603.3 604.9 606.4     5
+#>  PO     (2L) 351.3 353.6 356.0  356.2 358.2 360.5     5
+#>  PO     (4L) 244.6 246.7 246.6  246.8 246.9 247.7     5
+#>  probit      720.4 727.5 729.4  731.0 732.9 735.4     5
+#>  probit (2L) 436.1 439.1 441.5  442.3 443.7 446.5     5
+#>  probit (4L) 296.1 297.7 298.7  297.8 300.8 300.9     5
 ```
 
 ``` r
@@ -731,29 +636,39 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          211 213  215    213 214 221     5
-#>  PH     (2L) 137 137  139    139 140 140     5
-#>  PH     (4L) 103 104  105    104 105 109     5
-#>  PO          717 723  726    724 731 734     5
-#>  PO     (2L) 450 451  457    455 462 465     5
-#>  PO     (4L) 305 305  307    306 307 310     5
-#>  probit      893 902  903    904 905 913     5
-#>  probit (2L) 536 540  543    542 547 549     5
-#>  probit (4L) 368 373  373    373 375 375     5
+#>  PH          217 217  219    218 221 223     5
+#>  PH     (2L) 137 140  158    141 144 227     5
+#>  PH     (4L) 105 108  109    109 109 114     5
+#>  PO          745 747  748    748 750 752     5
+#>  PO     (2L) 445 447  476    463 467 555     5
+#>  PO     (4L) 311 313  320    313 328 332     5
+#>  probit      905 908  912    913 914 921     5
+#>  probit (2L) 541 548  553    550 561 567     5
+#>  probit (4L) 376 377  381    381 383 390     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          278 283  289    283 298 301     5
-#>  PH     (2L) 180 182  186    185 187 198     5
-#>  PH     (4L) 137 137  147    151 152 159     5
-#>  PO          748 764  764    766 766 774     5
-#>  PO     (2L) 458 465  474    466 488 490     5
-#>  PO     (4L) 313 330  329    330 335 338     5
-#>  probit      907 907  931    923 947 971     5
-#>  probit (2L) 548 557  590    576 623 645     5
-#>  probit (4L) 379 380  395    390 410 416     5
+#>  PH          290 291  293    292 294 298     5
+#>  PH     (2L) 182 185  186    185 188 192     5
+#>  PH     (4L) 136 139  158    139 150 226     5
+#>  PO          750 751  752    752 752 757     5
+#>  PO     (2L) 447 460  461    461 468 470     5
+#>  PO     (4L) 312 315  315    315 316 317     5
+#>  probit      912 915  916    915 916 921     5
+#>  probit (2L) 555 556  562    563 564 573     5
+#>  probit (4L) 381 382  386    385 389 393     5
+```
+
+``` r
+rm(list = ls())
+gc()
+#>           used  (Mb) gc trigger  (Mb) max used  (Mb)
+#> Ncells 2105515 112.5    4304268 229.9  2751770 147.0
+#> Vcells 3610027  27.6    8399987  64.1  8399987  64.1
+clear_cppad_mem(4L)
+#> [1] 1
 ```
 
 ## Joint Models
@@ -989,7 +904,7 @@ system.time(
     s_coefs = dat$params$b_attr$knots, g_coefs = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  12.461   0.028   4.551
+#>  11.490   0.016   4.387
 ```
 
 Next, we fit the model using the default optimization function.
@@ -999,7 +914,7 @@ system.time(
   opt_out <- out$opt_func(
     out$par, out$fn, out$gr, control = list(maxit = 10000L)))
 #>    user  system elapsed 
-#>  60.690   0.004  10.121
+#>  63.739   0.008  10.629
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -1026,16 +941,16 @@ names(true_params) <- names(out$par)[seq_along(true_params)]
 rbind(Estimate = opt_out$par[1:n_params], 
       `True value` = true_params)
 #>            gamma:X1.Y1 gamma:X1.Y2 B:g1.Y1 B:g2.Y1 B:g3.Y1 B:g1.Y2 B:g2.Y2
-#> Estimate         0.133      -0.802  -0.942   0.366   0.402   0.257  -0.841
+#> Estimate         0.133      -0.802  -0.942   0.367   0.402   0.256  -0.843
 #> True value       0.140      -0.800  -0.960   0.330   0.390   0.260  -0.760
 #>            B:g3.Y2 Psi:L1.1 Psi:L2.1 Psi:L3.1 Psi:L4.1 Psi:L2.2 Psi:L3.2
-#> Estimate    0.0704    0.235   -0.305  -0.1151   -0.224  -0.0418  -0.1172
+#> Estimate    0.0685    0.236   -0.303  -0.1156   -0.225  -0.0415  -0.1169
 #> True value  0.1900    0.226   -0.295  -0.0638   -0.136  -0.0567  -0.0729
 #>            Psi:L4.2 Psi:L3.3 Psi:L4.3 Psi:L4.4 Sigma:L1.1 Sigma:L2.1 Sigma:L2.2
-#> Estimate    -0.0220  -0.1234    0.557  -0.0872      -1.76    0.00301      -1.53
+#> Estimate    -0.0222  -0.1242    0.555  -0.0874      -1.76    0.00306      -1.53
 #> True value   0.0528  -0.0751    0.566  -0.0942      -1.75    0.00000      -1.50
 #>            delta:Z1 delta:Z2 omega:b1 omega:b2 alpha:Y1 alpha:Y2
-#> Estimate      0.238   -0.218    -2.51    -1.25    0.337   -0.276
+#> Estimate      0.237   -0.219    -2.51    -1.26    0.338   -0.276
 #> True value    0.200   -0.170    -2.60    -1.32    0.320   -0.310
 ```
 
@@ -1048,10 +963,10 @@ values.
 is_psi <- which(grepl("Psi", names(true_params)))
 theta_to_cov(opt_out$par[is_psi]) 
 #>        [,1]    [,2]    [,3]    [,4]
-#> [1,]  1.601 -0.3858 -0.1456 -0.2835
-#> [2,] -0.386  1.0128 -0.0773  0.0472
-#> [3,] -0.146 -0.0773  0.8083  0.5206
-#> [4,] -0.283  0.0472  0.5206  1.2008
+#> [1,]  1.602 -0.3835 -0.1463 -0.2845
+#> [2,] -0.383  1.0121 -0.0771  0.0468
+#> [3,] -0.146 -0.0771  0.8070  0.5183
+#> [4,] -0.284  0.0468  0.5183  1.1982
 dat$params$Psi
 #>       [,1]  [,2]  [,3]  [,4]
 #> [1,]  1.57 -0.37 -0.08 -0.17
@@ -1060,10 +975,10 @@ dat$params$Psi
 #> [4,] -0.17  0.09  0.53  1.17
 cov2cor(theta_to_cov(opt_out$par[is_psi]))
 #>        [,1]    [,2]    [,3]    [,4]
-#> [1,]  1.000 -0.3030 -0.1280 -0.2045
-#> [2,] -0.303  1.0000 -0.0855  0.0428
-#> [3,] -0.128 -0.0855  1.0000  0.5284
-#> [4,] -0.204  0.0428  0.5284  1.0000
+#> [1,]  1.000 -0.3011 -0.1287 -0.2053
+#> [2,] -0.301  1.0000 -0.0854  0.0425
+#> [3,] -0.129 -0.0854  1.0000  0.5271
+#> [4,] -0.205  0.0425  0.5271  1.0000
 cov2cor(dat$params$Psi)
 #>         [,1]    [,2]    [,3]   [,4]
 #> [1,]  1.0000 -0.2983 -0.0685 -0.125
@@ -1080,16 +995,16 @@ the true values.
 is_sigma <- which(grepl("Sigma", names(true_params)))
 theta_to_cov(opt_out$par[is_sigma])
 #>          [,1]     [,2]
-#> [1,] 0.029369 0.000516
-#> [2,] 0.000516 0.047130
+#> [1,] 0.029391 0.000524
+#> [2,] 0.000524 0.047132
 dat$params$sigma
 #>      [,1] [,2]
 #> [1,] 0.03 0.00
 #> [2,] 0.00 0.05
 cov2cor(theta_to_cov(opt_out$par[is_sigma]))
 #>        [,1]   [,2]
-#> [1,] 1.0000 0.0139
-#> [2,] 0.0139 1.0000
+#> [1,] 1.0000 0.0141
+#> [2,] 0.0141 1.0000
 cov2cor(dat$params$sigma)
 #>      [,1] [,2]
 #> [1,]    1    0
@@ -1117,46 +1032,46 @@ sum_func <- function(x)
 
 # mean 
 sum_func(do.call(rbind, lapply(va_stats, `[[`, "mu")))
-#>       g1:xi1  g1:xi2   g1:xi3  g1:xi4
-#> 0%   -3.4738 -3.6359 -2.37389 -2.7834
-#> 10%  -1.4544 -0.9536 -0.82745 -0.9664
-#> 20%  -1.0003 -0.6362 -0.48847 -0.5699
-#> 30%  -0.6369 -0.3932 -0.28593 -0.3438
-#> 40%  -0.3137 -0.1955 -0.13930 -0.1607
-#> 50%  -0.0254 -0.0135 -0.00681 -0.0171
-#> 60%   0.2931  0.1957  0.12398  0.1350
-#> 70%   0.6005  0.3923  0.27211  0.3081
-#> 80%   0.9946  0.6012  0.46701  0.5543
-#> 90%   1.5236  1.0159  0.84672  0.9630
-#> 100%  3.9303  2.9914  2.31304  2.6377
+#>      g1:xi1  g1:xi2   g1:xi3  g1:xi4
+#> 0%   -3.473 -3.6370 -2.37227 -2.7818
+#> 10%  -1.455 -0.9532 -0.82601 -0.9638
+#> 20%  -1.000 -0.6353 -0.48742 -0.5692
+#> 30%  -0.637 -0.3932 -0.28594 -0.3441
+#> 40%  -0.314 -0.1955 -0.13987 -0.1613
+#> 50%  -0.026 -0.0135 -0.00665 -0.0176
+#> 60%   0.293  0.1957  0.12419  0.1363
+#> 70%   0.601  0.3915  0.27253  0.3106
+#> 80%   0.995  0.6006  0.46758  0.5553
+#> 90%   1.525  1.0140  0.84916  0.9652
+#> 100%  3.934  2.9911  2.31441  2.6398
 
 # standard deviation
 sum_func(do.call(rbind, lapply(va_stats, 
                                function(x) sqrt(diag(x[["Sigma"]])))))
 #>        [,1]  [,2]  [,3]  [,4]
-#> 0%   0.0851 0.107 0.107 0.135
-#> 10%  0.1285 0.236 0.160 0.295
-#> 20%  0.1644 0.336 0.204 0.416
-#> 30%  0.2267 0.461 0.280 0.568
-#> 40%  0.3346 0.619 0.429 0.793
-#> 50%  0.4544 0.658 0.607 0.858
-#> 60%  0.5372 0.679 0.714 0.900
-#> 70%  0.5974 0.703 0.786 0.938
-#> 80%  0.6423 0.732 0.828 0.987
-#> 90%  0.6807 0.773 0.856 1.035
-#> 100% 0.7236 0.997 0.878 1.083
+#> 0%   0.0852 0.107 0.107 0.135
+#> 10%  0.1287 0.236 0.160 0.295
+#> 20%  0.1645 0.336 0.204 0.416
+#> 30%  0.2266 0.462 0.280 0.569
+#> 40%  0.3346 0.619 0.430 0.793
+#> 50%  0.4550 0.659 0.606 0.858
+#> 60%  0.5381 0.680 0.714 0.900
+#> 70%  0.5984 0.704 0.785 0.936
+#> 80%  0.6433 0.733 0.827 0.987
+#> 90%  0.6816 0.773 0.855 1.034
+#> 100% 0.7247 0.998 0.878 1.080
 
 # skewness
 skews <-  sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
 skews[] <- sprintf("%8.4f", skews)
 print(skews, quote = FALSE)
 #>      [,1]     [,2]     [,3]     [,4]    
-#> 0%    -0.0124  -0.0128  -0.0042  -0.0042
+#> 0%    -0.0121  -0.0125  -0.0041  -0.0041
 #> 10%   -0.0042  -0.0041  -0.0003  -0.0003
-#> 20%   -0.0031  -0.0031  -0.0002  -0.0002
+#> 20%   -0.0031  -0.0030  -0.0002  -0.0002
 #> 30%   -0.0025  -0.0024  -0.0002  -0.0002
-#> 40%   -0.0023  -0.0022  -0.0002  -0.0002
-#> 50%   -0.0022  -0.0021  -0.0001  -0.0001
+#> 40%   -0.0022  -0.0022  -0.0002  -0.0002
+#> 50%   -0.0021  -0.0021  -0.0001  -0.0001
 #> 60%   -0.0020  -0.0020  -0.0001  -0.0001
 #> 70%   -0.0018  -0.0018  -0.0001  -0.0001
 #> 80%   -0.0012  -0.0011  -0.0001  -0.0000
@@ -1164,8 +1079,17 @@ print(skews, quote = FALSE)
 #> 100%   0.0000   0.0001   0.0001   0.0001
 ```
 
-We only see a low amount of
-skewness.
+We only see a low amount of skewness.
+
+``` r
+rm(list = ls())
+gc()
+#>           used (Mb) gc trigger  (Mb) max used  (Mb)
+#> Ncells 2183710  117    4304268 229.9  2934097 156.7
+#> Vcells 3792156   29   10170608  77.6 10170603  77.6
+clear_cppad_mem(6L)
+#> [1] 1
+```
 
 ## Heritability
 
@@ -1259,7 +1183,7 @@ system.time(
 #> Creating ADFun...
 #> Finding starting values for variational parameters...
 #>    user  system elapsed 
-#>   3.624   0.120   0.842
+#>   3.338   0.076   0.804
 
 -func$fn(func$par) # lower bound of the log-likelihood
 #> [1] -1575
@@ -1271,7 +1195,7 @@ siz <- survTMB:::herita_get_size(environment(func$fn)$adfun)
 # the amount of work and memory necessary for computing function values 
 # and derivatives using f is roughly proportional to ...
 siz$size_var 
-#> [1] 2100563
+#> [1] 1803192
 
 # the number of parameters in the operation sequence
 siz$size_par 
@@ -1283,7 +1207,7 @@ system.time(
   opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
                    max_iterations = 5000L, invisible = 1))
 #>     user   system  elapsed 
-#> 1103.211    0.076  183.893
+#> 1029.976    0.072  171.682
 ```
 
 We show the estimates below and compare them with the true values.
@@ -1298,12 +1222,29 @@ rbind(
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
 #> Starting values             0.0150             0.0760               0.140
-#> Estimates                   0.0192             0.0971               0.179
+#> Estimates                   0.0197             0.0997               0.184
 #> True values                 0.0200             0.1000               0.175
 #>                 beta:Z.1 beta:Z.2 log_sds1
 #> Starting values   -0.792    0.217   -0.693
-#> Estimates         -1.004    0.271   -0.246
+#> Estimates         -1.028    0.278   -0.177
 #> True values       -1.000    0.250   -0.223
+
+# check the skew parameters
+names(opt_out$par) <- names(func$par)
+reg_exp <- "(^g\\d+)(:.+$)"
+va_ests <- opt_out$par[grepl(reg_exp, names(func$par), perl = TRUE)]
+grp <- gsub(reg_exp, "\\1", names(va_ests), perl = TRUE)
+cps <- tapply(va_ests, grp, function(x){
+  n <- length(x)
+  n <- .5 * (sqrt(8 * n + 25) - 5)
+  dp_to_cp(xi = head(x, n), 
+           Psi = theta_to_cov(tail(head(x, -n), -n)), 
+           alpha = tail(x, n))
+})
+
+summary(unlist(lapply(cps, `[[`, "gamma")))
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#> -0.0159 -0.0009  0.0000 -0.0003  0.0001  0.0334
 ```
 
 ## References

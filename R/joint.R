@@ -614,7 +614,7 @@ make_joint_ADFun <- function(
     alpha = alpha, va_par = va_par)
 
   setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = "",
-                     triag_sizes = NCOL(Psi))
+                     triag_sizes = unique(c(NCOL(Sigma), NCOL(Psi))))
   if(trace)
     cat("Creating AD function...\n")
   func <- get_joint_funcs(data = data, parameters = parameters)

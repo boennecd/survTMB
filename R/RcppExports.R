@@ -25,6 +25,24 @@ get_gl_rule <- function(n) {
     .Call(`_survTMB_get_gl_rule`, n)
 }
 
+#' Clears the Memory used by CppAD
+#' Clear all pointers to CppAD objects and deallocate all memory used by
+#' CppAD. This will make all subsequent use C++ pointer invalid.
+#'
+#' @param max_n_threads maximum number of threads which have been used.
+#' @param keep_work_space logical for whether to keep
+#'
+#' @return An integer which is one if all memory could be freed.
+#'
+#' @export
+clear_cppad_mem <- function(max_n_threads = 1L, keep_work_space = FALSE) {
+    .Call(`_survTMB_clear_cppad_mem`, max_n_threads, keep_work_space)
+}
+
+set_n_threads <- function(n_threads) {
+    .Call(`_survTMB_set_n_threads`, n_threads)
+}
+
 get_commutation <- function(n, m) {
     .Call(`_survTMB_get_commutation`, n, m)
 }

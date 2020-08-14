@@ -287,6 +287,27 @@ RcppExport SEXP _survTMB_herita_get_size(SEXP pSEXP) {
   return rcpp_result_gen;
   END_RCPP
 }
+// clear_cppad_mem
+int clear_cppad_mem(unsigned const max_n_threads, bool const keep_work_space);
+RcppExport SEXP _survTMB_clear_cppad_mem(SEXP max_n_threadsSEXP, SEXP keep_work_spaceSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< unsigned const >::type max_n_threads(max_n_threadsSEXP);
+  Rcpp::traits::input_parameter< bool const >::type keep_work_space(keep_work_spaceSEXP);
+  rcpp_result_gen = Rcpp::wrap(clear_cppad_mem(max_n_threads, keep_work_space));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// set_n_threads
+int set_n_threads(int const n_threads);
+RcppExport SEXP _survTMB_set_n_threads(SEXP n_threadsSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< int const >::type n_threads(n_threadsSEXP);
+  rcpp_result_gen = Rcpp::wrap(set_n_threads(n_threads));
+  return rcpp_result_gen;
+  END_RCPP
+}
 
 
 RcppExport SEXP run_testthat_tests();
@@ -318,6 +339,8 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 4},
   {"_survTMB_herita_get_size", (DL_FUNC) &_survTMB_herita_get_size, 1},
+  {"_survTMB_clear_cppad_mem", (DL_FUNC) &_survTMB_clear_cppad_mem, 2},
+  {"_survTMB_set_n_threads", (DL_FUNC) &_survTMB_set_n_threads, 1},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };

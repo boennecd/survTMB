@@ -2,6 +2,7 @@
 #include <array>
 #include <memory.h>
 #include <string.h>
+#include "clear-mem.h"
 
 namespace survTMB {
 
@@ -29,6 +30,7 @@ get_vcov_from_trian_atomic<Type>::get_cached(size_t const n_arg){
 #endif
 
   cached_values[idx].reset(new output_T("get_vcov_from_trian_atomic<Type>", n_arg));
+  track_atomic(cached_values[idx].get());
 
   return *cached_values[idx];
 }

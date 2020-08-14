@@ -21,7 +21,8 @@ Type objective_function<Type>::operator() ()
   SETUP_DATA_CHECK;
 
 #ifdef _OPENMP
-  omp_set_num_threads(n_threads);
+  if(omp_get_max_threads() != n_threads)
+    error("omp_get_max_threads() != n_threads");
 #endif
 
   parallel_accumulator<Type> result(this);

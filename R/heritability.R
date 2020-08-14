@@ -166,7 +166,7 @@ make_heritability_ADFun <- function(
     names(xi) <- paste0("xi", seq_along(xi))
     names(alpha) <- paste0("alpha", seq_along(alpha))
 
-    out <- c(out$xi, Psi, alpha)
+    out <- c(xi, Psi, alpha)
     names(out) <- paste0(sprintf("g%d:", g), names(out))
     out
   }, simplify = FALSE)
@@ -212,7 +212,7 @@ make_heritability_ADFun <- function(
   #####
   # find variational parameters
   is_va <- -seq_len(length(omega) + length(beta) + length(sds))
-  gr_vec <- numeric(length(par))
+  gr_vec <- rep(0, length(par))
   new_vas <- local({
     if(trace)
       cat("Finding starting values for variational parameters...\n")
@@ -265,6 +265,7 @@ make_heritability_ADFun <- function(
     cl = match.call()
     # TODO: save terms
   )
+  rm(list = setdiff(ls(), c("out", "adfun", "gr_vec")))
 
   out
 }

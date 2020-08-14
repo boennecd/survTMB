@@ -59,14 +59,6 @@
 /* TMB */
 #define WITH_LIBTMB
 
-#ifdef TMB_PRECOMPILE
-#undef TMB_PRECOMPILE
-#endif
-
-#ifdef CSKIP
-#undef CSKIP
-#endif
-
 #include <TMB.hpp>
 
 namespace CppAD {
@@ -76,13 +68,20 @@ inline double Value(double const x){
 }
 
 template<class Type>
+Type vec_dot(Type const *, Type const *, size_t const);
+
+template<class Type>
 Type vec_dot(vector<Type> const &x, vector<Type> const &y){
 #ifdef DO_CHECKS
   if(x.size() != y.size())
     throw std::invalid_argument("vec_dot<Type>: dimension do not match");
 #endif
+  size_t const n = x.size();
+  if(n > 10)
+    return vec_dot(x.data(), y.data(), n);
+
   Type out(0.);
-  for(int i = 0; i < x.size(); ++i)
+  for(size_t i = 0; i < n; ++i)
     out += x[i] * y[i];
   return out;
 }
@@ -95,6 +94,10 @@ Type vec_dot
   if(x.size() != y.size())
     throw std::invalid_argument("vec_dot<Type>: dimension do not match");
 #endif
+  size_t const n = x.size();
+  if(n > 10 and x.innerStride() == 1L)
+    return vec_dot(x.data(), y.data(), n);
+
   Type out(0.);
   for(int i = 0; i < x.size(); ++i)
     out += x[i] * y[i];
@@ -115,12 +118,21 @@ inline double vec_dot(vector<double> const &x, arma::vec const &y){
 #endif
 
 template<class Type>
+Type quad_form(Type const*, Type const*, Type const*, size_t const);
+
+template<class Type>
 Type quad_form
   (vector<Type> const &x, matrix<Type> const &A, vector<Type> const &y){
 #ifdef DO_CHECKS
   if(x.size() != A.rows() or y.size() != A.cols())
     throw std::invalid_argument("quad_form<Type>: dimension do not match");
+  if(A.rows() != A.cols())
+    throw std::invalid_argument("quad_form<Type>: invalid A");
 #endif
+  size_t const n = A.cols();
+  if(n > 0L)
+    return quad_form(x.data(), A.data(), y.data(), n);
+
   Type out(0.);
   for(int j = 0; j < A.cols(); ++j)
     for(int i = 0; i < A.rows(); ++i)
@@ -154,12 +166,9 @@ Type mat_mult_trace(matrix<Type> const &X, matrix<Type> const &Y){
     throw std::invalid_argument(
         "mat_mult_trace<Type>: dimension do not match");
 #endif
-  Type out(0.);
-  for(int j = 0; j < X.cols(); ++j)
-    for(int i = 0; i < X.rows(); ++i)
-      out += X(i, j) * Y(i, j);
-
-  return out;
+  return vec_dot(X.data(), Y.data(), X.rows() * X.cols());
 }
+
+void add_atomics_to_be_cleared();
 
 #endif

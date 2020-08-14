@@ -35,4 +35,6 @@ for(link in c("PH", "PO", "probit"))
       expect_known_output(
         res, sprintf(file.path(test_res_dir, "Laplace-%s.txt"), link),
         print = TRUE)
+
+      free_laplace(func)
     })

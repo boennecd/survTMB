@@ -31,5 +31,7 @@ for(n_threads in 1:2){
         head(out$gr(out$par), 45),
         file.path(test_res_dir, "joint-all-gr.RDS"),
         tolerance = sqrt(eps) * 10)
+
+      clear_cppad_mem(2L)
   })
 }

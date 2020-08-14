@@ -1,6 +1,7 @@
 #include "snva-utils.h"
 #include <array>
 #include <memory>
+#include "clear-mem.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -33,6 +34,7 @@ entropy_term_integral<Type>::get_cached(unsigned const n){
 #endif
 
   cached_values[idx].reset(new output_T("entropy_term_integral<Type>", n));
+  track_atomic(cached_values[idx].get());
 
   return *cached_values[idx];
 }
@@ -61,6 +63,7 @@ integral_atomic<Type, Fam>::get_cached(unsigned const n){
 #endif
 
   cached_values[idx].reset(new output_T("integral_atomic<Type, Fam>", n));
+  track_atomic(cached_values[idx].get());
 
   return *cached_values[idx];
 }

@@ -7,7 +7,7 @@
 #endif
 
 inline void shut_up(){
-  config.trace.atomic = false;
+  config.trace.atomic   = false;
   config.trace.parallel = false;
   config.trace.optimize = false;
 }
@@ -141,6 +141,8 @@ struct setup_parallel_ad {
   size_t const nthreads;
 
   setup_parallel_ad(std::size_t const nthreads): nthreads(nthreads) {
+    CppAD::thread_alloc::free_all();
+
     if(nthreads > 1L)
       CppAD::thread_alloc::parallel_setup(
         nthreads, is_in_parallel, get_thread_num);
@@ -148,23 +150,12 @@ struct setup_parallel_ad {
       CppAD::thread_alloc::parallel_setup(
         nthreads, nullptr, nullptr);
 
-    CppAD::thread_alloc::hold_memory(true);
-    CppAD::parallel_ad<      double    >();
-    CppAD::parallel_ad<   AD<double>   >();
-    // CppAD::parallel_ad<AD<AD<double> > >();
+    CppAD::parallel_ad<         double      >();
+    CppAD::parallel_ad<      AD<double>     >();
+    CppAD::parallel_ad<   AD<AD<double> >   >();
+    CppAD::parallel_ad<AD<AD<AD<double> > > >();
   }
 
-  /*
-  ~setup_parallel_ad(){
-    if(nthreads > 1L){
-      CppAD::thread_alloc::parallel_setup(1L, nullptr, nullptr);
-      CppAD::thread_alloc::hold_memory(false);
-
-      CppAD::parallel_ad<      double    >();
-      CppAD::parallel_ad<   AD<double>   >();
-      // CppAD::parallel_ad<AD<AD<double> > >();
-    }
-  }*/
 #else
   setup_parallel_ad(unsigned const nthreads) { }
 #endif

@@ -39,6 +39,8 @@ for(link in c("PH", "PO", "probit"))
         expect_known_output(
           res, sprintf(file.path(test_res_dir, "GVA-%s.txt"), link),
           print = TRUE)
+
+        clear_cppad_mem(2L)
       })
 
 for(link in c("PH", "PO", "probit"))
@@ -76,4 +78,6 @@ for(link in c("PH", "PO", "probit"))
       expect_equal(my_hes, tm_hes)
       expect_equal(my_hes, as.matrix(sp_hes), check.attributes = FALSE)
       expect_equal(my_hes, nu_hes, tolerance = sqrt(eps))
+
+      clear_cppad_mem(2L)
     })

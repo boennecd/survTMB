@@ -6,6 +6,7 @@
 #include "convert-eigen-arma.h"
 #include <limits>
 #include "bases-wrapper.h"
+#include "XPtr_wrapper.h"
 
 namespace {
 constexpr size_t const INT_NS = 0L,
@@ -613,7 +614,6 @@ class VA_func {
   size_t n_pars;
 
 public:
-
   size_t get_n_pars() const {
     return n_pars;
   }
@@ -656,7 +656,10 @@ SEXP get_joint_funcs
 
   unsigned const n_threads(data["n_threads"]);
   setup_parallel_ad setup_ADd(n_threads);
-  return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
+
+  auto out = new XPtr_wrapper<VA_func>(new VA_func(data, parameters));
+  add_clearable(out);
+  return static_cast<Rcpp::XPtr<VA_func> >(*out);
 }
 
 // [[Rcpp::export(rng = false)]]

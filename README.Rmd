@@ -54,7 +54,8 @@ library(survTMB)
 library(survival)
 fit_model <- function(link, n_threads = 2L, method = "Laplace", 
                       param_type = "DP", dense_hess = FALSE, 
-                      sparse_hess = FALSE, do_fit = TRUE)
+                      sparse_hess = FALSE, do_fit = TRUE, 
+                      do_free = FALSE)
   eval(bquote({
     adfun <- make_mgsm_ADFun(
       Surv(y, uncens) ~ trt, cluster = as.factor(center), 
@@ -63,11 +64,15 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
       dense_hess = .(dense_hess), sparse_hess = .(sparse_hess))
     fit <- if(.(do_fit))
       fit_mgsm(adfun, method = .(method)) else NULL
+    if(.(do_free)){
+      free_laplace(adfun)
+      clear_cppad_mem(.(n_threads), keep_work_space = TRUE)
+    }
     list(fit = fit, fun = adfun)
   }), parent.frame())
 
-# estimate the model using different methods. Start w/ Laplace
-(lap_ph <- fit_model("PO"))$fit
+# # estimate the model using different methods. Start w/ Laplace
+# (lap_ph <- fit_model("PO"))$fit
 
 # w/ GVA
 (gva_fit <- fit_model("PO", method = "GVA"))$fit
@@ -231,11 +236,11 @@ Again, the skewness parameter have not moved much from the defaults.
 We estimate the same model below with other link functions.
 
 ```{r other_link, cache = 1, dependson = "fit_example"}
-######
-# w/ Laplace
-fit_model("PH"    )$fit
-fit_model("PO"    )$fit
-fit_model("probit")$fit
+# ######
+# # w/ Laplace
+# fit_model("PH"    , do_free = TRUE)$fit
+# fit_model("PO"    , do_free = TRUE)$fit
+# fit_model("probit", do_free = TRUE)$fit
 
 ######
 # w/ GVA
@@ -260,23 +265,28 @@ fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 We provide a benchmark of the estimation methods used in section 
 [example](#example) below.
 
+```{r clear_mem_comp_time}
+clear_cppad_mem(4L)
+```
+
 ```{r comp_time, cache = 1, dependson = "fit_example"}
-for(mth in c("Laplace", "GVA")){
+for(mth in c("GVA")){
+# for(mth in c("Laplace", "GVA")){
   msg <- sprintf("Method: %s", mth)
   cat(sprintf("\n%s\n%s\n", msg, 
               paste0(rep("-", nchar(msg)), collapse = "")))
   print(microbenchmark(
-    `PH         ` = fit_model("PH"    , 1L, mth),
-    `PH     (2L)` = fit_model("PH"    , 2L, mth),
-    `PH     (4L)` = fit_model("PH"    , 4L, mth),
+    `PH         ` = fit_model("PH"    , 1L, mth, do_free = TRUE),
+    `PH     (2L)` = fit_model("PH"    , 2L, mth, do_free = TRUE),
+    `PH     (4L)` = fit_model("PH"    , 4L, mth, do_free = TRUE),
     
-    `PO         ` = fit_model("PO"    , 1L, mth),
-    `PO     (2L)` = fit_model("PO"    , 2L, mth),
-    `PO     (4L)` = fit_model("PO"    , 4L, mth), 
+    `PO         ` = fit_model("PO"    , 1L, mth, do_free = TRUE),
+    `PO     (2L)` = fit_model("PO"    , 2L, mth, do_free = TRUE),
+    `PO     (4L)` = fit_model("PO"    , 4L, mth, do_free = TRUE), 
     
-    `probit     ` = fit_model("probit", 1L, mth),
-    `probit (2L)` = fit_model("probit", 2L, mth),
-    `probit (4L)` = fit_model("probit", 4L, mth),
+    `probit     ` = fit_model("probit", 1L, mth, do_free = TRUE),
+    `probit (2L)` = fit_model("probit", 2L, mth, do_free = TRUE),
+    `probit (4L)` = fit_model("probit", 4L, mth, do_free = TRUE),
     times = 5))
 }
 ```
@@ -301,6 +311,12 @@ for(param_type in c("DP", "CP_trans")){
     `probit (4L)` = fit_model("probit", 4L, mth, param_type = param_type),
     times = 5)))
 }
+```
+
+```{r rep_rep_clear_mem_comp_time}
+rm(list = ls())
+gc()
+clear_cppad_mem(4L)
 ```
 
 ## Joint Models
@@ -498,6 +514,13 @@ print(skews, quote = FALSE)
 
 We only see a low amount of skewness.
 
+```{r joint_cleanup}
+rm(list = ls())
+gc()
+clear_cppad_mem(6L)
+```
+
+
 ## Heritability
 
 <!-- $$\begin{align*}  -->
@@ -580,6 +603,21 @@ rbind(
   `Starting values` = head(func$par, 6), 
   Estimates = head(opt_out$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
+
+# check the skew parameters
+names(opt_out$par) <- names(func$par)
+reg_exp <- "(^g\\d+)(:.+$)"
+va_ests <- opt_out$par[grepl(reg_exp, names(func$par), perl = TRUE)]
+grp <- gsub(reg_exp, "\\1", names(va_ests), perl = TRUE)
+cps <- tapply(va_ests, grp, function(x){
+  n <- length(x)
+  n <- .5 * (sqrt(8 * n + 25) - 5)
+  dp_to_cp(xi = head(x, n), 
+           Psi = theta_to_cov(tail(head(x, -n), -n)), 
+           alpha = tail(x, n))
+})
+
+summary(unlist(lapply(cps, `[[`, "gamma")))
 ```
 
 ## References

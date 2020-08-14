@@ -205,7 +205,7 @@ dp_to_cp <- function(xi, Psi, alpha){
 #' Let \eqn{C} be a \eqn{K}-dimensional covariance matrix. Let
 #' \eqn{C = LL^\top} where \eqn{L} is the Cholesky decomposition.
 #' Then the two functions map between \eqn{C} and
-#' a vector where containing the non-zero elements of L where the diagonal
+#' a vector containing the non-zero elements of L where the diagonal
 #' entries have been log transformed.
 #'
 #' @param cov the covariance matrix.
@@ -260,6 +260,25 @@ theta_to_cov <- function(theta){
   environment(.set_use_own_VA_method),
   function()
     .use_own_VA_method)
+
+#' Free Memory Used by TMB
+#' @description
+#' Essentially a wrapper around \code{\link{FreeADFun}}.
+#'
+#'  @param obj object of type MGSM_ADFun.
+#'
+#' @importFrom TMB FreeADFun
+#' @seealso \code{\link{make_mgsm_ADFun}}
+#' @export
+free_laplace <- function(obj){
+  stopifnot(inherits(obj, "MGSM_ADFun"))
+
+  lap <- obj$laplace
+  if(!is.null(lap))
+    FreeADFun(lap)
+
+  invisible()
+}
 
 #' Construct Objective Functions with Derivatives for a Mixed Generalized
 #' Survival Model
@@ -518,6 +537,12 @@ make_mgsm_ADFun <- function(
     class = "MGSM_ADFun")
 }
 
+.tmb_set_n_threads <- function(n, is_laplace = FALSE){
+  out <- if(is_laplace || !.get_use_own_VA_method())
+    set_n_threads(n) else set_n_threads(-1L)
+  out
+}
+
 .get_MGSM_VA_start <- function(
   n_rng, params, data_ad_func, opt_func, skew_start = NULL, is_cp = NULL,
   skew_boundary = NULL){
@@ -597,42 +622,50 @@ make_mgsm_ADFun <- function(
 
 .get_laplace_func <- function(data_ad_func, params, n_rng, n_grp, inits) {
   setup_atomic_cache(
-    n_nodes = 2L, type = .laplace_char, link = data_ad_func$link,
+    n_nodes = 15L, type = .laplace_char, link = data_ad_func$link,
     triag_sizes = n_rng)
 
   # get Laplace AD function
-  adfunc_laplace <- local({
-    data_ad_func <- c(
-      list(app_type = .laplace_char), data_ad_func)
-    # TODO: initialize random effects in a smarter way...
-    params$u <- matrix(0., n_rng, n_grp)
-    MakeADFun(
-      data = data_ad_func, parameters = params, DLL = "survTMB",
-      silent = TRUE, random = "u")
-  })
+  .tmb_set_n_threads(data_ad_func$n_threads, is_laplace = TRUE)
+  data_ad_func <- c(
+    list(app_type = .laplace_char), data_ad_func)
+  # TODO: initialize random effects in a smarter way...
+  params$u <- matrix(0., n_rng, n_grp)
+  adfunc_laplace <- MakeADFun(
+    data = data_ad_func, parameters = params, DLL = "survTMB",
+    silent = TRUE, random = "u")
 
   # we make a wrapper object to account for the eps and kappa and allow the
   # user to change these
-  with(new.env(), {
-    eps <- adfunc_laplace$par["eps"]
-    kappa <- adfunc_laplace$par["kappa"]
-    fn <- adfunc_laplace$fn
-    gr <- adfunc_laplace$gr
-    he <- adfunc_laplace$he
-    get_x <- function(x)
-      c(eps = eps, kappa = kappa, x)
+  n_threads <- data_ad_func$n_threads
+  eps <- adfunc_laplace$par["eps"]
+  kappa <- adfunc_laplace$par["kappa"]
+  fn <- adfunc_laplace$fn
+  gr <- adfunc_laplace$gr
+  he <- adfunc_laplace$he
+  get_x <- function(x)
+    c(eps = eps, kappa = kappa, x)
 
-    out <- adfunc_laplace[
-      !names(adfunc_laplace) %in% c("par", "fn", "gr", "he")]
+  out <- adfunc_laplace[
+    !names(adfunc_laplace) %in% c("par", "fn", "gr", "he")]
 
-    par <- adfunc_laplace$par[-(1:2)]
-    names(par)[seq_along(inits$coef)] <- names(inits$coef)
+  par <- adfunc_laplace$par[-(1:2)]
+  names(par)[seq_along(inits$coef)] <- names(inits$coef)
 
-    c(list(
+  out <- c(list(
       par = par,
-      fn = function(x, ...){ fn(get_x(x))                               },
-      gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
-      he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+      fn = function(x, ...){
+        .tmb_set_n_threads(n_threads, is_laplace = TRUE)
+        fn(get_x(x))
+      },
+      gr = function(x, ...){
+        .tmb_set_n_threads(n_threads, is_laplace = TRUE)
+        gr(get_x(x))[-(1:2)]
+      },
+      he = function(x, ...){
+        .tmb_set_n_threads(n_threads, is_laplace = TRUE)
+        he(get_x(x))[-(1:2), -(1:2), drop = FALSE]
+      },
       # function to set penalty parameters
       update_pen = function(eps, kappa){
         p_env <- parent.env(environment())
@@ -641,9 +674,14 @@ make_mgsm_ADFun <- function(
         if(!missing(kappa))
           assign("kappa", kappa, p_env)
         invisible(with(p_env, c(eps = eps, kappa = kappa)))
-      }
+      },
+      adfun = adfunc_laplace
     ), out)
-  })
+
+  # clean up and return
+  rm(list = setdiff(ls(), c(
+    "out", "n_threads", "fn", "gr", "he", "get_x", "eps", "kappa")))
+  out
 }
 
 # VA util funcs
@@ -700,17 +738,20 @@ make_mgsm_ADFun <- function(
           par <- .get_par_va(params)
         })
 
-      } else
+      } else {
+        .tmb_set_n_threads(data_ad_func$n_threads, is_laplace = FALSE)
         within(MakeADFun(
           data = data_ad_func, parameters = params, DLL = "survTMB",
           silent = TRUE),
           he_sp <- function(x, ...)
             stop())
+      }
     })
 
     # we make a wrapper object to account for the eps and kappa and allow the
     # user to change these
     gva_out <- with(new.env(), {
+      n_threads <- data_ad_func$n_threads
       eps <- adfunc_VA$par["eps"]
       kappa <- adfunc_VA$par["kappa"]
       fn    <- adfunc_VA$fn
@@ -731,9 +772,18 @@ make_mgsm_ADFun <- function(
 
       c(list(
         par = par,
-        fn = function(x, ...){ fn(get_x(x))                               },
-        gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
-        he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+        fn = function(x, ...){
+          .tmb_set_n_threads(n_threads, is_laplace = FALSE)
+          fn(get_x(x))
+        },
+        gr = function(x, ...){
+          .tmb_set_n_threads(n_threads, is_laplace = FALSE)
+          gr(get_x(x))[-(1:2)]
+        },
+        he = function(x, ...){
+          .tmb_set_n_threads(n_threads, is_laplace = FALSE)
+          he(get_x(x))[-(1:2), -(1:2), drop = FALSE]
+        },
         he_sp = function(x, ...){
           he_sp(get_x(x))[-(1:2), -(1:2), drop = FALSE]
         },
@@ -749,7 +799,8 @@ make_mgsm_ADFun <- function(
         # function to get parameters
         get_params = function(x)
           x[-idx_va],
-        control = list(maxit = 1000L)
+        control = list(maxit = 1000L),
+        adfun = adfunc_VA
       ), out)
     })
   }
@@ -868,12 +919,14 @@ make_mgsm_ADFun <- function(
           .eval_hess_sparse(ptr, x)
         par <- .get_par_va(params)
       })
-    else
+    else {
+      .tmb_set_n_threads(data_ad_func$n_threads, is_laplace = FALSE)
       within(MakeADFun(
         data = data_ad_func, parameters = params, DLL = "survTMB",
         silent = TRUE),
         he_sp <- function(x, ...)
           stop())
+    }
   })
 
   # we make a wrapper object to account for the eps and kappa and allow the
@@ -882,6 +935,7 @@ make_mgsm_ADFun <- function(
   theta <- params$theta
   get_snva_out <- function(theta_VA){
     with(new.env(), {
+      n_threads <- data_ad_func$n_threads
       eps <- adfunc_VA$par["eps"]
       kappa <- adfunc_VA$par["kappa"]
       fn <- adfunc_VA$fn
@@ -901,9 +955,18 @@ make_mgsm_ADFun <- function(
 
       c(list(
         par = par,
-        fn = function(x, ...){ fn(get_x(x))                               },
-        gr = function(x, ...){ gr(get_x(x))[-(1:2)]                       },
-        he = function(x, ...){ he(get_x(x))[-(1:2), -(1:2), drop = FALSE] },
+        fn = function(x, ...){
+          .tmb_set_n_threads(n_threads, is_laplace = FALSE)
+          fn(get_x(x))
+        },
+        gr = function(x, ...){
+          .tmb_set_n_threads(n_threads, is_laplace = FALSE)
+          gr(get_x(x))[-(1:2)]
+        },
+        he = function(x, ...){
+          .tmb_set_n_threads(n_threads, is_laplace = FALSE)
+          he(get_x(x))[-(1:2), -(1:2), drop = FALSE]
+        },
         he_sp = function(x, ...){
           he_sp(get_x(x))[-(1:2), -(1:2), drop = FALSE]
         },
@@ -919,7 +982,8 @@ make_mgsm_ADFun <- function(
         # function to get parameters
         get_params = function(x)
           x[-idx_va],
-        control = list(maxit = 1000L)
+        control = list(maxit = 1000L),
+        adfun = adfunc_VA
       ), out)
     })
   }

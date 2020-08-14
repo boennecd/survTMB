@@ -92,7 +92,7 @@ public:
     /* set variable flags */
     if (vx.size() > 0) {
       bool anyvx = false;
-      for (std::size_t i = 0; i < vx.size(); i++)
+      for (std::size_t i = 0; i < vx.size() and !anyvx; i++)
         anyvx |= vx[i];
       for (std::size_t i = 0; i < vy.size(); i++)
         vy[i] = anyvx;
