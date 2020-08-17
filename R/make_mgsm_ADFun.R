@@ -265,7 +265,7 @@ theta_to_cov <- function(theta){
 #' @description
 #' Essentially a wrapper around \code{\link{FreeADFun}}.
 #'
-#'  @param obj object of type MGSM_ADFun.
+#' @param obj object of type MGSM_ADFun.
 #'
 #' @importFrom TMB FreeADFun
 #' @seealso \code{\link{make_mgsm_ADFun}}

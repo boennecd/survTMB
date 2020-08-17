@@ -208,14 +208,14 @@ microbenchmark(
   `Invert dense Hessian (alternative)`  = alte_vcov(dense_hess), 
   `Invert sparse Hessian (alternative)` = alte_vcov(sparse_hess),
   times = 10)
-#> Unit: milliseconds
+#> Unit: microseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 313.42 317.32 320.51 318.23 324.65 329.31
-#>               Compute sparse Hessian  18.37  18.69  19.02  19.01  19.28  19.77
-#>         Invert dense Hessian (naive)   5.26   5.30   5.39   5.35   5.42   5.73
-#>        Invert sparse Hessian (naive)   1.06   1.07   1.13   1.09   1.12   1.30
-#>   Invert dense Hessian (alternative)   1.27   1.33   1.35   1.35   1.37   1.47
-#>  Invert sparse Hessian (alternative)   2.71   2.77   2.96   2.87   3.09   3.52
+#>                Compute dense Hessian 311812 313429 318976 319617 322437 327284
+#>               Compute sparse Hessian  18625  19060  19399  19369  19803  19991
+#>         Invert dense Hessian (naive)   5266   5369   5488   5437   5545   5931
+#>        Invert sparse Hessian (naive)    996   1066   1212   1100   1288   1865
+#>   Invert dense Hessian (alternative)   1270   1351   1415   1389   1475   1653
+#>  Invert sparse Hessian (alternative)   2623   2660   2948   3007   3204   3216
 #>  neval
 #>     10
 #>     10
@@ -240,10 +240,10 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 #> Unit: milliseconds
-#>               expr min    lq  mean median    uq   max neval
-#>  W/o Hessians       28  28.5  29.4   28.9  30.9  31.7    10
-#>  W/ dense Hessian   78  80.1  80.6   80.6  81.2  84.1    10
-#>  W/ sparse Hessian 634 638.0 643.8  645.3 648.8 651.6    10
+#>               expr   min    lq  mean median    uq   max neval
+#>  W/o Hessians       28.2  28.9  32.0   32.3  33.3  37.3    10
+#>  W/ dense Hessian   79.4  82.1  86.1   84.7  91.1  93.7    10
+#>  W/ sparse Hessian 666.8 674.3 754.0  737.7 802.6 922.1    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -599,16 +599,16 @@ for(mth in c("GVA")){
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr   min    lq mean median    uq max neval
-#>  PH          180.7 181.7  182  182.1 183.1 184     5
-#>  PH     (2L) 114.5 114.9  116  116.8 117.0 119     5
-#>  PH     (4L)  86.8  86.9  108   91.2  94.2 180     5
-#>  PO          573.7 576.2  577  577.1 578.7 580     5
-#>  PO     (2L) 337.6 339.5  341  340.7 341.9 344     5
-#>  PO     (4L) 230.4 230.5  250  231.4 232.6 324     5
-#>  probit      716.9 719.2  720  719.2 721.6 722     5
-#>  probit (2L) 417.7 419.0  420  419.1 420.4 424     5
-#>  probit (4L) 281.8 285.8  285  285.9 286.6 287     5
+#>         expr min  lq mean median  uq max neval
+#>  PH          192 193  205    209 209 222     5
+#>  PH     (2L) 122 123  125    124 125 132     5
+#>  PH     (4L)  98 102  107    106 108 122     5
+#>  PO          592 595  601    596 604 616     5
+#>  PO     (2L) 349 353  379    375 382 437     5
+#>  PO     (4L) 246 268  266    269 271 275     5
+#>  probit      742 748  760    754 759 796     5
+#>  probit (2L) 435 437  442    444 445 451     5
+#>  probit (4L) 299 303  314    312 324 331     5
 ```
 
 ``` r
@@ -635,38 +635,38 @@ for(param_type in c("DP", "CP_trans")){
 #> Method: SNVA (DP)
 #> -----------------
 #> Unit: milliseconds
-#>         expr min  lq mean median  uq max neval
-#>  PH          213 215  216    215 218 218     5
-#>  PH     (2L) 141 142  143    144 144 146     5
-#>  PH     (4L) 105 107  109    108 108 116     5
-#>  PO          736 740  744    740 741 765     5
-#>  PO     (2L) 453 457  464    461 472 478     5
-#>  PO     (4L) 306 309  311    313 313 316     5
-#>  probit      910 914  922    918 922 943     5
-#>  probit (2L) 554 559  565    567 571 577     5
-#>  probit (4L) 366 374  374    374 375 382     5
+#>         expr min  lq mean median   uq  max neval
+#>  PH          221 223  226    225  227  234     5
+#>  PH     (2L) 142 143  170    146  154  266     5
+#>  PH     (4L) 107 109  118    114  127  135     5
+#>  PO          759 764  767    768  769  777     5
+#>  PO     (2L) 461 483  482    485  487  495     5
+#>  PO     (4L) 324 330  333    331  339  339     5
+#>  probit      941 957  978    973 1001 1016     5
+#>  probit (2L) 559 575  588    594  599  614     5
+#>  probit (4L) 389 391  395    394  397  405     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
-#>         expr min  lq mean median  uq max neval
-#>  PH          284 288  291    292 295 296     5
-#>  PH     (2L) 181 187  206    188 188 284     5
-#>  PH     (4L) 143 144  144    144 144 145     5
-#>  PO          741 742  744    742 744 750     5
-#>  PO     (2L) 461 467  469    470 470 479     5
-#>  PO     (4L) 309 310  317    316 323 325     5
-#>  probit      920 922  929    924 936 943     5
-#>  probit (2L) 551 553  564    566 567 581     5
-#>  probit (4L) 370 373  376    375 375 385     5
+#>         expr min  lq mean median  uq  max neval
+#>  PH          280 281  295    294 300  318     5
+#>  PH     (2L) 184 193  194    193 200  201     5
+#>  PH     (4L) 140 141  146    141 149  160     5
+#>  PO          793 798  801    801 807  807     5
+#>  PO     (2L) 478 488  514    489 550  566     5
+#>  PO     (4L) 322 324  332    334 338  341     5
+#>  probit      938 952  976    971 986 1032     5
+#>  probit (2L) 577 582  604    603 617  640     5
+#>  probit (4L) 388 405  404    407 409  412     5
 ```
 
 ``` r
 rm(list = ls())
 gc()
 #>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2105482 112.5    4304134 229.9  2751727 147.0
-#> Vcells 3609966  27.6    8412869  64.2  8412869  64.2
+#> Ncells 2105499 112.5    4304085 229.9  2751745 147.0
+#> Vcells 3610173  27.6    8396901  64.1  8396901  64.1
 clear_cppad_mem(4L)
 #> [1] 1
 ```
@@ -904,17 +904,19 @@ system.time(
     s_coefs = dat$params$b_attr$knots, g_coefs = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>  11.942   0.032   4.297
+#>  13.498   0.012   4.735
 ```
 
 Next, we fit the model using the default optimization function.
 
 ``` r
+library(lbfgs)
 system.time(
-  opt_out <- out$opt_func(
-    out$par, out$fn, out$gr, control = list(maxit = 10000L)))
+  opt_out <- lbfgs(out$fn, out$gr, out$par, max_iterations = 25000L, 
+                   past = 100L, delta = sqrt(.Machine$double.eps), 
+                   invisible = 1))
 #>    user  system elapsed 
-#>  69.163   0.016  11.535
+#> 186.326   0.003  31.056
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -941,16 +943,16 @@ names(true_params) <- names(out$par)[seq_along(true_params)]
 rbind(Estimate = opt_out$par[1:n_params], 
       `True value` = true_params)
 #>            gamma:X1.Y1 gamma:X1.Y2 B:g1.Y1 B:g2.Y1 B:g3.Y1 B:g1.Y2 B:g2.Y2
-#> Estimate         0.133      -0.802  -0.942   0.367   0.403   0.256  -0.843
-#> True value       0.140      -0.800  -0.960   0.330   0.390   0.260  -0.760
+#> Estimate         0.133      -0.802  -0.941    0.37   0.405   0.253  -0.848
+#> True value       0.140      -0.800  -0.960    0.33   0.390   0.260  -0.760
 #>            B:g3.Y2 Psi:L1.1 Psi:L2.1 Psi:L3.1 Psi:L4.1 Psi:L2.2 Psi:L3.2
-#> Estimate    0.0686    0.236   -0.303  -0.1158   -0.225  -0.0412  -0.1171
-#> True value  0.1900    0.226   -0.295  -0.0638   -0.136  -0.0567  -0.0729
+#> Estimate     0.062    0.238   -0.298  -0.1181   -0.229  -0.0369  -0.1159
+#> True value   0.190    0.226   -0.295  -0.0638   -0.136  -0.0567  -0.0729
 #>            Psi:L4.2 Psi:L3.3 Psi:L4.3 Psi:L4.4 Sigma:L1.1 Sigma:L2.1 Sigma:L2.2
-#> Estimate    -0.0226  -0.1241    0.555  -0.0875      -1.76    0.00302      -1.53
+#> Estimate    -0.0233  -0.1274    0.546  -0.0904      -1.76    0.00304      -1.53
 #> True value   0.0528  -0.0751    0.566  -0.0942      -1.75    0.00000      -1.50
 #>            delta:Z1 delta:Z2 omega:b1 omega:b2 alpha:Y1 alpha:Y2
-#> Estimate      0.237   -0.219    -2.51    -1.25    0.338   -0.277
+#> Estimate      0.238   -0.219    -2.51    -1.25    0.338   -0.276
 #> True value    0.200   -0.170    -2.60    -1.32    0.320   -0.310
 ```
 
@@ -963,10 +965,10 @@ values.
 is_psi <- which(grepl("Psi", names(true_params)))
 theta_to_cov(opt_out$par[is_psi]) 
 #>        [,1]    [,2]    [,3]    [,4]
-#> [1,]  1.603 -0.3842 -0.1466 -0.2848
-#> [2,] -0.384  1.0129 -0.0772  0.0466
-#> [3,] -0.147 -0.0772  0.8074  0.5188
-#> [4,] -0.285  0.0466  0.5188  1.1983
+#> [1,]  1.609 -0.3784 -0.1497 -0.2904
+#> [2,] -0.378  1.0178 -0.0765  0.0458
+#> [3,] -0.150 -0.0765  0.8024  0.5108
+#> [4,] -0.290  0.0458  0.5108  1.1861
 dat$params$Psi
 #>       [,1]  [,2]  [,3]  [,4]
 #> [1,]  1.57 -0.37 -0.08 -0.17
@@ -975,10 +977,10 @@ dat$params$Psi
 #> [4,] -0.17  0.09  0.53  1.17
 cov2cor(theta_to_cov(opt_out$par[is_psi]))
 #>        [,1]    [,2]    [,3]    [,4]
-#> [1,]  1.000 -0.3015 -0.1289 -0.2055
-#> [2,] -0.302  1.0000 -0.0854  0.0423
-#> [3,] -0.129 -0.0854  1.0000  0.5274
-#> [4,] -0.206  0.0423  0.5274  1.0000
+#> [1,]  1.000 -0.2957 -0.1318 -0.2102
+#> [2,] -0.296  1.0000 -0.0846  0.0417
+#> [3,] -0.132 -0.0846  1.0000  0.5235
+#> [4,] -0.210  0.0417  0.5235  1.0000
 cov2cor(dat$params$Psi)
 #>         [,1]    [,2]    [,3]   [,4]
 #> [1,]  1.0000 -0.2983 -0.0685 -0.125
@@ -995,16 +997,16 @@ the true values.
 is_sigma <- which(grepl("Sigma", names(true_params)))
 theta_to_cov(opt_out$par[is_sigma])
 #>          [,1]     [,2]
-#> [1,] 0.029376 0.000517
-#> [2,] 0.000517 0.047144
+#> [1,] 0.029379 0.000522
+#> [2,] 0.000522 0.047149
 dat$params$sigma
 #>      [,1] [,2]
 #> [1,] 0.03 0.00
 #> [2,] 0.00 0.05
 cov2cor(theta_to_cov(opt_out$par[is_sigma]))
-#>        [,1]   [,2]
-#> [1,] 1.0000 0.0139
-#> [2,] 0.0139 1.0000
+#>       [,1]  [,2]
+#> [1,] 1.000 0.014
+#> [2,] 0.014 1.000
 cov2cor(dat$params$sigma)
 #>      [,1] [,2]
 #> [1,]    1    0
@@ -1032,48 +1034,48 @@ sum_func <- function(x)
 
 # mean 
 sum_func(do.call(rbind, lapply(va_stats, `[[`, "mu")))
-#>       g1:xi1  g1:xi2   g1:xi3  g1:xi4
-#> 0%   -3.4738 -3.6373 -2.37207 -2.7812
-#> 10%  -1.4551 -0.9531 -0.82561 -0.9635
-#> 20%  -1.0003 -0.6354 -0.48732 -0.5692
-#> 30%  -0.6377 -0.3933 -0.28593 -0.3441
-#> 40%  -0.3140 -0.1956 -0.13987 -0.1612
-#> 50%  -0.0261 -0.0138 -0.00653 -0.0174
-#> 60%   0.2929  0.1955  0.12421  0.1363
-#> 70%   0.6008  0.3913  0.27279  0.3103
-#> 80%   0.9946  0.6001  0.46744  0.5549
-#> 90%   1.5250  1.0146  0.84856  0.9648
-#> 100%  3.9340  2.9911  2.31430  2.6400
+#>       g1:xi1  g1:xi2   g1:xi3 g1:xi4
+#> 0%   -3.4764 -3.6412 -2.36783 -2.773
+#> 10%  -1.4590 -0.9493 -0.82072 -0.956
+#> 20%  -1.0030 -0.6331 -0.48969 -0.562
+#> 30%  -0.6413 -0.3940 -0.28873 -0.340
+#> 40%  -0.3156 -0.1928 -0.14207 -0.161
+#> 50%  -0.0284 -0.0133 -0.00415 -0.013
+#> 60%   0.2932  0.1934  0.12455  0.138
+#> 70%   0.5998  0.3899  0.27562  0.308
+#> 80%   0.9928  0.5970  0.46967  0.553
+#> 90%   1.5260  1.0165  0.85029  0.964
+#> 100%  3.9397  2.9902  2.31835  2.645
 
 # standard deviation
 sum_func(do.call(rbind, lapply(va_stats, 
                                function(x) sqrt(diag(x[["Sigma"]])))))
 #>        [,1]  [,2]  [,3]  [,4]
-#> 0%   0.0851 0.107 0.107 0.135
-#> 10%  0.1286 0.236 0.160 0.295
-#> 20%  0.1644 0.335 0.204 0.416
-#> 30%  0.2265 0.462 0.280 0.569
-#> 40%  0.3345 0.619 0.430 0.793
-#> 50%  0.4549 0.659 0.607 0.858
-#> 60%  0.5380 0.680 0.714 0.900
-#> 70%  0.5984 0.704 0.785 0.936
-#> 80%  0.6433 0.733 0.827 0.986
-#> 90%  0.6816 0.773 0.855 1.034
-#> 100% 0.7246 0.998 0.878 1.080
+#> 0%   0.0852 0.107 0.107 0.135
+#> 10%  0.1287 0.236 0.160 0.295
+#> 20%  0.1646 0.336 0.204 0.416
+#> 30%  0.2268 0.463 0.280 0.568
+#> 40%  0.3357 0.623 0.429 0.789
+#> 50%  0.4583 0.665 0.601 0.852
+#> 60%  0.5426 0.686 0.708 0.894
+#> 70%  0.6037 0.710 0.778 0.929
+#> 80%  0.6490 0.740 0.821 0.978
+#> 90%  0.6879 0.781 0.848 1.024
+#> 100% 0.7312 1.002 0.872 1.069
 
 # skewness
 skews <-  sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
 skews[] <- sprintf("%8.4f", skews)
 print(skews, quote = FALSE)
 #>      [,1]     [,2]     [,3]     [,4]    
-#> 0%    -0.0122  -0.0126  -0.0041  -0.0041
+#> 0%    -0.0125  -0.0129  -0.0044  -0.0044
 #> 10%   -0.0042  -0.0041  -0.0003  -0.0003
 #> 20%   -0.0031  -0.0030  -0.0002  -0.0002
-#> 30%   -0.0025  -0.0024  -0.0002  -0.0002
+#> 30%   -0.0024  -0.0023  -0.0002  -0.0002
 #> 40%   -0.0022  -0.0022  -0.0002  -0.0002
 #> 50%   -0.0021  -0.0021  -0.0001  -0.0001
-#> 60%   -0.0020  -0.0020  -0.0001  -0.0001
-#> 70%   -0.0018  -0.0018  -0.0001  -0.0001
+#> 60%   -0.0020  -0.0019  -0.0001  -0.0001
+#> 70%   -0.0018  -0.0017  -0.0001  -0.0001
 #> 80%   -0.0012  -0.0011  -0.0001  -0.0000
 #> 90%   -0.0004  -0.0003  -0.0000  -0.0000
 #> 100%   0.0000   0.0001   0.0001   0.0001
@@ -1085,8 +1087,8 @@ We only see a low amount of skewness.
 rm(list = ls())
 gc()
 #>           used (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2183618  117    4304134 229.9  2827218 151.0
-#> Vcells 3791940   29    8412869  64.2  8412869  64.2
+#> Ncells 2183643  117    4304085 229.9  2933940 156.7
+#> Vcells 3792188   29   10170006  77.6 10168326  77.6
 clear_cppad_mem(6L)
 #> [1] 1
 ```
@@ -1184,7 +1186,7 @@ system.time(
 #> Creating ADFun...
 #> Finding starting values for variational parameters...
 #>    user  system elapsed 
-#>   3.289   0.056   0.792
+#>   3.259   0.067   0.790
 
 -func$fn(func$par) # lower bound of the log-likelihood
 #> [1] -1575
@@ -1205,10 +1207,11 @@ siz$size_par
 # optimize and compare the results with the true parameters
 library(lbfgs)
 system.time(
-  opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
-                   max_iterations = 5000L, invisible = 1))
-#>    user  system elapsed 
-#> 1037.43    0.06  173.00
+  opt_out <- lbfgs(
+    func$fn, func$gr, func$par, m = 6, max_iterations = 25000L, 
+    invisible = 1, delta = sqrt(.Machine$double.eps), past = 100L))
+#>     user   system  elapsed 
+#> 1634.027    0.139  272.473
 ```
 
 We show the estimates below and compare them with the true values.
@@ -1222,12 +1225,12 @@ rbind(
   Estimates = head(opt_out$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
-#> Starting values             0.0150             0.0760               0.140
-#> Estimates                   0.0197             0.0996               0.184
-#> True values                 0.0200             0.1000               0.175
+#> Starting values             0.0150              0.076               0.140
+#> Estimates                   0.0198              0.100               0.185
+#> True values                 0.0200              0.100               0.175
 #>                 beta:Z.1 beta:Z.2 log_sds1
 #> Starting values   -0.792    0.217   -0.693
-#> Estimates         -1.029    0.278   -0.179
+#> Estimates         -1.035    0.280   -0.162
 #> True values       -1.000    0.250   -0.223
 
 # check the skew parameters
@@ -1243,9 +1246,40 @@ cps <- tapply(va_ests, grp, function(x){
            alpha = tail(x, n))
 })
 
+# distribution of skew parameters
 summary(unlist(lapply(cps, `[[`, "gamma")))
+#>     Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+#> -0.01620 -0.00078 -0.00002 -0.00032  0.00009  0.02399
+
+# distribution of approximate means
+summary(unlist(lapply(cps, `[[`, "mu")))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#> -0.0150 -0.0009  0.0000 -0.0002  0.0001  0.0345
+#>  -0.891  -0.408  -0.136  -0.005   0.341   2.196
+
+# example of some of the conditional covariance matrices
+vcovs_ests <- lapply(cps[1:4 + 4], "[[", "Sigma")
+par(mfcol = c(2, 2), mar = c(2, 2, 1, 1))
+cl <- colorRampPalette(c("Red", "White", "Blue"))(100)
+for(S in vcovs_ests)
+  image(cor(S), xaxt = "n", yaxt = "n", col = cl)
+```
+
+<img src="man/figures/README-pedigree_show_est-1.png" width="100%" />
+
+``` r
+
+# distribution of correlation matrix indices
+sapply(vcovs_ests, function(x) {
+  n <- NCOL(x)
+  x <- cor(x)
+  quantile(x[-cumsum(c(1L, rep(n + 1L, n - 1L)))])
+}) 
+#>          g12     g13     g14    g15
+#> 0%   -0.1229 -0.3450 -0.1181 -0.561
+#> 25%  -0.0967 -0.2571 -0.0976 -0.558
+#> 50%  -0.0861 -0.2238 -0.0820 -0.549
+#> 75%  -0.0603 -0.0762 -0.0585 -0.426
+#> 100%  0.6870  0.5741  0.6906 -0.384
 ```
 
 ## References

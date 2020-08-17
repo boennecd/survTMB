@@ -428,9 +428,11 @@ system.time(
 Next, we fit the model using the default optimization function.
 
 ```{r joint_fit, cache = 1, dependson = "joint_get_ptr"}
+library(lbfgs)
 system.time(
-  opt_out <- out$opt_func(
-    out$par, out$fn, out$gr, control = list(maxit = 10000L)))
+  opt_out <- lbfgs(out$fn, out$gr, out$par, max_iterations = 25000L, 
+                   past = 100L, delta = sqrt(.Machine$double.eps), 
+                   invisible = 1))
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum is
@@ -590,8 +592,9 @@ siz$size_par
 # optimize and compare the results with the true parameters
 library(lbfgs)
 system.time(
-  opt_out <- lbfgs(func$fn, func$gr, func$par, m = 10, 
-                   max_iterations = 5000L, invisible = 1))
+  opt_out <- lbfgs(
+    func$fn, func$gr, func$par, m = 6, max_iterations = 25000L, 
+    invisible = 1, delta = sqrt(.Machine$double.eps), past = 100L))
 ```
 
 We show the estimates below and compare them with the true values.
@@ -617,7 +620,25 @@ cps <- tapply(va_ests, grp, function(x){
            alpha = tail(x, n))
 })
 
+# distribution of skew parameters
 summary(unlist(lapply(cps, `[[`, "gamma")))
+
+# distribution of approximate means
+summary(unlist(lapply(cps, `[[`, "mu")))
+
+# example of some of the conditional covariance matrices
+vcovs_ests <- lapply(cps[1:4 + 4], "[[", "Sigma")
+par(mfcol = c(2, 2), mar = c(2, 2, 1, 1))
+cl <- colorRampPalette(c("Red", "White", "Blue"))(100)
+for(S in vcovs_ests)
+  image(cor(S), xaxt = "n", yaxt = "n", col = cl)
+
+# distribution of correlation matrix indices
+sapply(vcovs_ests, function(x) {
+  n <- NCOL(x)
+  x <- cor(x)
+  quantile(x[-cumsum(c(1L, rep(n + 1L, n - 1L)))])
+}) 
 ```
 
 ## References

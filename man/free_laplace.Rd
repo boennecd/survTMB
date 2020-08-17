@@ -6,10 +6,11 @@
 \usage{
 free_laplace(obj)
 }
+\arguments{
+\item{obj}{object of type MGSM_ADFun.}
+}
 \description{
 Essentially a wrapper around \code{\link{FreeADFun}}.
-
- @param obj object of type MGSM_ADFun.
 }
 \seealso{
 \code{\link{make_mgsm_ADFun}}

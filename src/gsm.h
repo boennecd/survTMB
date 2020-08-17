@@ -125,14 +125,14 @@ public:
 
 
       if(y[i] > 0)
-        if(__builtin_expect(valid, 1))
+        if(valid)
           out += log(-fam.gp() * eta_p);
         else
           out += eps_log + fam.g_log();
       else
         out += fam.g_log();
 
-      if(__builtin_expect(valid, 1))
+      if(valid)
         continue;
 
       double const delta = haz - eps;
@@ -170,7 +170,7 @@ public:
       bool const valid = haz > eps;
 
       if(y[i] > 0){
-        if(__builtin_expect(valid, 1)){
+        if(valid){
           double const f = fam.gpp_gp();
           arma_inplace_add(db_loc, f         , xi);
           arma_inplace_add(dg_loc, f         , zi);
@@ -189,7 +189,7 @@ public:
 
       }
 
-      if(__builtin_expect(valid, 1))
+      if(valid)
         continue;
 
       double const fac = -2. * kappa * (haz - eps),
@@ -201,13 +201,20 @@ public:
     }
 
 #ifdef _OPENMP
-#pragma omp critical
-      {
-#endif
+// an ordered reduction. See https://stackoverflow.com/a/44540413/5861244
+    for (int t = 0; t < omp_get_num_threads(); t++) {
+#pragma omp barrier
+      if (t == omp_get_thread_num()){
+        db += db_loc;
+        dg += dg_loc;
+      }
+    }
+#else
     db += db_loc;
     dg += dg_loc;
+#endif
+
 #ifdef _OPENMP
-      }
     }
 #endif
 
@@ -243,7 +250,7 @@ public:
       bool const valid = haz > eps;
 
       if(y[i] > 0){
-        if(__builtin_expect(valid, 1)){
+        if(valid){
           double const f = fam.d_gpp_gp();
           /* TODO: do something smarter */
           if(n_g > 0)
@@ -271,7 +278,6 @@ public:
     }
 
 #ifdef _OPENMP
-#pragma omp critical
       {
 #endif
     bm  += bm_loc;
