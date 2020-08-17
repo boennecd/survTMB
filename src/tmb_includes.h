@@ -76,14 +76,7 @@ Type vec_dot(vector<Type> const &x, vector<Type> const &y){
   if(x.size() != y.size())
     throw std::invalid_argument("vec_dot<Type>: dimension do not match");
 #endif
-  size_t const n = x.size();
-  if(n > 10)
-    return vec_dot(x.data(), y.data(), n);
-
-  Type out(0.);
-  for(size_t i = 0; i < n; ++i)
-    out += x[i] * y[i];
-  return out;
+  return vec_dot(x.data(), y.data(), x.size());
 }
 
 template<class Type>
@@ -94,9 +87,8 @@ Type vec_dot
   if(x.size() != y.size())
     throw std::invalid_argument("vec_dot<Type>: dimension do not match");
 #endif
-  size_t const n = x.size();
-  if(n > 10 and x.innerStride() == 1L)
-    return vec_dot(x.data(), y.data(), n);
+  if(x.innerStride() == 1L)
+    return vec_dot(x.data(), y.data(), x.size());
 
   Type out(0.);
   for(int i = 0; i < x.size(); ++i)
@@ -129,17 +121,11 @@ Type quad_form
   if(A.rows() != A.cols())
     throw std::invalid_argument("quad_form<Type>: invalid A");
 #endif
-  size_t const n = A.cols();
-  if(n > 0L)
-    return quad_form(x.data(), A.data(), y.data(), n);
-
-  Type out(0.);
-  for(int j = 0; j < A.cols(); ++j)
-    for(int i = 0; i < A.rows(); ++i)
-      out += A(i, j) * x[i] * y[j];
-
-  return out;
+  return quad_form(x.data(), A.data(), y.data(), A.cols());
 }
+
+template<class Type>
+Type quad_form_sym(Type const*, Type const*, size_t const);
 
 template<class Type>
 Type quad_form_sym(vector<Type> const &x, matrix<Type> const &A){
@@ -148,15 +134,7 @@ Type quad_form_sym(vector<Type> const &x, matrix<Type> const &A){
     throw std::invalid_argument(
         "quad_form_sym<Type>: dimension do not match");
 #endif
-  Type out(0.);
-  Type const TWO(2.);
-  for(int j = 0; j < A.cols(); ++j){
-    for(int i = 0; i < j; ++i)
-      out += TWO * A(i, j) * x[i] * x[j];
-    out += A(j, j) * x[j] * x[j];
-  }
-
-  return out;
+  return quad_form_sym(x.data(), A.data(), A.cols());
 }
 
 template<class Type>

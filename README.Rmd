@@ -521,7 +521,7 @@ clear_cppad_mem(6L)
 ```
 
 
-## Heritability
+## Pedigree Data
 
 <!-- $$\begin{align*}  -->
 <!-- g(S(t\mid \vec x_{ij}, \epsilon_{ij})) &=  -->
@@ -532,7 +532,7 @@ clear_cppad_mem(6L)
 <!-- \end{align*}$$ -->
 
 The package contains an implementation of models which can used to estimate 
-heritability. These are GSMs of the following form 
+heritability using pedigree data. These are GSMs of the following form 
 
 $$\begin{align*} g(S(t\mid \vec x_{ij}, \epsilon_{ij})) &=   \vec\omega^\top\vec f(t) + \vec\beta^\top\vec x_{ij} +\epsilon_{ij} \\\vec\epsilon_i &= (\epsilon_{i1}, \dots, \epsilon_{in_i})^\top \sim   N^{(n_i)}\left(\vec 0, \sum_{l = 1}^K\sigma_l^2 C_{il}  \right)\end{align*}$$
 
@@ -543,13 +543,13 @@ A typical example is to use a kinship matrix to estimate genetic effect
 Other examples are to include 
 maternal effects, paternal effects, shared environment etc. 
 
-As an example, we will use the `heritability.RDS` in the 
+As an example, we will use the `pedigree.RDS` in the 
 [inst/test-data](inst/test-data) directory. 
 
-```{r herita_example, cache = 1}
+```{r pedigree_example, cache = 1}
 # load the data
 library(survTMB)
-dat <- readRDS(file.path("inst", "test-data", "heritability.RDS"))
+dat <- readRDS(file.path("inst", "test-data", "pedigree.RDS"))
 
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
@@ -569,7 +569,7 @@ sbase_haz <- function(x){
 
 # create ADFun
 system.time(
-  func <- make_heritability_ADFun(
+  func <- make_pedigree_ADFun(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
@@ -578,7 +578,7 @@ system.time(
 
 # check memory usage
 # TODO: export the function
-siz <- survTMB:::herita_get_size(environment(func$fn)$adfun)
+siz <- survTMB:::pedigree_get_size(environment(func$fn)$adfun)
 
 # the amount of work and memory necessary for computing function values 
 # and derivatives using f is roughly proportional to ...
@@ -596,7 +596,7 @@ system.time(
 
 We show the estimates below and compare them with the true values.
 
-```{r herita_show_est}
+```{r pedigree_show_est}
 -opt_out$value # lower bound on the marginal log-likelihood in the end
 
 rbind(

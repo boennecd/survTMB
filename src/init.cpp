@@ -147,35 +147,35 @@ RcppExport SEXP _survTMB_gsm_eval_hess(SEXP ptrSEXP, SEXP betaSEXP, SEXP gammaSE
   return rcpp_result_gen;
   END_RCPP
 }
-// get_herita_funcs
-SEXP get_herita_funcs(Rcpp::List data, Rcpp::List parameters);
-RcppExport SEXP _survTMB_get_herita_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
+// get_pedigree_funcs
+SEXP get_pedigree_funcs(Rcpp::List data, Rcpp::List parameters);
+RcppExport SEXP _survTMB_get_pedigree_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
   Rcpp::traits::input_parameter< Rcpp::List >::type parameters(parametersSEXP);
-  rcpp_result_gen = Rcpp::wrap(get_herita_funcs(data, parameters));
+  rcpp_result_gen = Rcpp::wrap(get_pedigree_funcs(data, parameters));
   return rcpp_result_gen;
   END_RCPP
 }
-// herita_funcs_eval_lb
-double herita_funcs_eval_lb(SEXP p, SEXP par);
-RcppExport SEXP _survTMB_herita_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
+// pedigree_funcs_eval_lb
+double pedigree_funcs_eval_lb(SEXP p, SEXP par);
+RcppExport SEXP _survTMB_pedigree_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
   Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
-  rcpp_result_gen = Rcpp::wrap(herita_funcs_eval_lb(p, par));
+  rcpp_result_gen = Rcpp::wrap(pedigree_funcs_eval_lb(p, par));
   return rcpp_result_gen;
   END_RCPP
 }
-void herita_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out);
-RcppExport SEXP _survTMB_herita_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP, SEXP outSEXP) {
+void pedigree_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out);
+RcppExport SEXP _survTMB_pedigree_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP, SEXP outSEXP) {
   BEGIN_RCPP
   Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
   Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
   Rcpp::traits::input_parameter< Rcpp::NumericVector >::type out(outSEXP);
-  herita_funcs_eval_grad(p, par, out);
+  pedigree_funcs_eval_grad(p, par, out);
   return R_NilValue;
   END_RCPP
 }
@@ -266,24 +266,23 @@ RcppExport SEXP _survTMB_fix_atomic_seqfault() {
   END_RCPP
 }
 // setup_atomic_cache
-void setup_atomic_cache(size_t const n_nodes, std::string const type, std::vector<int> const& triag_sizes, std::string const link);
-RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEXP triag_sizesSEXP, SEXP linkSEXP) {
+void setup_atomic_cache(size_t const n_nodes, std::string const type, std::string const link);
+RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEXP linkSEXP) {
   BEGIN_RCPP
   Rcpp::traits::input_parameter< size_t const >::type n_nodes(n_nodesSEXP);
   Rcpp::traits::input_parameter< std::string const >::type type(typeSEXP);
-  Rcpp::traits::input_parameter< std::vector<int> const& >::type triag_sizes(triag_sizesSEXP);
   Rcpp::traits::input_parameter< std::string const >::type link(linkSEXP);
-  setup_atomic_cache(n_nodes, type, triag_sizes, link);
+  setup_atomic_cache(n_nodes, type, link);
   return R_NilValue;
   END_RCPP
 }
-// herita_get_size
-Rcpp::List herita_get_size(SEXP p);
-RcppExport SEXP _survTMB_herita_get_size(SEXP pSEXP) {
+// pedigree_get_size
+Rcpp::List pedigree_get_size(SEXP p);
+RcppExport SEXP _survTMB_pedigree_get_size(SEXP pSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
-  rcpp_result_gen = Rcpp::wrap(herita_get_size(p));
+  rcpp_result_gen = Rcpp::wrap(pedigree_get_size(p));
   return rcpp_result_gen;
   END_RCPP
 }
@@ -331,14 +330,14 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_gsm_eval_ll", (DL_FUNC) &_survTMB_gsm_eval_ll, 3},
   {"_survTMB_gsm_eval_grad", (DL_FUNC) &_survTMB_gsm_eval_grad, 3},
   {"_survTMB_gsm_eval_hess", (DL_FUNC) &_survTMB_gsm_eval_hess, 3},
-  {"_survTMB_get_herita_funcs", (DL_FUNC) &_survTMB_get_herita_funcs, 2},
-  {"_survTMB_herita_funcs_eval_lb", (DL_FUNC) &_survTMB_herita_funcs_eval_lb, 2},
-  {"_survTMB_herita_funcs_eval_grad", (DL_FUNC) &_survTMB_herita_funcs_eval_grad, 3},
+  {"_survTMB_get_pedigree_funcs", (DL_FUNC) &_survTMB_get_pedigree_funcs, 2},
+  {"_survTMB_pedigree_funcs_eval_lb", (DL_FUNC) &_survTMB_pedigree_funcs_eval_lb, 2},
+  {"_survTMB_pedigree_funcs_eval_grad", (DL_FUNC) &_survTMB_pedigree_funcs_eval_grad, 3},
   {"_survTMB_get_orth_poly", (DL_FUNC) &_survTMB_get_orth_poly, 2},
   {"_survTMB_predict_orth_poly", (DL_FUNC) &_survTMB_predict_orth_poly, 3},
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
-  {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 4},
-  {"_survTMB_herita_get_size", (DL_FUNC) &_survTMB_herita_get_size, 1},
+  {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
+  {"_survTMB_pedigree_get_size", (DL_FUNC) &_survTMB_pedigree_get_size, 1},
   {"_survTMB_clear_cppad_mem", (DL_FUNC) &_survTMB_clear_cppad_mem, 2},
   {"_survTMB_set_n_threads", (DL_FUNC) &_survTMB_set_n_threads, 1},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},

@@ -24,13 +24,9 @@ unsigned get_rng_dim(vector<Type> x){
 */
 template<class Type>
 class get_vcov_from_trian_atomic : public CppAD::atomic_base<Type> {
-  size_t const n,
-              nn = n * n,
-           n_ele = (n * (n + 1L)) / 2L;
-
 public:
-  get_vcov_from_trian_atomic(char const *name, size_t const n):
-  CppAD::atomic_base<Type>(name), n(n) {
+  get_vcov_from_trian_atomic(char const *name):
+  CppAD::atomic_base<Type>(name) {
     this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
   }
 
@@ -67,12 +63,14 @@ public:
     if(q > 0)
       return false;
 
+    size_t const n = std::lround(
+      .5 * (std::sqrt(8. * static_cast<double>(tx.size()) + 1.) - 1.));
     comp(&tx[0], &ty[0], n);
 
     /* set variable flags */
     if (vx.size() > 0) {
       bool anyvx = false;
-      for (std::size_t i = 0; i < vx.size(); i++)
+      for (std::size_t i = 0; i < vx.size() and !anyvx; i++)
         anyvx |= vx[i];
       for (std::size_t i = 0; i < vy.size(); i++)
         vy[i] = anyvx;
@@ -87,6 +85,10 @@ public:
                        const CppAD::vector<Type> &py){
     if(q > 0)
       return false;
+
+    size_t const n = std::lround(
+      .5 * (std::sqrt(8. * static_cast<double>(tx.size()) + 1.) - 1.)),
+                nn = n * n;
 
     size_t const * const com_vec = get_commutation_unequal_vec_cached(n);
     size_t bri(0L),
@@ -118,16 +120,15 @@ public:
   virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
                               CppAD::vector<bool>& st) {
     bool anyrt = false;
-    for (std::size_t i = 0; i < rt.size(); i++)
+    for (std::size_t i = 0; i < rt.size() and !anyrt; i++)
       anyrt |= rt[i];
     for (std::size_t i = 0; i < st.size(); i++)
       st[i] = anyrt;
     return true;
   }
 
-  static get_vcov_from_trian_atomic &get_cached(size_t const);
+  static get_vcov_from_trian_atomic<Type>& get_cached();
 };
-
 
 template<class Type>
 matrix<AD<Type> >
@@ -142,8 +143,8 @@ get_vcov_from_trian(AD<Type> const *vals, unsigned const dim){
   for(size_t i = dim + 1L; i-- > 1; cc += i)
     x_vals[cc] = exp(x_vals[cc]);
 
-  get_vcov_from_trian_atomic<Type> &functor =
-    get_vcov_from_trian_atomic<Type>::get_cached(dim);
+  static get_vcov_from_trian_atomic<Type> &functor =
+    get_vcov_from_trian_atomic<Type>::get_cached();
 
   typename Eigen::Map<Eigen::Matrix<AD<Type> ,Eigen::Dynamic,1> >
     tx(x_vals.data(), n_ele),

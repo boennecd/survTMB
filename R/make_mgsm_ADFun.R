@@ -622,8 +622,7 @@ make_mgsm_ADFun <- function(
 
 .get_laplace_func <- function(data_ad_func, params, n_rng, n_grp, inits) {
   setup_atomic_cache(
-    n_nodes = 15L, type = .laplace_char, link = data_ad_func$link,
-    triag_sizes = n_rng)
+    n_nodes = 15L, type = .laplace_char, link = data_ad_func$link)
 
   # get Laplace AD function
   .tmb_set_n_threads(data_ad_func$n_threads, is_laplace = TRUE)
@@ -702,8 +701,7 @@ make_mgsm_ADFun <- function(
 .get_gva_func <- function(n_rng, n_grp, params, data_ad_func, n_nodes,
                           dense_hess, sparse_hess, inits, opt_func) {
   setup_atomic_cache(
-    n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link,
-    triag_sizes = n_rng)
+    n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link)
 
   # set names
   theta_VA <- .get_MGSM_VA_start(
@@ -813,8 +811,7 @@ make_mgsm_ADFun <- function(
   n_nodes, dense_hess, sparse_hess, opt_func, gva_obj, inits) {
   # setup cache
   setup_atomic_cache(
-    n_nodes = n_nodes, type = .snva_char, link = data_ad_func$link,
-    triag_sizes = n_rng)
+    n_nodes = n_nodes, type = .snva_char, link = data_ad_func$link)
 
   #####
   # setup starting values for VA parameters

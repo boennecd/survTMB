@@ -1,5 +1,5 @@
 #' Construct Objective Functions with Derivatives for a Mixed Generalized
-#' Survival Model for Heritability
+#' Survival Model for Pedigree Data
 #'
 #' @param formula two-sided \code{\link{formula}} where the left-hand side is a
 #'                \code{\link{Surv}} object and the right-hand side is the
@@ -24,7 +24,7 @@
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export
-make_heritability_ADFun <- function(
+make_pedigree_ADFun <- function(
   c_data, formula, tformula, n_nodes = 20L, n_threads = 1L,
   sparse_hess = FALSE, link = c("PH", "PO", "probit"),
   opt_func = .opt_default, skew_start = -.0001, omega = NULL,
@@ -201,11 +201,9 @@ make_heritability_ADFun <- function(
                      kappa = .MGSM_default_kappa)
 
   # setup cache
-  cluster_sizes <- sapply(c_data, function(x) NCOL(x$cor_mats[[1L]]))
-  setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link,
-                     triag_sizes = unique(cluster_sizes))
+  setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link)
 
-  adfun <- get_herita_funcs(data = data, parameters = parameters)
+  adfun <- get_pedigree_funcs(data = data, parameters = parameters)
   par <- c(parameters$omega, parameters$beta, parameters$log_sds,
            parameters$va_par)
 
@@ -223,11 +221,11 @@ make_heritability_ADFun <- function(
     exclude <- c(is_va, -is_alpha)
     fn_va <- function(x, ...){
       par[exclude] <- x
-      herita_funcs_eval_lb(p = adfun, par)
+      pedigree_funcs_eval_lb(p = adfun, par)
     }
     gr_va <- function(x, ...){
       par[exclude] <- x
-      herita_funcs_eval_grad(p = adfun, par, out = gr_vec)
+      pedigree_funcs_eval_grad(p = adfun, par, out = gr_vec)
       gr_vec[exclude]
     }
 
@@ -249,10 +247,10 @@ make_heritability_ADFun <- function(
   out <- list(
     par = par,
     fn = function(x, ...){
-      herita_funcs_eval_lb(p = adfun, x)
+      pedigree_funcs_eval_lb(p = adfun, x)
     },
     gr = function(x, ...){
-      herita_funcs_eval_grad(p = adfun, x, out = gr_vec)
+      pedigree_funcs_eval_grad(p = adfun, x, out = gr_vec)
       gr_vec
     },
     he = function(x, ...){

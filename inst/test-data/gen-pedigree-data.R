@@ -227,4 +227,4 @@ dat <- replicate(n_families, {
 dat <- list(
   omega = omega, beta = beta, sds = sds, sim_data = dat)
 
-saveRDS(dat, file.path("inst", "test-data", "heritability.RDS"))
+saveRDS(dat, file.path("inst", "test-data", "pedigree.RDS"))

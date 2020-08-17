@@ -209,9 +209,10 @@ public:
       matrix<Type> const &lambda = ava_par[g].va_lambdas[0];
       vector<Type> const &mu = ava_par[g].va_mus[0],
                         &rho = ava_par[g].va_rhos[0];
+      matrix<Type> const rho_mat = asMatrix(rho, rho.size(), 1L);
 
       vector<Type> const delta = ([&](){
-        vector<Type> out = lambda * rho;
+        vector<Type> out = atomic::matmul(lambda, rho_mat);
         Type const denom = sqrt(one + vec_dot(out, rho));
         out /= denom;
         return out;
@@ -260,8 +261,8 @@ public:
 
       Type log_det_sigma;
       matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
-      vector<Type> va_rho_scaled =
-        matrix<Type>(lambda.llt().matrixU()) * rho;
+      vector<Type> va_rho_scaled = atomic::matmul(
+        matrix<Type>(lambda.llt().matrixU()), rho_mat);
       va_rho_scaled += small;
 
       term += (
@@ -337,7 +338,7 @@ public:
 } // namespaces
 
 // [[Rcpp::export(rng = false)]]
-SEXP get_herita_funcs
+SEXP get_pedigree_funcs
   (Rcpp::List data, Rcpp::List parameters){
   shut_up();
 
@@ -349,14 +350,14 @@ SEXP get_herita_funcs
 }
 
 // [[Rcpp::export(rng = false)]]
-double herita_funcs_eval_lb(SEXP p, SEXP par){
+double pedigree_funcs_eval_lb(SEXP p, SEXP par){
   shut_up();
 
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
   if((size_t)parv.size() != ptr->get_n_pars())
-    throw std::invalid_argument("herita_funcs_eval_lb: invalid par");
+    throw std::invalid_argument("pedigree_funcs_eval_lb: invalid par");
 
   unsigned const n_blocks = ptr->funcs.size();
   double out(0);
@@ -376,19 +377,19 @@ double herita_funcs_eval_lb(SEXP p, SEXP par){
 }
 
 // [[Rcpp::export(rng = false)]]
-void herita_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out){
+void pedigree_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out){
   shut_up();
 
   Rcpp::XPtr<VA_func > ptr(p);
   std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
   vector<double> parv = get_vec<double>(par);
   if((size_t)parv.size() != ptr->get_n_pars())
-    throw std::invalid_argument("herita_funcs_eval_grad: invalid par");
+    throw std::invalid_argument("pedigree_funcs_eval_grad: invalid par");
 
   size_t const n_blocks = ptr->funcs.size(),
                       n = parv.size();
   if(static_cast<size_t>(out.size()) != n)
-    throw std::invalid_argument("herita_funcs_eval_grad: invalid out");
+    throw std::invalid_argument("pedigree_funcs_eval_grad: invalid out");
   for(unsigned i = 0; i < n; ++i)
     out[i] = 0.;
 
@@ -415,7 +416,7 @@ void herita_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out){
 }
 
 // [[Rcpp::export(rng = false)]]
-Rcpp::List herita_get_size(SEXP p){
+Rcpp::List pedigree_get_size(SEXP p){
   Rcpp::XPtr<VA_func > ptr(p);
 
   auto const out = ptr->get_size();

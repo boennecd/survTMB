@@ -4,8 +4,8 @@ if(FALSE)
                            ref = "743e14f3a6a15ae833bc774e4673be1dcef0d6d3")
 
 #####
-# heritability data
-source(file.path("inst", "test-data", "gen-heritability-data.R"))
+# pedigree data
+source(file.path("inst", "test-data", "gen-pedigree-data.R"))
 
 #####
 # x-all

@@ -66,7 +66,7 @@ public:
   virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
                               CppAD::vector<bool>& st) {
     bool anyrt = false;
-    for (std::size_t i = 0; i < rt.size(); i++)
+    for (std::size_t i = 0; i < rt.size() and !anyrt; i++)
       anyrt |= rt[i];
     for (std::size_t i = 0; i < st.size(); i++)
       st[i] = anyrt;
@@ -90,19 +90,23 @@ double vec_dot(double const *x, double const *y, size_t const n){
 #define VEC_DOT_SPEC(OBJ_NAME, TNAME)                          \
 template<>                                                     \
 TNAME vec_dot(TNAME const *x, TNAME const *y, size_t const n){ \
-  CppAD::vector<TNAME> xx(2L * n),                             \
-                       yy(1L);                                 \
+  if(n > 10L){                                                 \
+    CppAD::vector<TNAME> xx(2L * n),                           \
+                         yy(1L);                               \
                                                                \
-  size_t i = 0;                                                \
-  for(; i < n; ++i, ++x)                                       \
-    xx[i] = *x;                                                \
-  size_t const e2 = 2L * n;                                    \
-  for(; i < e2; ++i, ++y)                                      \
-    xx[i] = *y;                                                \
+    size_t i = 0;                                              \
+    for(; i < n; ++i, ++x)                                     \
+      xx[i] = *x;                                              \
+    size_t const e2 = 2L * n;                                  \
+    for(; i < e2; ++i, ++y)                                    \
+      xx[i] = *y;                                              \
                                                                \
-  OBJ_NAME(xx, yy, n);                                         \
+    OBJ_NAME(xx, yy, n);                                       \
                                                                \
-  return yy[0];                                                \
+    return yy[0];                                              \
+  }                                                            \
+                                                               \
+  return vec_dot_atomic<TNAME>::comp(x, y, n);                 \
 }
 
 VEC_DOT_SPEC(vec_dot_d   , ADd)
@@ -202,7 +206,7 @@ public:
   virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
                               CppAD::vector<bool>& st) {
     bool anyrt = false;
-    for (std::size_t i = 0; i < rt.size(); i++)
+    for (std::size_t i = 0; i < rt.size() and !anyrt; i++)
       anyrt |= rt[i];
     for (std::size_t i = 0; i < st.size(); i++)
       st[i] = anyrt;
@@ -224,28 +228,179 @@ double quad_form(double const *x, double const *a, double const *y,
 template<>                                                     \
 TNAME quad_form(TNAME const *x, TNAME const *a, TNAME const *y,\
                 size_t const n){                               \
-  CppAD::vector<TNAME> arg(2L * n + n * n),                    \
-                       out(1L);                                \
+  if(n > 2L){                                                  \
+    CppAD::vector<TNAME> arg(2L * n + n * n),                  \
+                         out(1L);                              \
                                                                \
-  size_t i = 0L;                                               \
-  for(; i < n; ++i, ++x)                                       \
-    arg[i] = *x;                                               \
-  size_t const e1 = n + n * n;                                 \
-  for(; i < e1; ++i, ++a)                                      \
-    arg[i] = *a;                                               \
-  size_t e2 = 2L * n + n * n;                                  \
-  for(; i < e2; ++i, ++y)                                      \
-    arg[i] = *y;                                               \
+    size_t i = 0L;                                             \
+    for(; i < n; ++i, ++x)                                     \
+      arg[i] = *x;                                             \
+    size_t const e1 = n + n * n;                               \
+    for(; i < e1; ++i, ++a)                                    \
+      arg[i] = *a;                                             \
+    size_t e2 = 2L * n + n * n;                                \
+    for(; i < e2; ++i, ++y)                                    \
+      arg[i] = *y;                                             \
                                                                \
-  OBJ_NAME(arg, out);                                          \
+    OBJ_NAME(arg, out);                                        \
                                                                \
-  return out[0L];                                              \
+    return out[0L];                                            \
+  }                                                            \
+                                                               \
+  return quad_form_atomic<TNAME>::comp(x, a, y, n);            \
 }
 
 QUAD_FORM_SPEC(quad_form_d   , ADd)
 QUAD_FORM_SPEC(quad_form_ADd , ADdd)
 QUAD_FORM_SPEC(quad_form_ADdd, ADddd)
 
+#undef QUAD_FORM_SPEC
+
+template<class Type>
+class quad_form_sym_atomic : public CppAD::atomic_base<Type> {
+public:
+  quad_form_sym_atomic(char const *name):
+  CppAD::atomic_base<Type>(name) {
+    this->option(CppAD::atomic_base<Type>::bool_sparsity_enum);
+  }
+
+  template<class T>
+  static T comp(T const *x, T const *a, size_t const n){
+    typename
+    Eigen::Map<const Eigen::Matrix<Type,Eigen::Dynamic,Eigen::Dynamic> >
+      A(a, n, n);
+
+    Type out(0.);
+    Type const two = Type(2.);
+    for(size_t j = 0; j < n; ++j){
+      for(size_t i = 0; i < j; ++i)
+        out += two * A(i, j) * *(x + i) * *(x + j);
+      out += A(j, j) * *(x + j) * *(x + j);
+    }
+
+    return out;
+  }
+
+  virtual bool forward(std::size_t p, std::size_t q,
+                       const CppAD::vector<bool> &vx,
+                       CppAD::vector<bool> &vy,
+                       const CppAD::vector<Type> &tx,
+                       CppAD::vector<Type> &ty){
+    if(q > 0)
+      return false;
+
+    size_t const n = std::lround(
+      .5 * (std::sqrt(4. * static_cast<double>(tx.size()) + 1.) - 1.));
+    Type const * x = &tx[0],
+               * a = x + n;
+    ty[0] = comp(x, a, n);
+
+    /* set variable flags */
+    if (vx.size() > 0) {
+      bool anyvx = false;
+      for (std::size_t i = 0; i < vx.size() and !anyvx; i++)
+        anyvx |= vx[i];
+      for (std::size_t i = 0; i < vy.size(); i++)
+        vy[i] = anyvx;
+    }
+
+    return true;
+  }
+
+  virtual bool reverse(std::size_t q, const CppAD::vector<Type> &tx,
+                       const CppAD::vector<Type> &ty,
+                       CppAD::vector<Type> &px,
+                       const CppAD::vector<Type> &py){
+    if(q > 0)
+      return false;
+
+    size_t const n = std::lround(
+      .5 * (std::sqrt(4. * static_cast<double>(tx.size()) + 1.) - 1.));
+    Type const * x = &tx[0],
+               * a = x + n;
+    Type *dx = &px[0],
+         *da = dx + n;
+    typename
+    Eigen::Map<const Eigen::Matrix<Type,Eigen::Dynamic,Eigen::Dynamic> >
+      A(a, n, n);
+
+    for(size_t i = 0; i < px.size(); ++i)
+      px[i] = Type(0.);
+
+    Type const two = Type(2.);
+    for(size_t j = 0; j < n; ++j){
+      size_t const jn = j * n;
+      Type const xj = x[j];
+      for(size_t i = 0; i < j; ++i){
+        Type const xij = x[i] * xj;
+        *(da + i     + jn) += xij;
+        *(da + i * n + j ) += xij;
+        *(dx + i)          += two * A(i, j) * xj;
+        *(dx + j)          += two * A(i, j) * x[i];
+
+      }
+
+      *(da + j + jn) += xj * xj;
+      *(dx + j)      += two * A(j, j) * xj;
+    }
+
+    for(size_t i = 0; i < px.size(); ++i)
+      px[i] *= py[0];
+
+    return true;
+  }
+
+  virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
+                              CppAD::vector<bool>& st) {
+    bool anyrt = false;
+    for (std::size_t i = 0; i < rt.size() and !anyrt; i++)
+      anyrt |= rt[i];
+    for (std::size_t i = 0; i < st.size(); i++)
+      st[i] = anyrt;
+    return true;
+  }
+};
+
+static quad_form_sym_atomic<double> quad_form_sym_atomic_d     =
+  quad_form_sym_atomic<double>("quad_form_sym_atomic<double>");
+static quad_form_sym_atomic<ADd   > quad_form_sym_atomic_ADd   =
+  quad_form_sym_atomic<ADd   >("quad_form_sym_atomic<AD<double> >");
+static quad_form_sym_atomic<ADdd  > quad_form_sym_atomic_ADdd  =
+  quad_form_sym_atomic<ADdd  >("quad_form_sym_atomic<AD<AD<double> > >");
+
+template<>
+double quad_form_sym(double const *x, double const *a, size_t const n){
+  return quad_form_sym_atomic<double>::comp(x, a, n);
+}
+
+#define QUAD_FORM_SYM_SPEC(OBJ_NAME, TNAME)                    \
+template<>                                                     \
+TNAME quad_form_sym(TNAME const *x, TNAME const *a,            \
+                    size_t const n){                           \
+  if(n > 2L){                                                  \
+    CppAD::vector<TNAME> arg(n + n * n),                       \
+    out(1L);                                                   \
+                                                               \
+    size_t i = 0L;                                             \
+    for(; i < n; ++i, ++x)                                     \
+      arg[i] = *x;                                             \
+    size_t const e1 = n + n * n;                               \
+    for(; i < e1; ++i, ++a)                                    \
+      arg[i] = *a;                                             \
+                                                               \
+    OBJ_NAME(arg, out);                                        \
+                                                               \
+    return out[0L];                                            \
+  }                                                            \
+                                                               \
+  return quad_form_sym_atomic<TNAME>::comp(x, a, n);           \
+}
+
+QUAD_FORM_SYM_SPEC(quad_form_sym_atomic_d   , ADd)
+QUAD_FORM_SYM_SPEC(quad_form_sym_atomic_ADd , ADdd)
+QUAD_FORM_SYM_SPEC(quad_form_sym_atomic_ADdd, ADddd)
+
+#undef QUAD_FORM_SYM_SPEC
 
 void add_atomics_to_be_cleared(){
   static bool have_been_added = false;
@@ -259,7 +414,10 @@ void add_atomics_to_be_cleared(){
   track_atomic(&quad_form_d);
   track_atomic(&quad_form_ADd);
   track_atomic(&quad_form_ADdd);
+
+  track_atomic(&quad_form_sym_atomic_d);
+  track_atomic(&quad_form_sym_atomic_ADd);
+  track_atomic(&quad_form_sym_atomic_ADdd);
+
   have_been_added = true;
 }
-
-#undef QUAD_FORM_SPEC

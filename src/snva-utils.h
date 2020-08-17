@@ -159,7 +159,7 @@ public:
   virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
                               CppAD::vector<bool>& st) {
     bool anyrt = false;
-    for (std::size_t i = 0; i < rt.size(); i++)
+    for (std::size_t i = 0; i < rt.size() and !anyrt; i++)
       anyrt |= rt[i];
     for (std::size_t i = 0; i < st.size(); i++)
       st[i] = anyrt;
@@ -384,7 +384,7 @@ public:
   virtual bool rev_sparse_jac(size_t q, const CppAD::vector<bool>& rt,
                               CppAD::vector<bool>& st) {
     bool anyrt = false;
-    for (std::size_t i = 0; i < rt.size(); i++)
+    for (std::size_t i = 0; i < rt.size() and !anyrt; i++)
       anyrt |= rt[i];
     for (std::size_t i = 0; i < st.size(); i++)
       st[i] = anyrt;
