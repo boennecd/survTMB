@@ -572,7 +572,7 @@ sbase_haz <- function(x){
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
 

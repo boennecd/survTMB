@@ -98,7 +98,7 @@ dp_to_cp <- function(xi, Psi, alpha){
 #' @importFrom lbfgs lbfgs
 .opt_default <- function(
   par, fn, gr, ..., control = list(
-    reltol = sqrt(.Machine$double.eps), maxit = 100L, trace = 0L)){
+    reltol = sqrt(.Machine$double.eps), maxit = 500L, trace = 0L)){
   if(length(par) > 1000L){
     # Current statues codes are (https://github.com/chokkan/liblbfgs/blob/7fc787678e4a7f02eaef1c21b36b9bc3bcc0d39b/include/lbfgs.h#L75-L146)
     #    LBFGS_SUCCESS = 0
@@ -182,7 +182,7 @@ dp_to_cp <- function(xi, Psi, alpha){
       as.integer(control$trace == 0) else 1L
     out <- lbfgs(
       call_eval = fn, call_grad = gr, vars = par, invisible = invisible,
-      m = 6L, epsilon = 0, delta = delta, past = 1L,
+      m = 6L, epsilon = 0, delta = delta, past = 50L,
       max_iterations = max_iterations, max_linesearch = 100L)
     names(out$par) <- names(par)
     return(out)

@@ -1,3 +1,6 @@
+.do_sim <- TRUE
+
+sim_pedigree_data <- local(envir = new.env(), {
 #####
 # util function. Do not call these functions. Skip to the end of the file
 # and see the plots
@@ -10,7 +13,7 @@ invisible(list2env(local({
     (idcount <<- 0L)
 
   list(.get_id = .get_id, .reset_id = .reset_id)
-}), .GlobalEnv))
+}), environment()))
 
 .sim_mating <- function(rchild, rmatch, max_depth = 1L, lvl, dadid,
                         momid){
@@ -141,90 +144,95 @@ sim_fam <- function(rchild, rmatch, max_depth = 2L, max_members = 100L){
 
 #####
 # parameters. Start with family settings
-max_depth <- 2L
-max_members <- 100L
-sds <- .8
-n_families <- 100L
+function(max_depth = 2L, max_members = 100L, sds = .8, n_families = 100L,
+         do_plot = FALSE){
+  # then the baseline survival function
+  base_haz_func <- function(x){
+    x <- log(x)
+    cbind(x^3, x^2, x)
+  }
 
-# then the baseline survival function
-base_haz_func <- function(x){
-  x <- log(x)
-  cbind(x^3, x^2, x)
+  # for a x^3 + b x^2 + c x to monotonically increasing we must have
+  # a >= 0 and 2^2 b^2 < 3 * 4 a c <=>  b^2 / 3 a < c
+  a_val <- 2e-2
+  b_val <- 1e-1
+  c_val <- 1.05 * b_val * b_val / a_val / 3
+  omega <- c(a_val, b_val, c_val)
+  intecept <- -1
+
+  plot(function(x) base_haz_func(exp(x)) %*% omega + intecept,
+       xlim = c(log(1e-4), log(10)),
+       ylab = expression(-Phi^-1*(S)), xlab = "log(time)")
+  plot(function(x) base_haz_func(x) %*% omega + intecept,
+       xlim = c(1e-4, 10), ylab = expression(-Phi^-1*(S)), xlab = "time")
+  plot(function(x) pnorm(-base_haz_func(x) %*% omega - intecept),
+       xlim = c(1e-4, 10), ylab = "S", xlab = "time")
+
+  # linear predictor
+  gen_x <- function(n)
+    cbind(1, rnorm(n))
+  beta <- c(intecept, .25)
+
+  # censoring function
+  gen_cens <- function(n)
+    runif(n, 0, 10)
+
+  # generate families
+  library(kinship2)
+  dat <- replicate(n_families, {
+    dat <- sim_fam(
+      rchild = function(n)
+        sample.int(size = n, 4L, prob = c(.2, .4, .3, .1)),
+      rmatch = function(n) runif(n) > .1,
+      max_depth = max_depth, max_members = max_members)
+    pedAll <- pedigree(id = dat$id, dadid = dat$father, momid = dat$mother,
+                       sex = dat$sex, famid = rep(1, NROW(dat)))["1"]
+
+    rel_mat_full <- rel_mat <- t(2  * kinship(pedAll))
+    keep <- dat$obslvl == max(dat$obslvl)
+    rel_mat <- rel_mat[keep, keep, drop = FALSE]
+    n_obs <- NROW(rel_mat)
+    epsilon <- drop(rnorm(n_obs) %*% chol(rel_mat)) * sds
+
+    Us <- runif(n_obs)
+    Zs <- gen_x(n_obs)
+
+    # -Phi^-(S) = b + eta + eps
+    # <=> Phi^-(S) + eta + eps = -b
+    targets <- qnorm(Us) + drop(Zs %*% beta) + epsilon
+    cens <- gen_cens(n_obs)
+
+    # find survival times
+    Ys <- mapply(function(x, C){
+      f <- function(v)
+        -base_haz_func(v) %*% omega - x
+      f_U <- f(C)
+
+      if(f_U > 0)
+        return(C * 1.001)
+
+      out <- uniroot(f, interval = c(1e-16, C), f.upper = f_U)
+      out$root
+    }, x = targets, C = cens)
+
+    is_observed <- Ys < cens
+    obs_time <- pmin(Ys, cens)
+
+    list(y = obs_time, event = is_observed, Z = Zs, rel_mat = rel_mat,
+         rel_mat_full = rel_mat_full)
+  }, simplify = FALSE)
+
+  # add the true parameter values and save
+  list(omega = omega, beta = beta, sds = sds, sim_data = dat)
 }
+})
 
-# for a x^3 + b x^2 + c x to monotonically increasing we must have
-# a >= 0 and 2^2 b^2 < 3 * 4 a c <=>  b^2 / 3 a < c
-a_val <- 2e-2
-b_val <- 1e-1
-c_val <- 1.05 * b_val * b_val / a_val / 3
-omega <- c(a_val, b_val, c_val)
-intecept <- -1
+if(.do_sim){
+  .old_seed <- .Random.seed
+  set.seed(1)
+  dat <- sim_pedigree_data(do_plot = TRUE)
+  saveRDS(dat, file.path("inst", "test-data", "pedigree.RDS"))
+  .Random.seed <- .old_seed
+  rm(.old_seed)
 
-plot(function(x) base_haz_func(exp(x)) %*% omega + intecept,
-     xlim = c(log(1e-4), log(10)),
-     ylab = expression(-Phi^-1*(S)), xlab = "log(time)")
-plot(function(x) base_haz_func(x) %*% omega + intecept,
-     xlim = c(1e-4, 10), ylab = expression(-Phi^-1*(S)), xlab = "time")
-plot(function(x) pnorm(-base_haz_func(x) %*% omega - intecept),
-     xlim = c(1e-4, 10), ylab = "S", xlab = "time")
-
-# linear predictor
-gen_x <- function(n)
-  cbind(1, rnorm(n))
-beta <- c(intecept, .25)
-
-# censoring function
-gen_cens <- function(n)
-  runif(n, 0, 10)
-
-# generate families
-library(kinship2)
-set.seed(1)
-dat <- replicate(n_families, {
-  dat <- sim_fam(
-    rchild = function(n)
-      sample.int(size = n, 4L, prob = c(.2, .4, .3, .1)),
-    rmatch = function(n) runif(n) > .1,
-    max_depth = max_depth, max_members = max_members)
-  pedAll <- pedigree(id = dat$id, dadid = dat$father, momid = dat$mother,
-                     sex = dat$sex, famid = rep(1, NROW(dat)))["1"]
-
-  rel_mat_full <- rel_mat <- t(2  * kinship(pedAll))
-  keep <- dat$obslvl == max(dat$obslvl)
-  rel_mat <- rel_mat[keep, keep, drop = FALSE]
-  n_obs <- NROW(rel_mat)
-  epsilon <- drop(rnorm(n_obs) %*% chol(rel_mat)) * sds
-
-  Us <- runif(n_obs)
-  Zs <- gen_x(n_obs)
-
-  # -Phi^-(S) = b + eta + eps
-  # <=> Phi^-(S) + eta + eps = -b
-  targets <- qnorm(Us) + drop(Zs %*% beta) + epsilon
-  cens <- gen_cens(n_obs)
-
-  # find survival times
-  Ys <- mapply(function(x, C){
-    f <- function(v)
-      -base_haz_func(v) %*% omega - x
-    f_U <- f(C)
-
-    if(f_U > 0)
-      return(C * 1.001)
-
-    out <- uniroot(f, interval = c(1e-16, C), f.upper = f_U)
-    out$root
-  }, x = targets, C = cens)
-
-  is_observed <- Ys < cens
-  obs_time <- pmin(Ys, cens)
-
-  list(y = obs_time, event = is_observed, Z = Zs, rel_mat = rel_mat,
-       rel_mat_full = rel_mat_full)
-}, simplify = FALSE)
-
-# add the true parameter values and save
-dat <- list(
-  omega = omega, beta = beta, sds = sds, sim_data = dat)
-
-saveRDS(dat, file.path("inst", "test-data", "pedigree.RDS"))
+}
