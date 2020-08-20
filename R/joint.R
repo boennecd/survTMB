@@ -116,6 +116,7 @@ get_marker_start_params <- function(
     G <- poly(t_val, coefs = list(alpha = alpha, norm2 = norm2),
               degree = length(alpha))
     data$G <- cbind(1, G)
+
   } else
     stop("'basis_type' not implemented")
 

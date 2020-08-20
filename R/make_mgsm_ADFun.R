@@ -182,9 +182,12 @@ dp_to_cp <- function(xi, Psi, alpha){
       as.integer(control$trace == 0) else 1L
     out <- lbfgs(
       call_eval = fn, call_grad = gr, vars = par, invisible = invisible,
-      m = 6L, epsilon = 0, delta = delta, past = 50L,
-      max_iterations = max_iterations, max_linesearch = 100L)
+      m = 6L, epsilon = 1e-5, delta = delta, past = 50L,
+      max_iterations = max_iterations, max_linesearch = 100L,
+      linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE")
     names(out$par) <- names(par)
+    out$optimizer <- "lbfgs"
+    out$ok <- out$convergence >= 0
     return(out)
   }
 
@@ -194,6 +197,8 @@ dp_to_cp <- function(xi, Psi, alpha){
     cl$method <- "BFGS"
 
   out <- eval(cl, parent.frame())
+  out$optimizer <- "optim"
+  out$ok <- out$convergence %in% 0:1
   out
 }
 

@@ -210,12 +210,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 334.46 336.65 346.83 346.27 351.09 369.61
-#>               Compute sparse Hessian  20.13  20.32  21.03  20.80  22.03  22.42
-#>         Invert dense Hessian (naive)   5.42   5.48   5.59   5.61   5.70   5.75
-#>        Invert sparse Hessian (naive)   1.09   1.15   1.22   1.22   1.28   1.38
-#>   Invert dense Hessian (alternative)   1.33   1.36   1.41   1.42   1.47   1.50
-#>  Invert sparse Hessian (alternative)   2.99   3.12   3.39   3.31   3.61   4.18
+#>                Compute dense Hessian 318.40 319.81 321.09 321.57 322.67 323.24
+#>               Compute sparse Hessian  18.98  19.09  19.28  19.25  19.56  19.64
+#>         Invert dense Hessian (naive)   5.14   5.28   5.30   5.32   5.35   5.41
+#>        Invert sparse Hessian (naive)   1.02   1.05   1.16   1.11   1.28   1.40
+#>   Invert dense Hessian (alternative)   1.30   1.32   1.35   1.35   1.36   1.45
+#>  Invert sparse Hessian (alternative)   2.72   2.76   2.94   2.92   3.09   3.35
 #>  neval
 #>     10
 #>     10
@@ -241,9 +241,9 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>               expr   min    lq  mean median    uq   max neval
-#>  W/o Hessians       28.3  28.5  32.3   32.2  34.6  40.2    10
-#>  W/ dense Hessian   78.1  80.2  84.0   81.7  83.4 106.8    10
-#>  W/ sparse Hessian 673.3 701.8 732.3  723.0 731.6 825.5    10
+#>  W/o Hessians       27.6  28.1  29.1   28.3  30.8  31.5    10
+#>  W/ dense Hessian   78.4  78.6  80.0   79.3  81.6  83.1    10
+#>  W/ sparse Hessian 668.0 672.3 684.4  678.4 681.3 759.9    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -599,16 +599,16 @@ for(mth in c("GVA")){
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr   min    lq  mean median    uq   max neval
-#>  PH          190.7 192.7 194.7  194.1 196.9 199.0     5
-#>  PH     (2L) 122.2 123.4 128.6  127.5 129.0 140.7     5
-#>  PH     (4L)  91.7  92.5  93.4   92.8  94.1  96.1     5
-#>  PO          602.4 607.6 610.3  609.1 614.0 618.3     5
-#>  PO     (2L) 353.3 359.4 361.5  364.8 364.8 365.3     5
-#>  PO     (4L) 246.6 250.8 255.4  253.7 256.0 269.8     5
-#>  probit      741.9 746.6 750.0  748.6 755.0 758.0     5
-#>  probit (2L) 438.7 440.5 441.2  441.4 441.6 443.5     5
-#>  probit (4L) 299.3 305.8 307.6  306.1 311.1 315.8     5
+#>         expr   min    lq mean median    uq   max neval
+#>  PH          174.6 178.6  178  179.0 179.4 179.7     5
+#>  PH     (2L) 110.9 112.5  113  112.9 114.9 115.0     5
+#>  PH     (4L)  84.9  84.9   86   86.5  86.6  87.1     5
+#>  PO          567.5 569.5  571  571.7 571.9 575.7     5
+#>  PO     (2L) 333.8 335.8  337  336.3 337.6 340.0     5
+#>  PO     (4L) 226.7 226.9  228  228.2 229.5 230.9     5
+#>  probit      710.7 711.2  712  711.2 713.5 715.1     5
+#>  probit (2L) 414.0 414.8  416  415.6 416.3 418.2     5
+#>  probit (4L) 278.1 280.4  299  281.8 282.2 373.3     5
 ```
 
 ``` r
@@ -636,37 +636,37 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          224 227  245    228 228 319     5
-#>  PH     (2L) 141 142  143    142 144 144     5
-#>  PH     (4L) 109 109  129    112 112 202     5
-#>  PO          767 770  777    778 782 789     5
-#>  PO     (2L) 460 472  477    480 487 487     5
-#>  PO     (4L) 317 325  341    325 327 411     5
-#>  probit      956 958  959    960 961 961     5
-#>  probit (2L) 570 572  578    580 581 587     5
-#>  probit (4L) 392 393  413    394 398 487     5
+#>  PH          217 218  219    218 221 222     5
+#>  PH     (2L) 137 137  140    138 141 145     5
+#>  PH     (4L) 102 104  108    105 112 115     5
+#>  PO          736 742  747    744 753 760     5
+#>  PO     (2L) 433 442  447    449 453 457     5
+#>  PO     (4L) 304 305  307    306 307 314     5
+#>  probit      918 927  930    932 934 939     5
+#>  probit (2L) 545 546  549    549 550 556     5
+#>  probit (4L) 362 366  370    371 375 377     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          285 286  289    288 289 294     5
-#>  PH     (2L) 182 183  184    184 184 188     5
-#>  PH     (4L) 133 133  140    140 143 151     5
-#>  PO          741 742  755    751 768 776     5
-#>  PO     (2L) 460 461  490    467 496 568     5
-#>  PO     (4L) 314 314  325    326 327 344     5
-#>  probit      936 953  953    955 955 968     5
-#>  probit (2L) 560 571  591    577 591 656     5
-#>  probit (4L) 378 409  404    410 410 411     5
+#>  PH          287 288  291    291 291 296     5
+#>  PH     (2L) 179 181  182    182 182 188     5
+#>  PH     (4L) 137 138  140    140 141 142     5
+#>  PO          745 749  751    750 751 760     5
+#>  PO     (2L) 446 446  449    448 453 453     5
+#>  PO     (4L) 302 305  324    311 312 392     5
+#>  probit      924 924  931    934 935 938     5
+#>  probit (2L) 541 543  546    544 546 553     5
+#>  probit (4L) 368 370  372    372 376 377     5
 ```
 
 ``` r
 rm(list = ls())
 gc()
-#>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2105500 112.5    4304258 229.9  2751747 147.0
-#> Vcells 3610183  27.6    8427085  64.3  8427085  64.3
+#>           used  (Mb) gc trigger (Mb) max used (Mb)
+#> Ncells 1882765 100.6    2887571  154  2887571  154
+#> Vcells 3216084  24.6    8388608   64  8382333   64
 clear_cppad_mem(4L)
 #> [1] 1
 ```
@@ -904,7 +904,7 @@ system.time(
     s_coefs = dat$params$b_attr$knots, g_coefs = dat$params$g_attr$knots, 
     n_nodes = 30L, n_threads = 6L))
 #>    user  system elapsed 
-#>   33.53    0.02    7.96
+#>  29.524   0.016   7.259
 ```
 
 Next, we fit the model using the default optimization function.
@@ -916,7 +916,7 @@ system.time(
                    past = 100L, delta = sqrt(.Machine$double.eps), 
                    invisible = 1))
 #>    user  system elapsed 
-#> 198.496   0.064  33.114
+#>   166.7     0.0    27.8
 ```
 
 The estimated lower bound of the log marginal likelihood at the optimum
@@ -943,13 +943,13 @@ names(true_params) <- names(out$par)[seq_along(true_params)]
 rbind(Estimate = opt_out$par[1:n_params], 
       `True value` = true_params)
 #>            gamma:X1.Y1 gamma:X1.Y2 B:g1.Y1 B:g2.Y1 B:g3.Y1 B:g1.Y2 B:g2.Y2
-#> Estimate         0.133      -0.802  -0.941    0.37   0.405   0.253  -0.848
+#> Estimate         0.133      -0.802  -0.941    0.37   0.404   0.253  -0.848
 #> True value       0.140      -0.800  -0.960    0.33   0.390   0.260  -0.760
 #>            B:g3.Y2 Psi:L1.1 Psi:L2.1 Psi:L3.1 Psi:L4.1 Psi:L2.2 Psi:L3.2
-#> Estimate     0.062    0.238   -0.298  -0.1180   -0.229  -0.0371  -0.1159
-#> True value   0.190    0.226   -0.295  -0.0638   -0.136  -0.0567  -0.0729
+#> Estimate    0.0623    0.238   -0.298  -0.1180   -0.229  -0.0370  -0.1161
+#> True value  0.1900    0.226   -0.295  -0.0638   -0.136  -0.0567  -0.0729
 #>            Psi:L4.2 Psi:L3.3 Psi:L4.3 Psi:L4.4 Sigma:L1.1 Sigma:L2.1 Sigma:L2.2
-#> Estimate    -0.0233  -0.1273    0.547  -0.0903      -1.76    0.00305      -1.53
+#> Estimate    -0.0235  -0.1274    0.546  -0.0904      -1.76    0.00305      -1.53
 #> True value   0.0528  -0.0751    0.566  -0.0942      -1.75    0.00000      -1.50
 #>            delta:Z1 delta:Z2 omega:b1 omega:b2 alpha:Y1 alpha:Y2
 #> Estimate      0.238   -0.219    -2.51    -1.25    0.338   -0.276
@@ -966,9 +966,9 @@ is_psi <- which(grepl("Psi", names(true_params)))
 theta_to_cov(opt_out$par[is_psi]) 
 #>        [,1]    [,2]    [,3]    [,4]
 #> [1,]  1.609 -0.3785 -0.1497 -0.2903
-#> [2,] -0.378  1.0176 -0.0765  0.0458
-#> [3,] -0.150 -0.0765  0.8026  0.5110
-#> [4,] -0.290  0.0458  0.5110  1.1864
+#> [2,] -0.379  1.0178 -0.0767  0.0457
+#> [3,] -0.150 -0.0767  0.8025  0.5108
+#> [4,] -0.290  0.0457  0.5108  1.1861
 dat$params$Psi
 #>       [,1]  [,2]  [,3]  [,4]
 #> [1,]  1.57 -0.37 -0.08 -0.17
@@ -978,9 +978,9 @@ dat$params$Psi
 cov2cor(theta_to_cov(opt_out$par[is_psi]))
 #>        [,1]    [,2]    [,3]    [,4]
 #> [1,]  1.000 -0.2958 -0.1317 -0.2101
-#> [2,] -0.296  1.0000 -0.0846  0.0417
-#> [3,] -0.132 -0.0846  1.0000  0.5236
-#> [4,] -0.210  0.0417  0.5236  1.0000
+#> [2,] -0.296  1.0000 -0.0848  0.0416
+#> [3,] -0.132 -0.0848  1.0000  0.5236
+#> [4,] -0.210  0.0416  0.5236  1.0000
 cov2cor(dat$params$Psi)
 #>         [,1]    [,2]    [,3]   [,4]
 #> [1,]  1.0000 -0.2983 -0.0685 -0.125
@@ -998,7 +998,7 @@ is_sigma <- which(grepl("Sigma", names(true_params)))
 theta_to_cov(opt_out$par[is_sigma])
 #>          [,1]     [,2]
 #> [1,] 0.029378 0.000522
-#> [2,] 0.000522 0.047150
+#> [2,] 0.000522 0.047151
 dat$params$sigma
 #>      [,1] [,2]
 #> [1,] 0.03 0.00
@@ -1034,18 +1034,18 @@ sum_func <- function(x)
 
 # mean 
 sum_func(do.call(rbind, lapply(va_stats, `[[`, "mu")))
-#>       g1:xi1  g1:xi2   g1:xi3  g1:xi4
-#> 0%   -3.4764 -3.6412 -2.36780 -2.7732
-#> 10%  -1.4589 -0.9493 -0.82073 -0.9565
-#> 20%  -1.0029 -0.6331 -0.48963 -0.5623
-#> 30%  -0.6412 -0.3940 -0.28872 -0.3404
-#> 40%  -0.3155 -0.1929 -0.14201 -0.1615
-#> 50%  -0.0284 -0.0134 -0.00421 -0.0133
-#> 60%   0.2933  0.1934  0.12451  0.1378
-#> 70%   0.5999  0.3899  0.27567  0.3080
-#> 80%   0.9928  0.5969  0.46961  0.5535
-#> 90%   1.5262  1.0164  0.85038  0.9638
-#> 100%  3.9399  2.9901  2.31840  2.6448
+#>       g1:xi1  g1:xi2  g1:xi3  g1:xi4
+#> 0%   -3.4764 -3.6411 -2.3680 -2.7734
+#> 10%  -1.4589 -0.9492 -0.8209 -0.9567
+#> 20%  -1.0029 -0.6333 -0.4897 -0.5622
+#> 30%  -0.6412 -0.3940 -0.2887 -0.3403
+#> 40%  -0.3155 -0.1928 -0.1421 -0.1615
+#> 50%  -0.0283 -0.0134 -0.0043 -0.0133
+#> 60%   0.2932  0.1935  0.1246  0.1377
+#> 70%   0.5998  0.3900  0.2755  0.3078
+#> 80%   0.9928  0.5970  0.4698  0.5532
+#> 90%   1.5259  1.0167  0.8506  0.9636
+#> 100%  3.9393  2.9902  2.3182  2.6445
 
 # standard deviation
 sum_func(do.call(rbind, lapply(va_stats, 
@@ -1068,17 +1068,17 @@ skews <-  sum_func(do.call(rbind, lapply(va_stats, `[[`, "gamma")))
 skews[] <- sprintf("%8.4f", skews)
 print(skews, quote = FALSE)
 #>      [,1]     [,2]     [,3]     [,4]    
-#> 0%    -0.0047  -0.0046  -0.0029  -0.0029
-#> 10%   -0.0007  -0.0007  -0.0001  -0.0001
-#> 20%   -0.0005  -0.0005  -0.0001  -0.0001
-#> 30%   -0.0005  -0.0005  -0.0001  -0.0001
-#> 40%   -0.0004  -0.0004  -0.0000  -0.0000
-#> 50%   -0.0004  -0.0004  -0.0000  -0.0000
-#> 60%   -0.0004  -0.0003  -0.0000  -0.0000
-#> 70%   -0.0003  -0.0003  -0.0000  -0.0000
-#> 80%   -0.0002  -0.0002  -0.0000  -0.0000
-#> 90%   -0.0001  -0.0001   0.0000   0.0000
-#> 100%   0.0001   0.0001   0.0004   0.0004
+#> 0%    -0.0053  -0.0053  -0.0031  -0.0031
+#> 10%   -0.0008  -0.0008  -0.0001  -0.0001
+#> 20%   -0.0006  -0.0006  -0.0001  -0.0001
+#> 30%   -0.0006  -0.0006  -0.0001  -0.0001
+#> 40%   -0.0006  -0.0005  -0.0001  -0.0001
+#> 50%   -0.0005  -0.0005  -0.0000  -0.0000
+#> 60%   -0.0005  -0.0004  -0.0000  -0.0000
+#> 70%   -0.0004  -0.0004  -0.0000  -0.0000
+#> 80%   -0.0003  -0.0002  -0.0000  -0.0000
+#> 90%   -0.0001  -0.0001  -0.0000   0.0000
+#> 100%   0.0000   0.0001   0.0003   0.0004
 ```
 
 We only see a low amount of skewness.
@@ -1086,9 +1086,9 @@ We only see a low amount of skewness.
 ``` r
 rm(list = ls())
 gc()
-#>           used (Mb) gc trigger  (Mb) max used  (Mb)
-#> Ncells 2183644  117    4304258 229.9  2827249 151.0
-#> Vcells 3792196   29    8427085  64.3  8427085  64.3
+#>           used  (Mb) gc trigger (Mb) max used (Mb)
+#> Ncells 1887634 100.9    2887571  154  2887571  154
+#> Vcells 3229965  24.7    8388608   64  8388368   64
 clear_cppad_mem(6L)
 #> [1] 1
 ```
@@ -1138,36 +1138,97 @@ paternal effects, shared environment etc.
 As an example, we will use the `pedigree.RDS` in the
 [inst/test-data](inst/test-data) directory.
 
+<!-- knitr::opts_knit$set(output.dir = ".") -->
+
+<!-- knitr::load_cache("README-pedigree_example", path = "cache/") -->
+
 ``` r
 # load the data
 library(survTMB)
 dat <- readRDS(file.path("inst", "test-data", "pedigree.RDS"))
-
+  
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
   data <- data.frame(Z = x$Z, y = x$y, event = x$event)
-  cor_mats <- list(x$rel_mat)
+  cor_mats <- list(x$rel_mat, x$met_mat)
   list(data = data, cor_mats = cor_mats)
 })
-length(c_data)    # number of clusters/families
-#> [1] 100
-str(c_data[[1L]]) # example with the first cluster/family
-#> List of 2
-#>  $ data    :'data.frame':    32 obs. of  4 variables:
-#>   ..$ Z.1  : num [1:32] 1 1 1 1 1 1 1 1 1 1 ...
-#>   ..$ Z.2  : num [1:32] -0.04471 -1.73322 0.00213 -0.6303 -0.34097 ...
-#>   ..$ y    : num [1:32] 6.58058 2.74164 4.72234 0.04791 0.00399 ...
-#>   ..$ event: logi [1:32] FALSE TRUE FALSE TRUE TRUE FALSE ...
-#>  $ cor_mats:List of 1
-#>   ..$ : num [1:32, 1:32] 1 0.5 0.5 0.125 0.125 0.125 0 0 0 0 ...
-#>   .. ..- attr(*, "dimnames")=List of 2
-#>   .. .. ..$ : chr [1:32] "8" "9" "10" "16" ...
-#>   .. .. ..$ : chr [1:32] "8" "9" "10" "16" ...
-sapply(c_data, function(x) NCOL(x$cor_mats[[1L]]))
-#>   [1] 32 42 37 34 36 35 33 38 28 32 32 35  8 35  3 31 31 35 29 39 34 36 33  4  4
-#>  [26] 35 38  3 33 34 34 35 36  5 35 29 30 39  1 33  2 34  1 38 12 35 35 33 33 29
-#>  [51] 31 33 31 43 38 32 33 40 35 28 32 37 32 34  2 34 33  2  2 35 38 36 34 40 37
-#>  [76] 38 30 13 30  2  5 33 35 35 38 37 37  4 35 33 33 32 35 33 35 31 37 36 31  6
+
+# the data structue is as in Mahjani et al. (2020). As an example, the full 
+# family for the first family is shown here
+library(kinship2)
+plot(dat$sim_data[[1L]]$pedAll)
+```
+
+<img src="man/figures/README-pedigree_example-1.png" width="100%" />
+
+``` r
+
+# we only have the "last row" (youngest generation). There are two effects 
+# like in Mahjani et al. (2020). See table S17 in supplemental information. 
+# The first is a genetic effects which correlation matrix is as follows
+par(mar = c(2, 2, 1, 1))
+cl <- colorRampPalette(c("Red", "White", "Blue"))(101)
+image(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
+      zlim = c(-1, 1))
+```
+
+<img src="man/figures/README-pedigree_example-2.png" width="100%" />
+
+``` r
+library(Matrix)
+as(dat$sim_data[[1L]]$rel_mat[1:8, 1:8], "sparseMatrix")
+#> 8 x 8 sparse Matrix of class "dgCMatrix"
+#>        8     9    10    16    17    18    23    27
+#> 8  1.000 0.500 0.500 0.125 0.125 0.125 .     .    
+#> 9  0.500 1.000 0.500 0.125 0.125 0.125 .     .    
+#> 10 0.500 0.500 1.000 0.125 0.125 0.125 .     .    
+#> 16 0.125 0.125 0.125 1.000 0.500 0.500 0.125 0.125
+#> 17 0.125 0.125 0.125 0.500 1.000 0.500 0.125 0.125
+#> 18 0.125 0.125 0.125 0.500 0.500 1.000 0.125 0.125
+#> 23 .     .     .     0.125 0.125 0.125 1.000 0.125
+#> 27 .     .     .     0.125 0.125 0.125 0.125 1.000
+
+# secondly there is a maternal effect which correlation matrix is as follows
+image(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
+      zlim = c(-1, 1))
+```
+
+<img src="man/figures/README-pedigree_example-3.png" width="100%" />
+
+``` r
+as(dat$sim_data[[1L]]$met_mat[1:8, 1:8], "sparseMatrix")
+#> 8 x 8 sparse Matrix of class "dgCMatrix"
+#>    8 9 10 16 17 18  23  27
+#> 8  1 1  1  .  .  . .   .  
+#> 9  1 1  1  .  .  . .   .  
+#> 10 1 1  1  .  .  . .   .  
+#> 16 . .  .  1  1  1 .   .  
+#> 17 . .  .  1  1  1 .   .  
+#> 18 . .  .  1  1  1 .   .  
+#> 23 . .  .  .  .  . 1.0 0.5
+#> 27 . .  .  .  .  . 0.5 1.0
+
+# some summary stats are
+length(c_data)    # number of clusters (families)
+#> [1] 1000
+
+# number of obs / cluster
+obs_in_cl <- sapply(c_data, function(x) NCOL(x$cor_mats[[1L]])) 
+table(obs_in_cl) # distribution of cluster sizes
+#> obs_in_cl
+#>   8   9  10  11  12  13  14  15  17  18  19  20  21  22  23  24  25  26  27  28 
+#>  14   7  11   6   6   5   4  10   3   3   4  19  24  43 104 125 137 148 116 117 
+#>  29  30  31  32  33 
+#>  61  17  12   3   1
+
+# total number of observations
+sum(obs_in_cl)
+#> [1] 24558
+
+# number of observed events
+sum(sapply(c_data, function(x) sum(x$data$event)))
+#> [1] 6838
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
@@ -1178,18 +1239,18 @@ sbase_haz <- function(x){
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
 #> Finding starting values for fixed effects...
-#> Maximum log-likelihood without random effects is: -1583.452
+#> Maximum log-likelihood without random effects is: -15995.625
 #> Creating ADFun...
 #> Finding starting values for variational parameters...
 #>    user  system elapsed 
-#> 124.919   0.076  21.145
+#>   583.8     1.1   104.6
 
 -func$fn(func$par) # lower bound of the log-likelihood
-#> [1] -1575
+#> [1] -15917
 
 # check memory usage
 # TODO: export the function
@@ -1198,40 +1259,56 @@ siz <- survTMB:::pedigree_get_size(environment(func$fn)$adfun)
 # the amount of work and memory necessary for computing function values 
 # and derivatives using f is roughly proportional to ...
 siz$size_var 
-#> [1] 1509225
+#> [1] 8443092
 
-# the number of parameters in the operation sequence
-siz$size_par 
-#> [1] 20429
-
-# optimize and compare the results with the true parameters
+# optimize and compare the results with the true parameters. We start by 
+# using a GVA
 library(lbfgs)
+
+# quite ad-hock solution to convergence issues
+func_start_val <- func$fn(func$par)
+INF <- func_start_val + 1e5 * max(1, abs(func_start_val))
+fn_wrapper <- function(par, ..., do_print = FALSE){
+  out <- func$fn(par)
+  if(is.nan(out))
+    out <- INF
+  
+  if(do_print){
+    model_pars <- which(!grepl("^g\\d+:", names(func$par)))
+    cat(sprintf("%14.4f", par[model_pars]), "\n", sep = " ")
+  }
+  
+  out
+}
+      
 system.time(
   opt_out <- lbfgs(
-    func$fn, func$gr, func$par, m = 6, max_iterations = 25000L, 
-    invisible = 1, delta = sqrt(.Machine$double.eps), past = 100L))
-#>     user   system  elapsed 
-#> 1986.685    0.084  331.135
+    fn_wrapper, func$gr, func$par, m = 20, max_iterations = 25000L, 
+    invisible = 1, delta = .Machine$double.eps^(1/3), past = 100L, 
+    linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
+    max_linesearch = 20))
+#>    user  system elapsed 
+#> 2157.16    2.48  365.10
 ```
 
 We show the estimates below and compare them with the true values.
 
 ``` r
 -opt_out$value # lower bound on the marginal log-likelihood in the end
-#> [1] -1550
+#> [1] -15548
 
 rbind(
-  `Starting values` = head(func$par, 6), 
-  Estimates = head(opt_out$par, 6),
+  `Starting values` = head(func$par, 7), 
+  Estimates = head(opt_out$par, 7),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
-#> Starting values             0.0150              0.076               0.140
-#> Estimates                   0.0198              0.100               0.185
-#> True values                 0.0200              0.100               0.175
-#>                 beta:Z.1 beta:Z.2 log_sds1
-#> Starting values   -0.792    0.217   -0.693
-#> Estimates         -1.036    0.280   -0.161
-#> True values       -1.000    0.250   -0.223
+#> Starting values             0.0134             0.0118               0.109
+#> Estimates                   0.0166             0.0146               0.137
+#> True values                 0.0200             0.0200               0.167
+#>                 beta:Z.1 beta:Z.2 log_sds1 log_sds2
+#> Starting values   -0.838    0.172   -0.693   -0.693
+#> Estimates         -1.035    0.213   -0.707   -0.646
+#> True values       -1.250    0.250    0.000   -0.693
 
 # check the skew parameters
 names(opt_out$par) <- names(func$par)
@@ -1249,19 +1326,19 @@ cps <- tapply(va_ests, grp, function(x){
 # distribution of skew parameters
 summary(unlist(lapply(cps, `[[`, "gamma")))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#> -0.0485 -0.0001  0.0000 -0.0018  0.0000  0.0029
+#> -0.0781  0.0000  0.0000 -0.0085  0.0002  0.0112
 
 # distribution of approximate means
 summary(unlist(lapply(cps, `[[`, "mu")))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>  -0.892  -0.408  -0.136  -0.005   0.342   2.199
+#>  -0.685  -0.344  -0.132  -0.002   0.269   2.080
 
 # example of some of the conditional covariance matrices
 vcovs_ests <- lapply(cps[1:4 + 4], "[[", "Sigma")
 par(mfcol = c(2, 2), mar = c(2, 2, 1, 1))
-cl <- colorRampPalette(c("Red", "White", "Blue"))(100)
+cl <- colorRampPalette(c("Red", "White", "Blue"))(201)
 for(S in vcovs_ests)
-  image(cor(S), xaxt = "n", yaxt = "n", col = cl)
+  image(cor(S), xaxt = "n", yaxt = "n", col = cl, zlim = c(-1, 1))
 ```
 
 <img src="man/figures/README-pedigree_show_est-1.png" width="100%" />
@@ -1274,13 +1351,42 @@ sapply(vcovs_ests, function(x) {
   x <- cor(x)
   quantile(x[-cumsum(c(1L, rep(n + 1L, n - 1L)))])
 }) 
-#>          g12     g13     g14    g15
-#> 0%   -0.1229 -0.3449 -0.1177 -0.562
-#> 25%  -0.0964 -0.2575 -0.0974 -0.559
-#> 50%  -0.0859 -0.2236 -0.0818 -0.549
-#> 75%  -0.0602 -0.0766 -0.0585 -0.424
-#> 100%  0.6869  0.5758  0.6905 -0.383
+#>         g101    g102   g103    g104
+#> 0%   -0.1727 -0.1888 -0.192 -0.3037
+#> 25%  -0.1503 -0.1463 -0.142 -0.1946
+#> 50%  -0.1219 -0.1265 -0.114 -0.1325
+#> 75%  -0.0672 -0.0784 -0.068 -0.0418
+#> 100%  0.9507  0.9411  0.943  0.9342
+
+# compare estimated covariance matrix with the true one for some of the 
+# clusters
+par(mfcol = c(2, 2), mar = c(2, 2, 4, 1))
+local({
+  is_sds <- grepl("^log_sds", names(func$par))
+  sds_ests <- exp(opt_out$par[is_sds])
+  sds_true <- dat$sds
+  
+  for(i in 1:4){
+    cmats <- c_data[[i]]$cor_mats
+    n_obs <- NCOL(cmats[[1L]])
+    sig_est <- sig_tru <- diag(n_obs)
+    for(m in seq_along(cmats)){
+      sig_est <- sig_est + sds_ests[m]^2 * cmats[[m]]
+      sig_tru <- sig_tru + sds_true[m]^2 * cmats[[m]]
+    }
+    
+    mx <- max(abs(sig_est), abs(sig_tru))
+    image(sig_est, xaxt = "n", yaxt = "n", col = cl, zlim = c(-mx, mx), 
+          main = sprintf("Estimate (group %d)", i))
+    image(sig_tru, xaxt = "n", yaxt = "n", col = cl, zlim = c(-mx, mx), 
+          main = sprintf("Truth (group %d)", i))
+  }
+  
+  invisible()
+})
 ```
+
+<img src="man/figures/README-pedigree_show_est-2.png" width="100%" /><img src="man/figures/README-pedigree_show_est-3.png" width="100%" />
 
 ## References
 
@@ -1315,6 +1421,16 @@ Research* 27 (5): 1531–46. <https://doi.org/10.1177/0962280216664760>.
 Liu, Xing-Rong, Yudi Pawitan, and Mark S. Clements. 2017. “Generalized
 Survival Models for Correlated Time-to-Event Data.” *Statistics in
 Medicine* 36 (29): 4743–62. <https://doi.org/10.1002/sim.7451>.
+
+</div>
+
+<div id="ref-Mahjani20">
+
+Mahjani, Behrang, Lambertus Klei, Christina M. Hultman, Henrik Larsson,
+Bernie Devlin, Joseph D. Buxbaum, Sven Sandin, and Dorothy E. Grice.
+2020. “Maternal Effects as Causes of Risk for Obsessive-Compulsive
+Disorder.” *Biological Psychiatry* 87 (12): 1045–51.
+<https://doi.org/https://doi.org/10.1016/j.biopsych.2020.01.006>.
 
 </div>
 

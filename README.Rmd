@@ -3,6 +3,8 @@ output:
   github_document: 
     pandoc_args: --webtex=https://latex.codecogs.com/svg.latex?
 bibliography: README.bib
+nocite: | 
+  @Mahjani20
 ---
 
 ```{r, include = FALSE}
@@ -548,20 +550,53 @@ maternal effects, paternal effects, shared environment etc.
 As an example, we will use the `pedigree.RDS` in the 
 [inst/test-data](inst/test-data) directory. 
 
+<!-- knitr::opts_knit$set(output.dir = ".") -->
+<!-- knitr::load_cache("README-pedigree_example", path = "cache/") -->
+
 ```{r pedigree_example, cache = 1}
 # load the data
 library(survTMB)
 dat <- readRDS(file.path("inst", "test-data", "pedigree.RDS"))
-
+  
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
   data <- data.frame(Z = x$Z, y = x$y, event = x$event)
-  cor_mats <- list(x$rel_mat)
+  cor_mats <- list(x$rel_mat, x$met_mat)
   list(data = data, cor_mats = cor_mats)
 })
-length(c_data)    # number of clusters/families
-str(c_data[[1L]]) # example with the first cluster/family
-sapply(c_data, function(x) NCOL(x$cor_mats[[1L]]))
+
+# the data structue is as in Mahjani et al. (2020). As an example, the full 
+# family for the first family is shown here
+library(kinship2)
+plot(dat$sim_data[[1L]]$pedAll)
+
+# we only have the "last row" (youngest generation). There are two effects 
+# like in Mahjani et al. (2020). See table S17 in supplemental information. 
+# The first is a genetic effects which correlation matrix is as follows
+par(mar = c(2, 2, 1, 1))
+cl <- colorRampPalette(c("Red", "White", "Blue"))(101)
+image(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
+      zlim = c(-1, 1))
+library(Matrix)
+as(dat$sim_data[[1L]]$rel_mat[1:8, 1:8], "sparseMatrix")
+
+# secondly there is a maternal effect which correlation matrix is as follows
+image(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
+      zlim = c(-1, 1))
+as(dat$sim_data[[1L]]$met_mat[1:8, 1:8], "sparseMatrix")
+
+# some summary stats are
+length(c_data)    # number of clusters (families)
+
+# number of obs / cluster
+obs_in_cl <- sapply(c_data, function(x) NCOL(x$cor_mats[[1L]])) 
+table(obs_in_cl) # distribution of cluster sizes
+
+# total number of observations
+sum(obs_in_cl)
+
+# number of observed events
+sum(sapply(c_data, function(x) sum(x$data$event)))
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
@@ -572,7 +607,7 @@ sbase_haz <- function(x){
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
     tformula = ~ sbase_haz(y) - 1, trace = TRUE,
     c_data = c_data, link = "probit", n_threads = 6L))
 
@@ -586,15 +621,32 @@ siz <- survTMB:::pedigree_get_size(environment(func$fn)$adfun)
 # and derivatives using f is roughly proportional to ...
 siz$size_var 
 
-# the number of parameters in the operation sequence
-siz$size_par 
-
-# optimize and compare the results with the true parameters
+# optimize and compare the results with the true parameters. We start by 
+# using a GVA
 library(lbfgs)
+
+# quite ad-hock solution to convergence issues
+func_start_val <- func$fn(func$par)
+INF <- func_start_val + 1e5 * max(1, abs(func_start_val))
+fn_wrapper <- function(par, ..., do_print = FALSE){
+  out <- func$fn(par)
+  if(is.nan(out))
+    out <- INF
+  
+  if(do_print){
+    model_pars <- which(!grepl("^g\\d+:", names(func$par)))
+    cat(sprintf("%14.4f", par[model_pars]), "\n", sep = " ")
+  }
+  
+  out
+}
+      
 system.time(
   opt_out <- lbfgs(
-    func$fn, func$gr, func$par, m = 6, max_iterations = 25000L, 
-    invisible = 1, delta = sqrt(.Machine$double.eps), past = 100L))
+    fn_wrapper, func$gr, func$par, m = 20, max_iterations = 25000L, 
+    invisible = 1, delta = .Machine$double.eps^(1/3), past = 100L, 
+    linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
+    max_linesearch = 20))
 ```
 
 We show the estimates below and compare them with the true values.
@@ -603,8 +655,8 @@ We show the estimates below and compare them with the true values.
 -opt_out$value # lower bound on the marginal log-likelihood in the end
 
 rbind(
-  `Starting values` = head(func$par, 6), 
-  Estimates = head(opt_out$par, 6),
+  `Starting values` = head(func$par, 7), 
+  Estimates = head(opt_out$par, 7),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 
 # check the skew parameters
@@ -629,9 +681,9 @@ summary(unlist(lapply(cps, `[[`, "mu")))
 # example of some of the conditional covariance matrices
 vcovs_ests <- lapply(cps[1:4 + 4], "[[", "Sigma")
 par(mfcol = c(2, 2), mar = c(2, 2, 1, 1))
-cl <- colorRampPalette(c("Red", "White", "Blue"))(100)
+cl <- colorRampPalette(c("Red", "White", "Blue"))(201)
 for(S in vcovs_ests)
-  image(cor(S), xaxt = "n", yaxt = "n", col = cl)
+  image(cor(S), xaxt = "n", yaxt = "n", col = cl, zlim = c(-1, 1))
 
 # distribution of correlation matrix indices
 sapply(vcovs_ests, function(x) {
@@ -639,6 +691,33 @@ sapply(vcovs_ests, function(x) {
   x <- cor(x)
   quantile(x[-cumsum(c(1L, rep(n + 1L, n - 1L)))])
 }) 
+
+# compare estimated covariance matrix with the true one for some of the 
+# clusters
+par(mfcol = c(2, 2), mar = c(2, 2, 4, 1))
+local({
+  is_sds <- grepl("^log_sds", names(func$par))
+  sds_ests <- exp(opt_out$par[is_sds])
+  sds_true <- dat$sds
+  
+  for(i in 1:4){
+    cmats <- c_data[[i]]$cor_mats
+    n_obs <- NCOL(cmats[[1L]])
+    sig_est <- sig_tru <- diag(n_obs)
+    for(m in seq_along(cmats)){
+      sig_est <- sig_est + sds_ests[m]^2 * cmats[[m]]
+      sig_tru <- sig_tru + sds_true[m]^2 * cmats[[m]]
+    }
+    
+    mx <- max(abs(sig_est), abs(sig_tru))
+    image(sig_est, xaxt = "n", yaxt = "n", col = cl, zlim = c(-mx, mx), 
+          main = sprintf("Estimate (group %d)", i))
+    image(sig_tru, xaxt = "n", yaxt = "n", col = cl, zlim = c(-mx, mx), 
+          main = sprintf("Truth (group %d)", i))
+  }
+  
+  invisible()
+})
 ```
 
 ## References

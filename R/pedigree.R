@@ -21,6 +21,8 @@
 #' @param beta starting values for fixed effects coefficients.
 #' @param sds starting values for scale matrix scales.
 #' @param trace logical for whether to print tracing information.
+#' @param kappa numeric scalar with the penalty in the relaxed problem
+#' ensuring the monotonicity of the survival curve.
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export
@@ -28,7 +30,7 @@ make_pedigree_ADFun <- function(
   c_data, formula, tformula, n_nodes = 20L, n_threads = 1L,
   sparse_hess = FALSE, link = c("PH", "PO", "probit"),
   opt_func = .opt_default, skew_start = -.0001, omega = NULL,
-  beta = NULL, sds = NULL, trace = FALSE){
+  beta = NULL, sds = NULL, trace = FALSE, kappa = .MGSM_default_kappa){
   # checks
   link <- link[1L]
   stopifnot(
@@ -43,7 +45,8 @@ make_pedigree_ADFun <- function(
       is.numeric(beta) && is.vector(beta) && all(is.finite(beta))),
     is.null(sds) || (
       is.numeric(sds) && is.vector(sds) && all(sds > 0)),
-    is.logical(trace), length(trace) == 1L)
+    is.logical(trace), length(trace) == 1L,
+    is.double(kappa), length(kappa) == 1L, kappa >= 0)
   skew_boundary <- 0.99527
   eval(bquote(stopifnot(
     .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
@@ -62,6 +65,7 @@ make_pedigree_ADFun <- function(
 
   #####
   # get starting values
+  miss_model_params <- is.null(beta) || is.null(omega) || is.null(sds)
   if(is.null(beta) || is.null(omega)){
     if(trace)
       cat("Finding starting values for fixed effects...\n")
@@ -91,7 +95,8 @@ make_pedigree_ADFun <- function(
   }
 
   if(is.null(sds))
-    sds <- rep(.5, length(c_data[[1L]]$cor_mats))
+    sds <- rep(sqrt(.5 / length(c_data[[1L]]$cor_mats)),
+               length(c_data[[1L]]$cor_mats))
 
   #####
   # checks
@@ -153,8 +158,17 @@ make_pedigree_ADFun <- function(
       -gsm_eval_hess(ptr = opt_obj, beta = numeric(), gamma = x) + sig_inv
 
     opt_ret <- opt_func(par, fn, gr)
-    mu <- opt_ret$par
-    sig_use <- solve(he(mu))
+    if(opt_ret$ok){
+      mu <- opt_ret$par
+      sig_use <- solve(he(mu))
+
+    } else {
+      mu <- par
+      sig_use <- sigma
+
+    }
+
+    sig_use <- .rescale_cov(sig_use)
 
     out <- cp_to_dp(
       mu = mu, Sigma = sig_use, gamma = rep(skew_start, n_obs))
@@ -198,7 +212,7 @@ make_pedigree_ADFun <- function(
                n_nodes = n_nodes, link = link, c_data = c_data)
   parameters <- list(omega = omega, beta = beta, log_sds = log(sds),
                      va_par = va_par, eps = .MGSM_defaul_eps,
-                     kappa = .MGSM_default_kappa)
+                     kappa = kappa)
 
   # setup cache
   setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link)
@@ -206,11 +220,11 @@ make_pedigree_ADFun <- function(
   adfun <- get_pedigree_funcs(data = data, parameters = parameters)
   par <- c(parameters$omega, parameters$beta, parameters$log_sds,
            parameters$va_par)
+  gr_vec <- rep(0, length(par))
 
   #####
   # find variational parameters
   is_va <- -seq_len(length(omega) + length(beta) + length(sds))
-  gr_vec <- rep(0, length(par))
   new_vas <- local({
     if(trace)
       cat("Finding starting values for variational parameters...\n")
@@ -241,6 +255,25 @@ make_pedigree_ADFun <- function(
     va_opt$par
   })
   par[is_va] <- new_vas
+
+  # if(miss_model_params){
+  #   # quickly set model parameters to something which is more consistent
+  #   # with the VA parameters
+  #   model_pars <- which(!grepl("^g\\d+:", names(par)))
+  #   fn_mod <- function(x, ...){
+  #     par[model_pars] <- x
+  #     pedigree_funcs_eval_lb(p = adfun, par)
+  #   }
+  #   gr_mod <- function(x, ...){
+  #     par[model_pars] <- x
+  #     pedigree_funcs_eval_grad(p = adfun, par, out = gr_vec)
+  #     gr_vec[model_pars]
+  #   }
+  #
+  #   opt_mod <- .opt_default(par[model_pars], fn_mod, gr_mod)
+  #   if(opt_mod$ok)
+  #     par[model_pars] <- opt_mod$par
+  # }
 
   #####
   # create output list

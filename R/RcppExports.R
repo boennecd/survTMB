@@ -43,22 +43,6 @@ gsm_eval_hess <- function(ptr, beta, gamma) {
     .Call(`_survTMB_gsm_eval_hess`, ptr, beta, gamma)
 }
 
-get_pedigree_funcs <- function(data, parameters) {
-    .Call(`_survTMB_get_pedigree_funcs`, data, parameters)
-}
-
-pedigree_funcs_eval_lb <- function(p, par) {
-    .Call(`_survTMB_pedigree_funcs_eval_lb`, p, par)
-}
-
-pedigree_funcs_eval_grad <- function(p, par, out) {
-    invisible(.Call(`_survTMB_pedigree_funcs_eval_grad`, p, par, out))
-}
-
-pedigree_get_size <- function(p) {
-    .Call(`_survTMB_pedigree_get_size`, p)
-}
-
 joint_start_ll <- function(Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad, use_log, basis_type) {
     .Call(`_survTMB_joint_start_ll`, Y, tstart, tstop, omega, delta, Z, n_nodes, coefs, grad, use_log, basis_type)
 }
@@ -101,6 +85,22 @@ get_orth_poly <- function(x, degree) {
 
 predict_orth_poly <- function(x, alpha, norm2) {
     .Call(`_survTMB_predict_orth_poly`, x, alpha, norm2)
+}
+
+get_pedigree_funcs <- function(data, parameters) {
+    .Call(`_survTMB_get_pedigree_funcs`, data, parameters)
+}
+
+pedigree_funcs_eval_lb <- function(p, par) {
+    .Call(`_survTMB_pedigree_funcs_eval_lb`, p, par)
+}
+
+pedigree_funcs_eval_grad <- function(p, par, out) {
+    invisible(.Call(`_survTMB_pedigree_funcs_eval_grad`, p, par, out))
+}
+
+pedigree_get_size <- function(p) {
+    .Call(`_survTMB_pedigree_get_size`, p)
 }
 
 fix_atomic_seqfault <- function() {
