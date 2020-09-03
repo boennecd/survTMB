@@ -152,13 +152,13 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
     cbind(x^3, x^2, x)
   }
   d_base_haz_func <- function(x){
-    x <- log(x)
-    cbind(3 * x^2, 2 * x, 1)
+    y <- log(x)
+    cbind(3 * y^2, 2 * y, 1) / x
   }
 
   # for a x^3 + b x^2 + c x to monotonically increasing we must have
   # a >= 0 and 2^2 b^2 < 3 * 4 a c <=>  b^2 / 3 a < c
-  a_val <- 2e-2
+  a_val <- 1e-2
   b_val <- 2e-2
   c_val <- 25 * b_val * b_val / a_val / 3
   omega <- c(a_val, b_val, c_val)
@@ -262,7 +262,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
 
 if(.do_sim){
   .old_seed <- .Random.seed
-  set.seed(1)
+  set.seed(2)
   dat <- sim_pedigree_data(do_plot = TRUE, max_members = 75L,
                            n_families = 1000L)
   saveRDS(dat, file.path("inst", "test-data", "pedigree.RDS"))

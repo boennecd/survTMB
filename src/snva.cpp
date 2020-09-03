@@ -136,11 +136,9 @@ void SNVA_comp
       va_lambda_sum += va_lambdas[g];
       lb_t_mult_other -= quad_form(va_mus[g], vcov_inv, va_ds[g]);
 
-      vecT va_rho_scaled =
-        matrix<Type>(va_lambdas[g].llt().matrixU()) * va_rhos[g];
-      va_rho_scaled += small;
-      last_terms -= entropy_term(vec_dot(va_rho_scaled, va_rho_scaled),
-                                 n_nodes);
+      Type const entrop_arg =
+        quad_form_sym(va_rhos[g], va_lambdas[g]) + small;
+      last_terms -= entropy_term(entrop_arg, n_nodes);
 
     }
     lb_t_mult_half -= mat_mult_trace(va_lambda_sum, vcov_inv);

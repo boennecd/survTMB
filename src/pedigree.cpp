@@ -9,7 +9,8 @@ using namespace GaussHermite::SNVA;
 template<class Tout, class T>
 vector<Tout> get_args(vector<T> const &omega, vector<T> const &beta,
                       vector<T> const &log_sds, vector<T> const &va_par){
-  vector<Tout> out(omega.size() + beta.size() +log_sds.size() + va_par.size());
+  vector<Tout> out(
+      omega.size() + beta.size() + log_sds.size() + va_par.size());
   Tout *o = &out[0];
 
   auto add_to_vec = [&](vector<T> const &x){
@@ -178,7 +179,7 @@ public:
 
     vector<Type> const a_var = ([&](){
                          vector<Type> out(alog_sds.size());
-                         for(size_t i = 0; i < (size_t)out.size(); ++i)
+                         for(int i = 0; i < out.size(); ++i)
                            out[i] = exp(two * alog_sds[i]);
                          return out;
                          })();
@@ -257,20 +258,20 @@ public:
       matrix<Type> sigma(n_members, n_members);
       sigma.setZero();
       for(int i = 0; i < a_var.size(); ++i)
-        sigma += a_var[i] * c_dat.cor_mats[i];
+        for(size_t j = 0; j < n_members; ++j)
+          for(size_t k = 0; k < n_members; ++k)
+            sigma(k, j) += a_var[i] * c_dat.cor_mats[i](k, j);
 
       Type log_det_sigma;
       matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
-      vector<Type> va_rho_scaled = atomic::matmul(
-        matrix<Type>(lambda.llt().matrixU()), rho_mat);
-      va_rho_scaled += small;
+      Type const entrop_arg = quad_form_sym(rho, lambda) + small;
 
       term += (
         atomic::logdet(lambda) - quad_form_sym(mu, sigma_inv)
           - mat_mult_trace(lambda, sigma_inv) - log_det_sigma
           + Type(n_members)) / two;
       term -= sqrt_2_pi * quad_form(mu, sigma_inv, delta) + type_M_LN2
-        + entropy_term(vec_dot(va_rho_scaled, va_rho_scaled), n_nodes);
+        + entropy_term(entrop_arg, n_nodes);
 
       result -= term;
     }

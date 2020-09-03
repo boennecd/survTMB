@@ -575,14 +575,16 @@ plot(dat$sim_data[[1L]]$pedAll)
 # The first is a genetic effects which correlation matrix is as follows
 par(mar = c(2, 2, 1, 1))
 cl <- colorRampPalette(c("Red", "White", "Blue"))(101)
-image(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
-      zlim = c(-1, 1))
+rev_img <- function(x, ...)
+  image(x[, NROW(x):1], ...)
+rev_img(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
+        zlim = c(-1, 1))
 library(Matrix)
 as(dat$sim_data[[1L]]$rel_mat[1:8, 1:8], "sparseMatrix")
 
 # secondly there is a maternal effect which correlation matrix is as follows
-image(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
-      zlim = c(-1, 1))
+rev_img(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
+        zlim = c(-1, 1))
 as(dat$sim_data[[1L]]$met_mat[1:8, 1:8], "sparseMatrix")
 
 # some summary stats are
@@ -603,12 +605,17 @@ sbase_haz <- function(x){
   x <- log(x)
   cbind(x^3, x^2, x)
 }
+dsbase_haz <- function(x){
+  y <- log(x)
+  cbind(3 * y^2, 2 * y, 1) / x
+}
 
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
-    tformula = ~ sbase_haz(y) - 1, trace = TRUE,
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
+    dtformula = ~ dsbase_haz(y) - 1,
     c_data = c_data, link = "probit", n_threads = 6L))
 
 -func$fn(func$par) # lower bound of the log-likelihood
@@ -620,7 +627,9 @@ siz <- survTMB:::pedigree_get_size(environment(func$fn)$adfun)
 # the amount of work and memory necessary for computing function values 
 # and derivatives using f is roughly proportional to ...
 siz$size_var 
+```
 
+```{r pedigree_optim, cache = 1}
 # optimize and compare the results with the true parameters. We start by 
 # using a GVA
 library(lbfgs)
@@ -718,6 +727,74 @@ local({
   
   invisible()
 })
+```
+
+```{r pedigree_opt_ite, cache = 1}
+# start at the true parameters
+system.time(
+  func <- make_pedigree_ADFun(
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
+    omega = dat$omega, beta = dat$beta, sds = dat$sds,
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
+    dtformula = ~ dsbase_haz(y) - 1,
+    c_data = c_data, link = "probit", n_threads = 6L))
+
+-func$fn(func$par) # lower bound of the log-likelihood
+
+#####
+# recursively update VA and model parameters
+# returns a list with function which only requires some of the parameters
+get_func <- function(x, keep){
+  vx <- x
+  vkeep <- keep
+  list(
+    fn = function(par, ...){
+      vx[vkeep] <- par
+      func$fn(vx)
+    }, gr = function(par, ...){
+      vx[vkeep] <- par
+      func$gr(vx)[vkeep]
+    })
+}
+
+# optimizer function
+library(lbfgs)
+foptim <- function(par, fn, gr, reltol, maxit = 100){
+  if(length(par) > 1000L){
+    return(lbfgs(
+      call_eval = fn, call_grad = gr, vars = par, invisible = 1,
+      m = 6L, epsilon = 1e-5, delta = reltol, past = 10L,
+      max_iterations = maxit, max_linesearch = 30L,
+      linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE"))
+  }
+  
+  optim(par, fn, gr, control = list(reltol = reltol, maxit = maxit), 
+        method = "BFGS")
+  
+}
+
+# swap between updating VA parameters and model parameters
+val <- func$par
+is_va <- grepl("^g\\d+:", names(val))
+is_mod <- which(!is_va)
+is_va <- which(is_va)
+reltol <- sqrt(.Machine$double.eps)
+
+for(i in 1:100){
+  opt_func_va <- get_func(val, is_va)
+  new_res <- foptim(
+    val[is_va], opt_func_va$fn, opt_func_va$gr, reltol = reltol)
+  val[is_va] <- new_res$par
+  
+  opt_func_mod <- get_func(val, is_mod)
+  new_res <- foptim(
+    val[is_mod], opt_func_mod$fn, opt_func_mod$gr, reltol = reltol)
+  val[is_mod] <- new_res$par
+  
+  cat(sprintf("Iteration %4d: %f\n", i, new_res$value))
+  print(rbind(`True values` = c(dat$omega, dat$beta, log(dat$sds)), 
+              Estimates = val[is_mod]))
+}
 ```
 
 ## References

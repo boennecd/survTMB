@@ -12,7 +12,7 @@
 namespace gsm_objs {
 /** evalutes the dot product between an arma::vec and double range without
  bounds checks. */
-inline double arma_dot(const arma::vec &x, double const *y){
+inline double arma_dot(const arma::vec &x, double const *y) noexcept {
   double out(0.);
   for(auto &xi : x)
     out += xi * *y++;
@@ -21,7 +21,8 @@ inline double arma_dot(const arma::vec &x, double const *y){
 
 /** adds a double range times a scalar to an arma::vec without bounds
  checks. */
-inline void arma_inplace_add(arma::vec &x, double const f, double const *y){
+inline void arma_inplace_add(arma::vec &x, double const f,
+                             double const * __restrict__ y) noexcept {
   for(auto &xi : x)
     xi += f * *y++;
 }

@@ -15,8 +15,8 @@ gsm_get_XD <- function(time_var, mt_X, data){
 #' @importFrom stats ecdf
 gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
                 do_fit, opt_func = .opt_default,
-                eps = .MGSM_defaul_eps,
-                kappa = .MGSM_default_kappa){
+                eps = .MGSM_defaul_eps, kappa = .MGSM_default_kappa,
+                dtformula = NULL){
   # checks
   stopifnot(
     inherits(formula, "formula"),
@@ -26,7 +26,9 @@ gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
     !(missing(df) && is.null(tformula)),
     is.integer(n_threads) && n_threads > 0 && length(n_threads) == 1L,
     link %in% c("PH", "PO", "probit"),
-    is.logical(do_fit), length(do_fit) == 1L)
+    is.logical(do_fit), length(do_fit) == 1L,
+    is.null(dtformula) || (!is.null(tformula) &&
+                             inherits(dtformula, "formula")))
 
   #####
   # get design matrices and outcome
@@ -47,7 +49,11 @@ gsm <- function(formula, data, df, tformula = NULL, link, n_threads,
   mt_X <- terms(model.frame(tformula, data = data[event > 0, ]))
   X <- model.matrix(mt_X, data)
 
-  XD <- gsm_get_XD(time_var = time_var, mt_X = mt_X, data = data)
+  XD <- if(!is.null(dtformula)){
+    mt_XD <- terms(model.frame(dtformula, data = data[event > 0, ]))
+    model.matrix(mt_XD, data)
+  } else
+    gsm_get_XD(time_var = time_var, mt_X = mt_X, data = data)
 
   out <- list(Z = Z, X = X, XD = XD, y = y, mt_Z = mt_Z, mt_X = mt_X)
   if(!do_fit)

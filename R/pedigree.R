@@ -23,6 +23,8 @@
 #' @param trace logical for whether to print tracing information.
 #' @param kappa numeric scalar with the penalty in the relaxed problem
 #' ensuring the monotonicity of the survival curve.
+#' @param dtformula \code{\link{formula}} with the derivative of the
+#' baseline survival function.
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export
@@ -30,7 +32,8 @@ make_pedigree_ADFun <- function(
   c_data, formula, tformula, n_nodes = 20L, n_threads = 1L,
   sparse_hess = FALSE, link = c("PH", "PO", "probit"),
   opt_func = .opt_default, skew_start = -.0001, omega = NULL,
-  beta = NULL, sds = NULL, trace = FALSE, kappa = .MGSM_default_kappa){
+  beta = NULL, sds = NULL, trace = FALSE, kappa = .MGSM_default_kappa,
+  dtformula = NULL){
   # checks
   link <- link[1L]
   stopifnot(
@@ -55,7 +58,7 @@ make_pedigree_ADFun <- function(
   c_data <- lapply(c_data, function(x){
     gsm_dat <- gsm(formula = formula, data = x$data, tformula = tformula,
                    link = link, n_threads = n_threads, do_fit = FALSE,
-                   opt_func = opt_func)
+                   opt_func = opt_func, dtformula = dtformula)
     y <- gsm_dat$y
     stopifnot(inherits(y, "Surv"), isTRUE(attr(y, "type") == "right"))
 

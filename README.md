@@ -665,8 +665,8 @@ for(param_type in c("DP", "CP_trans")){
 rm(list = ls())
 gc()
 #>           used  (Mb) gc trigger (Mb) max used (Mb)
-#> Ncells 1882765 100.6    2887571  154  2887571  154
-#> Vcells 3216084  24.6    8388608   64  8382333   64
+#> Ncells 1882875 100.6    2889180  154  2889180  154
+#> Vcells 3216719  24.6    8388608   64  8382929   64
 clear_cppad_mem(4L)
 #> [1] 1
 ```
@@ -1087,8 +1087,8 @@ We only see a low amount of skewness.
 rm(list = ls())
 gc()
 #>           used  (Mb) gc trigger (Mb) max used (Mb)
-#> Ncells 1887634 100.9    2887571  154  2887571  154
-#> Vcells 3229965  24.7    8388608   64  8388368   64
+#> Ncells 1887740 100.9    2889180  154  2889180  154
+#> Vcells 3230596  24.7    8388608   64  8387864   64
 clear_cppad_mem(6L)
 #> [1] 1
 ```
@@ -1169,8 +1169,10 @@ plot(dat$sim_data[[1L]]$pedAll)
 # The first is a genetic effects which correlation matrix is as follows
 par(mar = c(2, 2, 1, 1))
 cl <- colorRampPalette(c("Red", "White", "Blue"))(101)
-image(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
-      zlim = c(-1, 1))
+rev_img <- function(x, ...)
+  image(x[, NROW(x):1], ...)
+rev_img(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
+        zlim = c(-1, 1))
 ```
 
 <img src="man/figures/README-pedigree_example-2.png" width="100%" />
@@ -1179,19 +1181,19 @@ image(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl,
 library(Matrix)
 as(dat$sim_data[[1L]]$rel_mat[1:8, 1:8], "sparseMatrix")
 #> 8 x 8 sparse Matrix of class "dgCMatrix"
-#>        8     9    10    16    17    18    23    27
-#> 8  1.000 0.500 0.500 0.125 0.125 0.125 .     .    
-#> 9  0.500 1.000 0.500 0.125 0.125 0.125 .     .    
-#> 10 0.500 0.500 1.000 0.125 0.125 0.125 .     .    
-#> 16 0.125 0.125 0.125 1.000 0.500 0.500 0.125 0.125
-#> 17 0.125 0.125 0.125 0.500 1.000 0.500 0.125 0.125
-#> 18 0.125 0.125 0.125 0.500 0.500 1.000 0.125 0.125
-#> 23 .     .     .     0.125 0.125 0.125 1.000 0.125
-#> 27 .     .     .     0.125 0.125 0.125 0.125 1.000
+#>       11    12    13    18    19    24    25    26
+#> 11 1.000 0.500 0.500 0.125 0.125 0.125 0.125 0.125
+#> 12 0.500 1.000 0.500 0.125 0.125 0.125 0.125 0.125
+#> 13 0.500 0.500 1.000 0.125 0.125 0.125 0.125 0.125
+#> 18 0.125 0.125 0.125 1.000 0.500 .     .     .    
+#> 19 0.125 0.125 0.125 0.500 1.000 .     .     .    
+#> 24 0.125 0.125 0.125 .     .     1.000 0.500 0.500
+#> 25 0.125 0.125 0.125 .     .     0.500 1.000 0.500
+#> 26 0.125 0.125 0.125 .     .     0.500 0.500 1.000
 
 # secondly there is a maternal effect which correlation matrix is as follows
-image(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
-      zlim = c(-1, 1))
+rev_img(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
+        zlim = c(-1, 1))
 ```
 
 <img src="man/figures/README-pedigree_example-3.png" width="100%" />
@@ -1199,15 +1201,15 @@ image(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl,
 ``` r
 as(dat$sim_data[[1L]]$met_mat[1:8, 1:8], "sparseMatrix")
 #> 8 x 8 sparse Matrix of class "dgCMatrix"
-#>    8 9 10 16 17 18  23  27
-#> 8  1 1  1  .  .  . .   .  
-#> 9  1 1  1  .  .  . .   .  
-#> 10 1 1  1  .  .  . .   .  
-#> 16 . .  .  1  1  1 .   .  
-#> 17 . .  .  1  1  1 .   .  
-#> 18 . .  .  1  1  1 .   .  
-#> 23 . .  .  .  .  . 1.0 0.5
-#> 27 . .  .  .  .  . 0.5 1.0
+#>     11  12  13  18  19 24 25 26
+#> 11 1.0 1.0 1.0 0.5 0.5  .  .  .
+#> 12 1.0 1.0 1.0 0.5 0.5  .  .  .
+#> 13 1.0 1.0 1.0 0.5 0.5  .  .  .
+#> 18 0.5 0.5 0.5 1.0 1.0  .  .  .
+#> 19 0.5 0.5 0.5 1.0 1.0  .  .  .
+#> 24 .   .   .   .   .    1  1  1
+#> 25 .   .   .   .   .    1  1  1
+#> 26 .   .   .   .   .    1  1  1
 
 # some summary stats are
 length(c_data)    # number of clusters (families)
@@ -1217,40 +1219,45 @@ length(c_data)    # number of clusters (families)
 obs_in_cl <- sapply(c_data, function(x) NCOL(x$cor_mats[[1L]])) 
 table(obs_in_cl) # distribution of cluster sizes
 #> obs_in_cl
-#>   8   9  10  11  12  13  14  15  17  18  19  20  21  22  23  24  25  26  27  28 
-#>  14   7  11   6   6   5   4  10   3   3   4  19  24  43 104 125 137 148 116 117 
-#>  29  30  31  32  33 
-#>  61  17  12   3   1
+#>   8   9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26  27 
+#>   5   9   7   3   7   8   5   2   3   3   7   9  11  32  51  82 133 155 129 134 
+#>  28  29  30  31  32  33 
+#>  80  71  35  11   5   3
 
 # total number of observations
 sum(obs_in_cl)
-#> [1] 24558
+#> [1] 24796
 
 # number of observed events
 sum(sapply(c_data, function(x) sum(x$data$event)))
-#> [1] 6838
+#> [1] 8097
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
   x <- log(x)
   cbind(x^3, x^2, x)
 }
+dsbase_haz <- function(x){
+  y <- log(x)
+  cbind(3 * y^2, 2 * y, 1) / x
+}
 
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1,
-    tformula = ~ sbase_haz(y) - 1, trace = TRUE,
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
+    dtformula = ~ dsbase_haz(y) - 1,
     c_data = c_data, link = "probit", n_threads = 6L))
 #> Finding starting values for fixed effects...
-#> Maximum log-likelihood without random effects is: -15995.625
+#> Maximum log-likelihood without random effects is: -22076.723
 #> Creating ADFun...
 #> Finding starting values for variational parameters...
 #>    user  system elapsed 
-#>   583.8     1.1   104.6
+#> 496.422   0.827  89.574
 
 -func$fn(func$par) # lower bound of the log-likelihood
-#> [1] -15917
+#> [1] -21958
 
 # check memory usage
 # TODO: export the function
@@ -1259,8 +1266,10 @@ siz <- survTMB:::pedigree_get_size(environment(func$fn)$adfun)
 # the amount of work and memory necessary for computing function values 
 # and derivatives using f is roughly proportional to ...
 siz$size_var 
-#> [1] 8443092
+#> [1] 4540417
+```
 
+``` r
 # optimize and compare the results with the true parameters. We start by 
 # using a GVA
 library(lbfgs)
@@ -1288,26 +1297,26 @@ system.time(
     linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
     max_linesearch = 20))
 #>    user  system elapsed 
-#> 2157.16    2.48  365.10
+#> 1314.52    1.48  223.09
 ```
 
 We show the estimates below and compare them with the true values.
 
 ``` r
 -opt_out$value # lower bound on the marginal log-likelihood in the end
-#> [1] -15548
+#> [1] -21563
 
 rbind(
   `Starting values` = head(func$par, 7), 
   Estimates = head(opt_out$par, 7),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
-#> Starting values             0.0134             0.0118               0.109
-#> Estimates                   0.0166             0.0146               0.137
-#> True values                 0.0200             0.0200               0.167
+#> Starting values            0.00693             0.0140               0.224
+#> Estimates                  0.00869             0.0173               0.279
+#> True values                0.01000             0.0200               0.333
 #>                 beta:Z.1 beta:Z.2 log_sds1 log_sds2
-#> Starting values   -0.838    0.172   -0.693   -0.693
-#> Estimates         -1.035    0.213   -0.707   -0.646
+#> Starting values   -0.836    0.179   -0.693   -0.693
+#> Estimates         -1.030    0.223   -0.701   -0.670
 #> True values       -1.250    0.250    0.000   -0.693
 
 # check the skew parameters
@@ -1326,12 +1335,12 @@ cps <- tapply(va_ests, grp, function(x){
 # distribution of skew parameters
 summary(unlist(lapply(cps, `[[`, "gamma")))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#> -0.0781  0.0000  0.0000 -0.0085  0.0002  0.0112
+#> -0.0825  0.0000  0.0000 -0.0083  0.0002  0.0246
 
 # distribution of approximate means
 summary(unlist(lapply(cps, `[[`, "mu")))
 #>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>  -0.685  -0.344  -0.132  -0.002   0.269   2.080
+#>  -0.812  -0.354  -0.101  -0.002   0.274   2.117
 
 # example of some of the conditional covariance matrices
 vcovs_ests <- lapply(cps[1:4 + 4], "[[", "Sigma")
@@ -1351,12 +1360,12 @@ sapply(vcovs_ests, function(x) {
   x <- cor(x)
   quantile(x[-cumsum(c(1L, rep(n + 1L, n - 1L)))])
 }) 
-#>         g101    g102   g103    g104
-#> 0%   -0.1727 -0.1888 -0.192 -0.3037
-#> 25%  -0.1503 -0.1463 -0.142 -0.1946
-#> 50%  -0.1219 -0.1265 -0.114 -0.1325
-#> 75%  -0.0672 -0.0784 -0.068 -0.0418
-#> 100%  0.9507  0.9411  0.943  0.9342
+#>         g101    g102    g103    g104
+#> 0%   -0.1859 -0.1667 -0.2295 -0.1834
+#> 25%  -0.1364 -0.1283 -0.1920 -0.1462
+#> 50%  -0.1197 -0.1068 -0.1667 -0.1281
+#> 75%  -0.0809 -0.0663 -0.0757 -0.0523
+#> 100%  0.9460  0.9409  0.9295  0.9405
 
 # compare estimated covariance matrix with the true one for some of the 
 # clusters
@@ -1387,6 +1396,779 @@ local({
 ```
 
 <img src="man/figures/README-pedigree_show_est-2.png" width="100%" /><img src="man/figures/README-pedigree_show_est-3.png" width="100%" />
+
+``` r
+# start at the true parameters
+system.time(
+  func <- make_pedigree_ADFun(
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
+    omega = dat$omega, beta = dat$beta, sds = dat$sds,
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
+    dtformula = ~ dsbase_haz(y) - 1,
+    c_data = c_data, link = "probit", n_threads = 6L))
+#> Creating ADFun...
+#> Finding starting values for variational parameters...
+#>    user  system elapsed 
+#> 321.161   0.664  58.153
+
+-func$fn(func$par) # lower bound of the log-likelihood
+#> [1] -21559
+
+#####
+# recursively update VA and model parameters
+# returns a list with function which only requires some of the parameters
+get_func <- function(x, keep){
+  vx <- x
+  vkeep <- keep
+  list(
+    fn = function(par, ...){
+      vx[vkeep] <- par
+      func$fn(vx)
+    }, gr = function(par, ...){
+      vx[vkeep] <- par
+      func$gr(vx)[vkeep]
+    })
+}
+
+# optimizer function
+library(lbfgs)
+foptim <- function(par, fn, gr, reltol, maxit = 100){
+  if(length(par) > 1000L){
+    return(lbfgs(
+      call_eval = fn, call_grad = gr, vars = par, invisible = 1,
+      m = 6L, epsilon = 1e-5, delta = reltol, past = 10L,
+      max_iterations = maxit, max_linesearch = 30L,
+      linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE"))
+  }
+  
+  optim(par, fn, gr, control = list(reltol = reltol, maxit = maxit), 
+        method = "BFGS")
+  
+}
+
+# swap between updating VA parameters and model parameters
+val <- func$par
+is_va <- grepl("^g\\d+:", names(val))
+is_mod <- which(!is_va)
+is_va <- which(is_va)
+reltol <- sqrt(.Machine$double.eps)
+
+for(i in 1:100){
+  opt_func_va <- get_func(val, is_va)
+  new_res <- foptim(
+    val[is_va], opt_func_va$fn, opt_func_va$gr, reltol = reltol)
+  val[is_va] <- new_res$par
+  
+  opt_func_mod <- get_func(val, is_mod)
+  new_res <- foptim(
+    val[is_mod], opt_func_mod$fn, opt_func_mod$gr, reltol = reltol)
+  val[is_mod] <- new_res$par
+  
+  cat(sprintf("Iteration %4d: %f\n", i, new_res$value))
+  print(rbind(`True values` = c(dat$omega, dat$beta, log(dat$sds)), 
+              Estimates = val[is_mod]))
+}
+#> Iteration    1: 21556.465455
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100              0.020               0.333    -1.25
+#> Estimates               0.0103              0.021               0.335    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250  0.00000   -0.693
+#> Estimates      0.261 -0.00332   -0.707
+#> Iteration    2: 21555.572479
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100              0.020               0.333    -1.25
+#> Estimates               0.0104              0.021               0.335    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250  0.00000   -0.693
+#> Estimates      0.265 -0.00558   -0.711
+#> Iteration    3: 21555.303085
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100              0.020               0.333    -1.25
+#> Estimates               0.0104              0.021               0.335    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250  0.00000   -0.693
+#> Estimates      0.266 -0.00816   -0.712
+#> Iteration    4: 21555.047040
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100              0.020               0.333    -1.25
+#> Estimates               0.0104              0.021               0.335    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250  0.00000   -0.693
+#> Estimates      0.267 -0.00999   -0.712
+#> Iteration    5: 21554.867705
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100              0.020               0.333    -1.25
+#> Estimates               0.0104              0.021               0.334    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.267  -0.0121   -0.712
+#> Iteration    6: 21554.665959
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100              0.020               0.333    -1.25
+#> Estimates               0.0104              0.021               0.334    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.267  -0.0141   -0.712
+#> Iteration    7: 21554.482190
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0104             0.0209               0.334    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.266   -0.016   -0.712
+#> Iteration    8: 21554.299669
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0209               0.334    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.266  -0.0182   -0.712
+#> Iteration    9: 21554.110032
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0209               0.333    -1.25
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.266  -0.0201   -0.712
+#> Iteration   10: 21553.935433
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0209               0.333    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.266   -0.022   -0.711
+#> Iteration   11: 21553.776069
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0209               0.333    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.265  -0.0244   -0.710
+#> Iteration   12: 21553.570239
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0209               0.333    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.265  -0.0264   -0.709
+#> Iteration   13: 21553.397936
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0209               0.332    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.265  -0.0282   -0.708
+#> Iteration   14: 21553.246164
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0207               0.332    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.265  -0.0306   -0.707
+#> Iteration   15: 21553.047068
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0208               0.332    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.265  -0.0325   -0.706
+#> Iteration   16: 21552.893501
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0208               0.332    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.264  -0.0343   -0.705
+#> Iteration   17: 21552.749092
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0208               0.331    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.264  -0.0366   -0.704
+#> Iteration   18: 21552.565541
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0103             0.0207               0.331    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.264  -0.0386   -0.702
+#> Iteration   19: 21552.410401
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.331    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.264  -0.0405   -0.701
+#> Iteration   20: 21552.266526
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.331    -1.24
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.264  -0.0423   -0.700
+#> Iteration   21: 21552.125544
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.331    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.263  -0.0443   -0.699
+#> Iteration   22: 21551.971714
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0206               0.330    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.263  -0.0461   -0.698
+#> Iteration   23: 21551.831375
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.330    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.263  -0.0479   -0.697
+#> Iteration   24: 21551.695735
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.330    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.263  -0.0498   -0.695
+#> Iteration   25: 21551.555032
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0206               0.330    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.263  -0.0513   -0.694
+#> Iteration   26: 21551.437737
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.329    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.263  -0.0535   -0.693
+#> Iteration   27: 21551.276923
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0205               0.329    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.262  -0.0553   -0.692
+#> Iteration   28: 21551.150438
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.329    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.262  -0.0573   -0.691
+#> Iteration   29: 21551.001867
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0206               0.329    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.262  -0.0589   -0.689
+#> Iteration   30: 21550.886252
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0206               0.329    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.262  -0.0607   -0.688
+#> Iteration   31: 21550.758893
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0205               0.328    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.262  -0.0625   -0.687
+#> Iteration   32: 21550.628602
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0206               0.328    -1.23
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.262  -0.0645   -0.686
+#> Iteration   33: 21550.491832
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0205               0.328    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0662   -0.685
+#> Iteration   34: 21550.372827
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0207               0.328    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0677   -0.684
+#> Iteration   35: 21550.262995
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0102             0.0205               0.328    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0698   -0.683
+#> Iteration   36: 21550.112167
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.327    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0716   -0.681
+#> Iteration   37: 21549.995076
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0206               0.327    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0734   -0.680
+#> Iteration   38: 21549.872210
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0206               0.327    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0752   -0.679
+#> Iteration   39: 21549.752438
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0204               0.327    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.261  -0.0769   -0.678
+#> Iteration   40: 21549.640786
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.327    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0785   -0.676
+#> Iteration   41: 21549.535857
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0204               0.327    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0801   -0.675
+#> Iteration   42: 21549.430823
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0204               0.326    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0818   -0.674
+#> Iteration   43: 21549.322054
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0203               0.326    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0835   -0.673
+#> Iteration   44: 21549.207473
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0204               0.326    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0852   -0.672
+#> Iteration   45: 21549.099055
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0203               0.326    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0869   -0.670
+#> Iteration   46: 21548.991130
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.326    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values     0.25   0.0000   -0.693
+#> Estimates       0.26  -0.0887   -0.669
+#> Iteration   47: 21548.880873
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0203               0.325    -1.22
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.259  -0.0906   -0.668
+#> Iteration   48: 21548.760716
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.259  -0.0925   -0.667
+#> Iteration   49: 21548.635641
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0204               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.259   -0.094   -0.666
+#> Iteration   50: 21548.545596
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.259  -0.0954   -0.665
+#> Iteration   51: 21548.463268
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.259  -0.0964   -0.663
+#> Iteration   52: 21548.393450
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0203               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.259   -0.098   -0.664
+#> Iteration   53: 21548.300092
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250   0.0000   -0.693
+#> Estimates      0.259  -0.0992   -0.663
+#> Iteration   54: 21548.221537
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.325    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.259   -0.101   -0.662
+#> Iteration   55: 21548.145946
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.259   -0.102   -0.661
+#> Iteration   56: 21548.109094
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.259   -0.102   -0.661
+#> Iteration   57: 21548.108331
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100             0.0200               0.333    -1.25
+#> Estimates               0.0101             0.0205               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.259   -0.102   -0.661
+#> Iteration   58: 21548.059997
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.258   -0.103   -0.661
+#> Iteration   59: 21547.965156
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0201               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.258   -0.105   -0.660
+#> Iteration   60: 21547.871801
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.258   -0.106   -0.660
+#> Iteration   61: 21547.782531
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.324    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.258   -0.108   -0.659
+#> Iteration   62: 21547.693845
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.323    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.258    -0.11   -0.658
+#> Iteration   63: 21547.572591
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.323    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.258   -0.112   -0.657
+#> Iteration   64: 21547.487003
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.323    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.258   -0.113   -0.655
+#> Iteration   65: 21547.382737
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.323    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.115   -0.654
+#> Iteration   66: 21547.303382
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.323    -1.21
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.116   -0.653
+#> Iteration   67: 21547.216812
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.323    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.118   -0.652
+#> Iteration   68: 21547.125502
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0202               0.323    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.119   -0.651
+#> Iteration   69: 21547.047227
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values               0.01             0.0200               0.333    -1.25
+#> Estimates                 0.01             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.121   -0.650
+#> Iteration   70: 21546.960623
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00999             0.0202               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.122   -0.649
+#> Iteration   71: 21546.884053
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00997             0.0201               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.124   -0.649
+#> Iteration   72: 21546.810030
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00999             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.125   -0.648
+#> Iteration   73: 21546.776304
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00998             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.125   -0.648
+#> Iteration   74: 21546.775650
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00999             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.125   -0.648
+#> Iteration   75: 21546.775092
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00998             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.125   -0.648
+#> Iteration   76: 21546.774559
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00999             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.257   -0.125   -0.648
+#> Iteration   77: 21546.736437
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00999             0.0203               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.127   -0.647
+#> Iteration   78: 21546.633111
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00998             0.0202               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.129   -0.646
+#> Iteration   79: 21546.542100
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00998             0.0202               0.322    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.256    -0.13   -0.645
+#> Iteration   80: 21546.463411
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00996             0.0201               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.131   -0.644
+#> Iteration   81: 21546.391438
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00996             0.0201               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.133   -0.644
+#> Iteration   82: 21546.323860
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00995             0.0201               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.134   -0.643
+#> Iteration   83: 21546.249983
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00993             0.0201               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.135   -0.643
+#> Iteration   84: 21546.194323
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00995             0.0201               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.136   -0.642
+#> Iteration   85: 21546.144869
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000               0.02               0.333    -1.25
+#> Estimates              0.00992               0.02               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.137   -0.642
+#> Iteration   86: 21546.098168
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00996             0.0202               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.256   -0.138   -0.641
+#> Iteration   87: 21546.036097
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00995             0.0201               0.320    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.255    -0.14   -0.639
+#> Iteration   88: 21545.951393
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00993             0.0201               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.141   -0.639
+#> Iteration   89: 21545.896973
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000               0.02               0.333    -1.25
+#> Estimates              0.00991               0.02               0.321    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.142   -0.639
+#> Iteration   90: 21545.847685
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000               0.02               0.333    -1.25
+#> Estimates              0.00992               0.02               0.320    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.143   -0.638
+#> Iteration   91: 21545.784583
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000               0.02               0.333    -1.25
+#> Estimates              0.00992               0.02               0.320    -1.20
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.144   -0.637
+#> Iteration   92: 21545.724624
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00993             0.0201               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.145   -0.636
+#> Iteration   93: 21545.673739
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00993             0.0201               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.146   -0.636
+#> Iteration   94: 21545.629818
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100               0.02               0.333    -1.25
+#> Estimates               0.0099               0.02               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.147   -0.636
+#> Iteration   95: 21545.578246
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000               0.02               0.333    -1.25
+#> Estimates              0.00991               0.02               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.148   -0.635
+#> Iteration   96: 21545.531031
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values             0.0100               0.02               0.333    -1.25
+#> Estimates               0.0099               0.02               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250    0.000   -0.693
+#> Estimates      0.255   -0.149   -0.634
+#> Iteration   97: 21545.492433
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00992             0.0202               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.255    -0.15   -0.634
+#> Iteration   98: 21545.468678
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00991             0.0202               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.255    -0.15   -0.634
+#> Iteration   99: 21545.468196
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00991             0.0201               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.255    -0.15   -0.634
+#> Iteration  100: 21545.467771
+#>             omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x beta:Z.1
+#> True values            0.01000             0.0200               0.333    -1.25
+#> Estimates              0.00991             0.0201               0.320    -1.19
+#>             beta:Z.2 log_sds1 log_sds2
+#> True values    0.250     0.00   -0.693
+#> Estimates      0.255    -0.15   -0.634
+```
 
 ## References
 
