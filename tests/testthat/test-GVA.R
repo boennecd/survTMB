@@ -35,7 +35,7 @@ for(link in c("PH", "PO", "probit"))
         expect_known_value(
           get_par_val_eortc(res),
           sprintf(file.path(test_res_dir, "GVA-%s.RDS"), link),
-          tolerance = sqrt(eps))
+          tolerance = sqrt(eps), check.attributes = use_own)
         expect_known_output(
           res, sprintf(file.path(test_res_dir, "GVA-%s.txt"), link),
           print = TRUE)

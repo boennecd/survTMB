@@ -27,6 +27,16 @@ Joint marker and survival models are also available in the package. We
 show an example of estimating a joint model in the [joint
 models](#joint-models) section.
 
+## Installation
+
+The package can be installed from Github by calling:
+
+``` r
+library(remotes)
+install_github("boennecd/psqn")    # we need the psqn package
+install_github("boennecd/survTMB")
+```
+
 ## Example
 
 We estimate a GSM a below with the proportional odds (PO) link function
@@ -661,14 +671,41 @@ for(param_type in c("DP", "CP_trans")){
 #>  probit (4L) 368 370  372    372 376 377     5
 ```
 
+### Using the psqn Interface
+
+Another option is to use [the psqn
+package](https://github.com/boennecd/psqn) through this package. This
+can be done as follows
+
 ``` r
-rm(list = ls())
-gc()
-#>           used  (Mb) gc trigger (Mb) max used (Mb)
-#> Ncells 1882875 100.6    2889180  154  2889180  154
-#> Vcells 3216719  24.6    8388608   64  8382929   64
-clear_cppad_mem(4L)
-#> [1] 1
+# get the object needed to perform the estimation
+psqn_obj <- make_mgsm_psqn_obj(
+  formula = Surv(y, uncens) ~ trt, data = dat, 
+  df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+  n_nodes = 15L, link = "PO", n_threads = 2L)
+
+# perform the estimation
+psqn_opt <- optim_mgsm_psqn(psqn_obj)
+
+# check that the function value is the same
+all.equal(psqn_opt$value, snva_fit$fit$optim$value)
+#> [1] "Mean relative difference: 8.85e-07"
+```
+
+It is a bit slower in this case as shown below but can be faster when
+there are more clusters.
+
+``` r
+microbenchmark(`Using psqn` = {
+  psqn_obj <- make_mgsm_psqn_obj(
+    formula = Surv(y, uncens) ~ trt, data = dat, 
+    df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+    n_nodes = 15L, link = "PO", n_threads = 2L)
+  optim_mgsm_psqn(psqn_obj)
+}, times = 5)
+#> Unit: milliseconds
+#>        expr min  lq mean median  uq max neval
+#>  Using psqn 702 703  706    705 708 711     5
 ```
 
 ## Joint Models
@@ -1081,17 +1118,8 @@ print(skews, quote = FALSE)
 #> 100%   0.0000   0.0001   0.0003   0.0004
 ```
 
-We only see a low amount of skewness.
-
-``` r
-rm(list = ls())
-gc()
-#>           used  (Mb) gc trigger (Mb) max used (Mb)
-#> Ncells 1887740 100.9    2889180  154  2889180  154
-#> Vcells 3230596  24.7    8388608   64  8387864   64
-clear_cppad_mem(6L)
-#> [1] 1
-```
+We only see a low amount of
+skewness.
 
 ## Pedigree Data
 

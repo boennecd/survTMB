@@ -28,13 +28,14 @@ Suggests:
     testthat, 
     numDeriv, 
     coxme
-RoxygenNote: 7.0.1
+RoxygenNote: 7.1.1
 LinkingTo: 
     Rcpp,
     RcppEigen,
     RcppArmadillo,
     TMB, 
-    testthat
+    testthat, 
+    psqn
 Imports: 
     Rcpp, 
     TMB (>= 1.7.15),
@@ -42,4 +43,5 @@ Imports:
     Matrix, 
     lme4, 
     reshape2,
-    lbfgs
+    lbfgs, 
+    psqn

@@ -11,10 +11,11 @@ Type laplace_PH_terms
   (Type const &eta, Type const &etaD, Type const &event,
    Type const &eps, Type const &eps_log, Type const &kappa){
   Type const H = exp(eta),
-             h = etaD * H,
-        if_low = event * eps_log - H - h * h * kappa,
-        if_ok  = event * log(h)  - H;
-  return CppAD::CondExpGe(h, eps, if_ok, if_low);
+             h = etaD         * H,
+            hp = (etaD - eps) * H,
+        if_low = event * (eps_log + eta) - H - hp * hp * kappa,
+        if_ok  = event * log(h)          - H;
+  return CppAD::CondExpGe(etaD, eps, if_ok, if_low);
 }
 
 template<class Type>
@@ -26,10 +27,12 @@ Type laplace_PO_terms
 
   Type const H = CppAD::CondExpGe(
     eta, too_large, eta, log(one + exp(eta))),
-             h = etaD * exp(eta - H),
-        if_low = event * eps_log - H - h * h * kappa,
-        if_ok  = event * log(h)  - H;
-  return CppAD::CondExpGe(h, eps, if_ok, if_low);
+            he = exp(eta - H),
+             h = etaD         * he,
+            hp = (etaD - eps) * he,
+        if_low = event * (eps_log + eta - H) - H - hp * hp * kappa,
+        if_ok  = event * log(h)              - H;
+  return CppAD::CondExpGe(etaD, eps, if_ok, if_low);
 }
 
 template<class Type>
@@ -41,11 +44,12 @@ Type laplace_probit_terms
               one(1.);
 
   Type const H = -pnorm_log(-eta),
-             h = etaD * dnorm(-eta, zero, one) /
-               (pnorm(-eta) + tiny),
-        if_low = event * eps_log - H - h * h * kappa,
-        if_ok  = event * log(h)  - H;
-  return CppAD::CondExpGe(h, eps, if_ok, if_low);
+            hf = dnorm(-eta, zero, one) / (pnorm(-eta) + tiny),
+             h = etaD         * hf,
+            hp = (etaD - eps) * hf,
+        if_low = event * (eps_log + log(hf)) - H - hp * hp * kappa,
+        if_ok  = event * log(h)              - H;
+  return CppAD::CondExpGe(etaD, eps, if_ok, if_low);
 }
 
 template<class Type>

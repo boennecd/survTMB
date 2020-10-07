@@ -1,5 +1,6 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 language: r
+r_github_packages: boennecd/psqn
 r: release
 cache: packages
 dist: xenial

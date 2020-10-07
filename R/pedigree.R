@@ -50,9 +50,8 @@ make_pedigree_ADFun <- function(
       is.numeric(sds) && is.vector(sds) && all(sds > 0)),
     is.logical(trace), length(trace) == 1L,
     is.double(kappa), length(kappa) == 1L, kappa >= 0)
-  skew_boundary <- 0.99527
   eval(bquote(stopifnot(
-    .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
+    .(-.skew_boundary) < skew_start && skew_start < .(.skew_boundary))))
 
   # get design matrices etc.
   c_data <- lapply(c_data, function(x){

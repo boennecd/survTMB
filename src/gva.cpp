@@ -41,12 +41,14 @@ struct ph final : public GVA_cond_dens_data<Type> {
 
   Type operator()(GVA_COND_DENS_ARGS) const {
     Type const eta = eta_fix  + va_mean,
-                h = etaD_fix * exp(eta),
+               he = exp(eta),
+                h = etaD_fix               * he,
+               hp = (etaD_fix - this->eps) * he,
                 H = exp(eta + va_var / this->two),
-           if_low = event * this->eps_log - H - h * h * this->kappa,
+           if_low = event * (this->eps_log + eta) - H - hp * hp * this->kappa,
            if_ok  = event * log(h)  - H;
 
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+    return CppAD::CondExpGe(etaD_fix, this->eps, if_ok, if_low);
   }
 };
 
@@ -60,11 +62,15 @@ struct po final : public GVA_cond_dens_data<Type> {
     Type const eta = eta_fix + va_mean,
                  H = mlogit_integral(
                    va_mean, va_sd, eta_fix, this->n_nodes),
-                 h = etaD_fix * exp(eta - H),
-            if_low = event * this->eps_log - H - h * h * this->kappa,
-            if_ok  = event * log(h)  - H;
+                he = exp(eta - H),
+                 h = etaD_fix               * he,
+                hp = (etaD_fix - this->eps) * he,
+            if_low =
+              event * (this->eps_log + eta - H) - H - hp * hp * this->kappa,
+            if_ok  =
+              event * log(h)                    - H;
 
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+    return CppAD::CondExpGe(etaD_fix, this->eps, if_ok, if_low);
   }
 };
 
@@ -77,13 +83,17 @@ struct probit : public GVA_cond_dens_data<Type> {
   Type operator()(GVA_COND_DENS_ARGS) const {
     Type const H = probit_integral(va_mean, va_sd, -eta_fix, this->n_nodes),
             diff = eta_fix + va_mean,
-               h = etaD_fix * exp(
-                 this->mlog_2_pi_half - diff * diff / this->two -
-                   va_var / this->two + H),
-          if_low = event * this->eps_log - H - h * h * this->kappa,
-          if_ok  = event * log(h)  - H;
+          hf_log = this->mlog_2_pi_half - diff * diff / this->two -
+            va_var / this->two + H,
+              he = exp(hf_log),
+               h = etaD_fix               * he,
+              hp = (etaD_fix - this->eps) * he,
+          if_low =
+            event * (this->eps_log + hf_log) - H - hp * hp * this->kappa,
+          if_ok  =
+            event * log(h)                   - H;
 
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+    return CppAD::CondExpGe(etaD_fix, this->eps, if_ok, if_low);
   }
 };
 

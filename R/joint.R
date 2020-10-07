@@ -486,9 +486,8 @@ make_joint_ADFun <- function(
     is.logical(sparse_hess), length(sparse_hess) == 1L,
     is.logical(use_log), length(use_log) == 1L,
     is.logical(trace), length(trace) == 1L)
-  skew_boundary <- 0.99527
   eval(bquote(stopifnot(
-    .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
+    .(-.skew_boundary) < skew_start && skew_start < .(.skew_boundary))))
 
   id_var <- substitute(id_var)
   time_var <- substitute(time_var)

@@ -655,15 +655,18 @@ struct ph final : public SNVA_cond_dens_dat<Type> {
   using SNVA_cond_dens_dat<Type>::SNVA_cond_dens_dat;
 
   Type operator()(SNVA_COND_DENS_ARGS) const {
-    Type const h = etaD_fix * exp(eta_fix + dist_mean),
-               H = this->two * exp(
-                 eta_fix + va_mu + va_var / this->two) * pnorm(va_d),
-          h_diff = h - this->eps,
-          if_low =
-            event * this->eps_log - H - h_diff * h_diff * this->kappa,
-          if_ok  = event * log(h)  - H;
+    Type const hf_log = eta_fix + dist_mean,
+                  he = exp(hf_log),
+                   h = etaD_fix               * he,
+                  hp = (etaD_fix - this->eps) * he,
+                   H = this->two * exp(
+                     eta_fix + va_mu + va_var / this->two) * pnorm(va_d),
+              if_low =
+                event * (this->eps_log + hf_log) - H - hp * hp * this->kappa,
+              if_ok  =
+                event * log(h)                   - H;
 
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+    return CppAD::CondExpGe(etaD_fix, this->eps, if_ok, if_low);
   }
 };
 
@@ -676,13 +679,16 @@ struct po final : public SNVA_cond_dens_dat<Type> {
   Type operator()(SNVA_COND_DENS_ARGS) const {
     Type const H = mlogit_integral(
       va_mu, va_sd, va_rho, eta_fix, this->n_nodes),
-               h = etaD_fix * exp(eta_fix + dist_mean - H),
-          h_diff = h - this->eps,
+          hf_log = eta_fix + dist_mean - H,
+              he = exp(hf_log),
+               h = etaD_fix               * he,
+              hp = (etaD_fix - this->eps) * he,
           if_low =
-            event * this->eps_log - H - h_diff * h_diff * this->kappa,
-          if_ok  = event * log(h)  - H;
+            event * (this->eps_log + hf_log) - H - hp * hp * this->kappa,
+          if_ok  =
+            event * log(h)                   - H;
 
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+    return CppAD::CondExpGe(etaD_fix, this->eps, if_ok, if_low);
   }
 };
 
@@ -696,15 +702,16 @@ struct probit final : public SNVA_cond_dens_dat<Type> {
     Type const H = probit_integral(
         va_mu, va_sd, va_rho, -eta_fix, this->n_nodes),
             diff = (eta_fix + dist_mean),
-               h = etaD_fix * exp(
-                 this->mlog_2_pi_half - diff * diff / this->two -
-                   dist_var / this->two + H),
-          h_diff = h - this->eps,
+          hf_log = this->mlog_2_pi_half - diff * diff / this->two -
+            dist_var / this->two + H,
+              he = exp(hf_log),
+               h = etaD_fix               * he,
+              hp = (etaD_fix - this->eps) * he,
           if_low =
-            event * this->eps_log - H - h_diff * h_diff * this->kappa,
+            event * (this->eps_log + hf_log) - H - hp * hp * this->kappa,
           if_ok  = event * log(h)  - H;
 
-    return CppAD::CondExpGe(h, this->eps, if_ok, if_low);
+    return CppAD::CondExpGe(etaD_fix, this->eps, if_ok, if_low);
   }
 };
 

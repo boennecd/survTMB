@@ -1,3 +1,6 @@
+#ifndef SPLINES_H
+#define SPLINES_H
+
 #define INCLUDE_RCPP
 #include "tmb_includes.h"
 #include <limits> // quiet_NaN
@@ -179,3 +182,5 @@ public:
 #undef DEFAULT_ORDER
 #undef DEFAULT_DERS
 #undef DEFAULT_INTERCEPT
+
+#endif // SPLINES_H

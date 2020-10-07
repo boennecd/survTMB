@@ -4,6 +4,7 @@
 
 .MGSM_defaul_eps <- .Machine$double.xmin^(1/5)
 .MGSM_default_kappa <- 100
+.skew_boundary <- 0.99527
 
 #' Maps Between Centralized and Direct Parameters
 #'
@@ -328,6 +329,8 @@ free_laplace <- function(obj){
 #' @param sparse_hess logical for whether to make sparse Hessian computation
 #'                    available. Memory and computation time is saved if it is
 #'                    \code{FALSE}.
+#' @param kappa numeric scalar with the penalty in the relaxed problem
+#' ensuring the monotonicity of the survival curve.
 #'
 #' @details
 #' Possible link functions for \code{link} are:
@@ -394,31 +397,98 @@ make_mgsm_ADFun <- function(
   param_type = c("DP", "CP_trans", "CP"), link = c("PH", "PO", "probit"),
   theta = NULL, beta = NULL, opt_func = .opt_default, n_threads = 1L,
   skew_start = -.0001, dense_hess = FALSE,
-  sparse_hess = FALSE){
-  link <- link[1]
+  sparse_hess = FALSE, kappa = .MGSM_default_kappa){
+  #####
+  # checks
   param_type <- param_type[1]
   stopifnot(
+    param_type %in% c("DP", "CP_trans", "CP"),
+    is.logical(dense_hess), length(dense_hess) == 1L, !is.na(dense_hess),
+    is.logical(sparse_hess), length(sparse_hess) == 1L, !is.na(sparse_hess),
+    is.function(opt_func),
+    all(do_setup %in% c(.laplace_char, .gva_char, .snva_char)))
+
+  #####
+  # get arguments to pass on
+  cluster <- substitute(cluster)
+  args_pass <- mgsm_setup(
+    formula = formula, data = data, df = df, tformula = tformula, Z = Z,
+    cluster = cluster, n_nodes = n_nodes,
+    link = link, theta = theta, beta = beta, opt_func = opt_func,
+    n_threads = n_threads, skew_start = skew_start, kappa = kappa)
+
+  #####
+  # setup ADFun object for the Laplace approximation
+  data_ad_func <- list(
+    tobs = args_pass$tobs, event = args_pass$event, X = args_pass$X,
+    XD = args_pass$XD, Z = args_pass$Z, grp = args_pass$grp,
+    link = args_pass$link, grp_size = args_pass$grp_size,
+    n_threads = args_pass$n_threads)
+
+  # assign parameter list
+  params <- list(eps = args_pass$eps, kappa = args_pass$kappa,
+                 b = args_pass$b, theta = args_pass$theta)
+
+  laplace_out <- if(.laplace_char %in% do_setup)
+    .get_laplace_func(data_ad_func, params, args_pass$n_rng,
+                      args_pass$n_grp, args_pass$inits)
+  else
+    NULL
+
+  #####
+  # setup ADFun object for the GVA
+  gva_out <- if(.gva_char %in% do_setup)
+    .get_gva_func(args_pass$n_rng, args_pass$n_grp, params, data_ad_func,
+                  args_pass$n_nodes, dense_hess,
+                  sparse_hess, args_pass$inits, opt_func)
+  else
+    NULL
+
+  #####
+  # setup ADFun object for the SNVA
+  snva_out <- if(.snva_char %in% do_setup)
+    .get_snva_out(args_pass$n_rng, args_pass$n_grp, params,
+                  args_pass$skew_start, param_type,
+                  data_ad_func, args_pass$n_nodes, dense_hess,
+                  sparse_hess, opt_func, gva_obj = gva_out,
+                  inits = args_pass$inits)
+  else
+    NULL
+
+  structure(
+    list(laplace = laplace_out, gva = gva_out, snva = snva_out,
+         y = args_pass$y, event = args_pass$event, X = args_pass$X,
+         XD = args_pass$XD, Z = args_pass$Z, grp = args_pass$grp,
+         terms = args_pass$terms, cl = match.call(),
+         link = args_pass$link, opt_func = opt_func,
+         dense_hess = dense_hess, sparse_hess = sparse_hess),
+    class = "MGSM_ADFun")
+}
+
+mgsm_setup <- function(
+  formula, data, df, tformula, Z, cluster, n_nodes,
+  link, theta, beta, opt_func, n_threads, skew_start, kappa){
+  link <- link[1]
+  stopifnot(
     is.integer(df), df > 0L, inherits(formula, "formula"),
+    is.null(tformula) || inherits(tformula, "formula"),
     inherits(Z, "formula"), is.data.frame(data),
     !missing(cluster),
-    all(do_setup %in% c(.laplace_char, .gva_char, .snva_char)),
     is.integer(n_nodes), length(n_nodes) == 1L, n_nodes > 0L,
     link %in% c("PH", "PO", "probit"),
-    param_type %in% c("DP", "CP_trans", "CP"),
+    is.null(theta) || (is.numeric(theta) && all(is.finite(theta))),
+    is.null(beta) || (is.numeric(beta) && all(is.finite(beta))),
+    is.function(opt_func),
     is.integer(n_threads) && n_threads > 0L && length(n_threads) == 1L,
     is.numeric(skew_start), length(skew_start) == 1L,
-    is.logical(dense_hess), length(dense_hess) == 1L, !is.na(dense_hess),
-    is.logical(sparse_hess), length(sparse_hess) == 1L, !is.na(sparse_hess))
-  skew_boundary <- 0.99527
+    is.numeric(kappa), length(kappa) == 1L, is.finite(kappa))
   eval(bquote(stopifnot(
-    .(-skew_boundary) < skew_start && skew_start < .(skew_boundary))))
+    .(-.skew_boundary) < skew_start && skew_start < .(.skew_boundary))))
 
   eps <- .MGSM_defaul_eps
-  kappa <- .MGSM_default_kappa
 
   #####
   # get the cluster variable
-  cluster <- substitute(cluster)
   grp <- eval(cluster, data)
   stopifnot(is.factor(grp) || is.integer(grp) || is.character(grp),
             isTRUE(length(grp) == NROW(data)))
@@ -479,15 +549,12 @@ make_mgsm_ADFun <- function(
     inits$coef <- numeric(NCOL(X))
     inits$coef[-is_fix] <- gsm_est$beta
     inits$coef[ is_fix] <- gsm_est$gamma
-    names(inits$coef) <- colnames(X)
+  } else {
+    stopifnot(length(beta) == NCOL(X))
+    inits$coef <- beta
   }
+  names(inits$coef) <- colnames(X)
   rm(gsm_output)
-
-  #####
-  # setup ADFun object for the Laplace approximation
-  data_ad_func <- list(
-    tobs = tobs, event = event, X = X, XD = XD, Z = Z, grp = grp - 1L,
-    link = link, grp_size = grp_size, n_threads = n_threads)
 
   # the user may have provided values
   theta <- if(!need_theta){
@@ -500,46 +567,15 @@ make_mgsm_ADFun <- function(
     diag((.1 / sds)^2, length(sds))
   })
   theta <- cov_to_theta(theta)
+  theta <- setNames(theta, paste0("theta:", names(theta)))
+  beta <- inits$coef
 
-  beta <- if(!is.null(beta)){
-    stopifnot(length(beta) == NCOL(X))
-    beta
-  } else
-    inits$coef
-  names(beta) <- colnames(X)
-
-  # assign parameter list
-  params <- list(eps = eps, kappa = kappa, b = beta, theta = theta)
-
-  laplace_out <- if(.laplace_char %in% do_setup)
-    .get_laplace_func(data_ad_func, params, n_rng, n_grp, inits)
-  else
-    NULL
-
-  #####
-  # setup ADFun object for the GVA
-  gva_out <- if(.gva_char %in% do_setup)
-    .get_gva_func(n_rng, n_grp, params, data_ad_func, n_nodes, dense_hess,
-                  sparse_hess, inits, opt_func)
-  else
-    NULL
-
-  #####
-  # setup ADFun object for the SNVA
-  snva_out <- if(.snva_char %in% do_setup)
-    .get_snva_out(n_rng, n_grp, params, skew_start, param_type,
-                  skew_boundary, data_ad_func, n_nodes, dense_hess,
-                  sparse_hess, opt_func, gva_obj = gva_out, inits = inits)
-  else
-    NULL
-
-  structure(
-    list(laplace = laplace_out, gva = gva_out, snva = snva_out, y = y,
-         event = event, X = X, XD = XD, Z = Z, grp = grp, terms = list(
-           X = mt_X, Z = mt_Z, baseline = mt_b), cl = match.call(),
-         link = link, opt_func = opt_func, dense_hess = dense_hess,
-         sparse_hess = sparse_hess),
-    class = "MGSM_ADFun")
+  list(tobs = tobs, event = event, X = X, XD = XD, Z = Z,
+       grp = grp - 1L, link = link, grp_size = grp_size,
+       n_threads = n_threads, eps = eps, kappa = kappa, b = beta,
+       theta = theta, terms = list(
+         X = mt_X, Z = mt_Z, baseline = mt_b), n_rng = n_rng, n_grp = n_grp,
+       inits = inits, n_nodes = n_nodes, y = y, skew_start = skew_start)
 }
 
 .tmb_set_n_threads <- function(n, is_laplace = FALSE){
@@ -549,8 +585,7 @@ make_mgsm_ADFun <- function(
 }
 
 .get_MGSM_VA_start <- function(
-  n_rng, params, data_ad_func, opt_func, skew_start = NULL, is_cp = NULL,
-  skew_boundary = NULL){
+  n_rng, params, data_ad_func, opt_func, skew_start = NULL, is_cp = NULL){
   # set the initial values
   grp_end <- cumsum(data_ad_func$grp_size)
   grp_start <- c(1L, head(grp_end, -1) + 1L)
@@ -561,8 +596,7 @@ make_mgsm_ADFun <- function(
   sig_inv <- solve(sig)
   chol_sig_inv <- chol(sig_inv)
 
-  is_snva <-
-    !is.null(skew_start) && !is.null(is_cp) && !is.null(skew_boundary)
+  is_snva <- !is.null(skew_start) && !is.null(is_cp)
   theta_VA <- mapply(function(istart, iend){
     # get the data we need
     idx <- istart:iend
@@ -604,7 +638,7 @@ make_mgsm_ADFun <- function(
       if(is_cp){
         # centralized parameters
         get_skew_trans <- function(x)
-          log((skew_boundary + x) / (skew_boundary - x))
+          log((.skew_boundary + x) / (.skew_boundary - x))
 
         dp_pars <- cp_to_dp(mu = mu, Sigma = sig_use, gamma = skew_start)
         cp_pars <- dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
@@ -690,12 +724,8 @@ make_mgsm_ADFun <- function(
 
 # VA util funcs
 .get_par_va <- function(params)
-  with(params, {
-    names(b)        <- rep("b", length(b))
-    names(theta)    <- rep("theta", length(theta))
-    names(theta_VA) <- rep("theta_VA", length(theta_VA))
-    c(eps = eps, kappa = kappa, b, theta, theta_VA)
-  })
+  with(params, c(c(eps = eps, kappa = kappa), b, theta, theta_VA))
+
 .eval_hess_sparse <- function(ptr, par){
   out <- VA_funcs_eval_hess_sparse(ptr, par)
   Matrix::sparseMatrix(
@@ -812,7 +842,7 @@ make_mgsm_ADFun <- function(
 }
 
 .get_snva_out <- function(
-  n_rng, n_grp, params, skew_start, param_type, skew_boundary, data_ad_func,
+  n_rng, n_grp, params, skew_start, param_type, data_ad_func,
   n_nodes, dense_hess, sparse_hess, opt_func, gva_obj, inits) {
   # setup cache
   setup_atomic_cache(
@@ -864,7 +894,7 @@ make_mgsm_ADFun <- function(
   } else {
     stopifnot(param_type == "CP_trans")
     get_skew_trans <- function(x)
-      log((skew_boundary + x) / (skew_boundary - x))
+      log((.skew_boundary + x) / (.skew_boundary - x))
 
     vapply(1:n_grp, function(i){
       # setup mean and VA variance
@@ -884,21 +914,7 @@ make_mgsm_ADFun <- function(
   }
 
   # set names
-  theta_VA_names <- local({
-    keep <- which(lower.tri(diag(n_rng)))
-    L <- outer(
-      1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
-
-    skew_name <- switch(param_type,
-                        DP = "alpha",
-                        `CP_trans` = "skew_trans",
-                        stop("unknown 'param_type'"))
-    proto <- c(paste0("mu", 1:n_rng), paste0("log_sd", 1:n_rng), L,
-               paste0(skew_name, 1:n_rng))
-
-    c(outer(proto, paste0("g", 1:n_grp), function(x, y)
-      paste0(y, ":", x)))
-  })
+  theta_VA_names <- mgsm_get_snva_names(n_rng, n_grp, param_type)
   theta_VA <- structure(c(theta_VA), names = theta_VA_names)
 
   adfunc_VA <- local({
@@ -1005,4 +1021,20 @@ make_mgsm_ADFun <- function(
   opt_out <- opt_func(theta_VA, fn = fn, gr = gr,
                       control = list(maxit = 1000L))
   get_snva_out(opt_out$par)
+}
+
+mgsm_get_snva_names <- function(n_rng, n_grp, param_type){
+  keep <- which(lower.tri(diag(n_rng)))
+  L <- outer(
+    1:n_rng, 1:n_rng, function(x, y) paste0("L", x, ".", y))[keep]
+
+  skew_name <- switch(param_type,
+                      DP = "alpha",
+                      `CP_trans` = "skew_trans",
+                      stop("unknown 'param_type'"))
+  proto <- c(paste0("mu", 1:n_rng), paste0("log_sd", 1:n_rng), L,
+             paste0(skew_name, 1:n_rng))
+
+  c(outer(proto, paste0("g", 1:n_grp), function(x, y)
+    paste0(y, ":", x)))
 }

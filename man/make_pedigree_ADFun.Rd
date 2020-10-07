@@ -19,7 +19,8 @@ make_pedigree_ADFun(
   beta = NULL,
   sds = NULL,
   trace = FALSE,
-  kappa = .MGSM_default_kappa
+  kappa = .MGSM_default_kappa,
+  dtformula = NULL
 )
 }
 \arguments{
@@ -68,6 +69,9 @@ a somewhat arbitrary value.}
 
 \item{kappa}{numeric scalar with the penalty in the relaxed problem
 ensuring the monotonicity of the survival curve.}
+
+\item{dtformula}{\code{\link{formula}} with the derivative of the
+baseline survival function.}
 }
 \description{
 Construct Objective Functions with Derivatives for a Mixed Generalized

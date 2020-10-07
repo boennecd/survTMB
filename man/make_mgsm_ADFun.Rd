@@ -22,7 +22,8 @@ make_mgsm_ADFun(
   n_threads = 1L,
   skew_start = -1e-04,
   dense_hess = FALSE,
-  sparse_hess = FALSE
+  sparse_hess = FALSE,
+  kappa = .MGSM_default_kappa
 )
 }
 \arguments{
@@ -78,6 +79,9 @@ available. Memory and computation time is saved if it is
 \item{sparse_hess}{logical for whether to make sparse Hessian computation
 available. Memory and computation time is saved if it is
 \code{FALSE}.}
+
+\item{kappa}{numeric scalar with the penalty in the relaxed problem
+ensuring the monotonicity of the survival curve.}
 }
 \value{
 An object of class \code{MGSM_ADFun}. The elements are:

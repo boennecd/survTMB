@@ -38,7 +38,7 @@ for(link in c("PH", "PO", "probit"))
             get_par_val_eortc(res),
             sprintf(file.path(test_res_dir, "SNVA-%s-%s.RDS"),
                     link, param_type),
-            tolerance = sqrt(eps))
+            tolerance = sqrt(eps), check.attributes = use_own)
           expect_known_output(
             res, sprintf(file.path(test_res_dir, "SNVA-%s-%s.txt"),
                          link, param_type),
@@ -89,3 +89,4 @@ for(link in c("PH", "PO", "probit"))
 
         clear_cppad_mem(2L)
       })
+
