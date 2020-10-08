@@ -329,7 +329,7 @@ Another option is to use [the psqn package](https://github.com/boennecd/psqn)
 through this package. This can be done as follows
 
 ```{r mgsm_use_psqn, cache = 1}
-# get the object needed to perform the estimation
+# get the object needed to perform the estimation 
 psqn_obj <- make_mgsm_psqn_obj(
   formula = Surv(y, uncens) ~ trt, data = dat, 
   df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
@@ -346,7 +346,7 @@ It is a bit slower in this case as shown below but can be faster when there
 are more clusters.
 
 ```{r mgsm_time_psqn, cache = 1}
-microbenchmark(`Using psqn` = {
+microbenchmark(`Using psqn` = { 
   psqn_obj <- make_mgsm_psqn_obj(
     formula = Surv(y, uncens) ~ trt, data = dat, 
     df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 

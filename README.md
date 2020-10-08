@@ -678,7 +678,7 @@ package](https://github.com/boennecd/psqn) through this package. This
 can be done as follows
 
 ``` r
-# get the object needed to perform the estimation
+# get the object needed to perform the estimation 
 psqn_obj <- make_mgsm_psqn_obj(
   formula = Surv(y, uncens) ~ trt, data = dat, 
   df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
@@ -689,14 +689,14 @@ psqn_opt <- optim_mgsm_psqn(psqn_obj)
 
 # check that the function value is the same
 all.equal(psqn_opt$value, snva_fit$fit$optim$value)
-#> [1] "Mean relative difference: 8.85e-07"
+#> [1] "Mean relative difference: 8.27e-07"
 ```
 
 It is a bit slower in this case as shown below but can be faster when
 there are more clusters.
 
 ``` r
-microbenchmark(`Using psqn` = {
+microbenchmark(`Using psqn` = { 
   psqn_obj <- make_mgsm_psqn_obj(
     formula = Surv(y, uncens) ~ trt, data = dat, 
     df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
@@ -705,7 +705,7 @@ microbenchmark(`Using psqn` = {
 }, times = 5)
 #> Unit: milliseconds
 #>        expr min  lq mean median  uq max neval
-#>  Using psqn 702 703  706    705 708 711     5
+#>  Using psqn 646 649  651    651 652 655     5
 ```
 
 ## Joint Models

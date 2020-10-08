@@ -67,6 +67,10 @@ psqn_optim_mgsm <- function(val, ptr, rel_eps, max_it, n_threads, c1 = 0.0001, c
     .Call(`_survTMB_psqn_optim_mgsm`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe)
 }
 
+psqn_optim_mgsm_private <- function(val, ptr, rel_eps, max_it, n_threads, c1 = 0.0001, c2 = .9) {
+    .Call(`_survTMB_psqn_optim_mgsm_private`, val, ptr, rel_eps, max_it, n_threads, c1, c2)
+}
+
 eval_psqn_mgsm <- function(val, ptr, n_threads) {
     .Call(`_survTMB_eval_psqn_mgsm`, val, ptr, n_threads)
 }

@@ -34,6 +34,22 @@ RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP k
   return rcpp_result_gen;
   END_RCPP
 }
+// psqn_optim_mgsm_private
+Rcpp::NumericVector psqn_optim_mgsm_private(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2);
+RcppExport SEXP _survTMB_psqn_optim_mgsm_private(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< double const >::type rel_eps(rel_epsSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type max_it(max_itSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< double const >::type c1(c1SEXP);
+  Rcpp::traits::input_parameter< double const >::type c2(c2SEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_optim_mgsm_private(val, ptr, rel_eps, max_it, n_threads, c1, c2));
+  return rcpp_result_gen;
+  END_RCPP
+}
 // psqn_optim_mgsm
 Rcpp::List psqn_optim_mgsm(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2, bool const use_bfgs, int const trace, double const cg_tol, bool const strong_wolfe);
 RcppExport SEXP _survTMB_psqn_optim_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP use_bfgsSEXP, SEXP traceSEXP, SEXP cg_tolSEXP, SEXP strong_wolfeSEXP) {
@@ -404,6 +420,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_set_n_threads", (DL_FUNC) &_survTMB_set_n_threads, 1},
   {"_survTMB_psqn_get_mgsm_funcs", (DL_FUNC) &_survTMB_psqn_get_mgsm_funcs, 9},
   {"_survTMB_psqn_optim_mgsm", (DL_FUNC) &_survTMB_psqn_optim_mgsm, 11},
+  {"_survTMB_psqn_optim_mgsm_private", (DL_FUNC) &_survTMB_psqn_optim_mgsm_private, 7},
   {"_survTMB_eval_psqn_mgsm", (DL_FUNC) &_survTMB_eval_psqn_mgsm, 3},
   {"_survTMB_grad_psqn_mgsm", (DL_FUNC) &_survTMB_grad_psqn_mgsm, 3},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},

@@ -293,8 +293,27 @@ Rcpp::List psqn_optim_mgsm
 
   return Rcpp::List::create(
     Rcpp::_["par"] = par, Rcpp::_["value"] = res.value,
-    Rcpp::_["info"] = res.info, Rcpp::_["counts"] = counts,
-    Rcpp::_["convergence"] = res.info == 0L);
+    Rcpp::_["info"] = static_cast<int>(res.info),
+    Rcpp::_["counts"] = counts,
+    Rcpp::_["convergence"] = res.info == PSQN::info_code::converged);
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::NumericVector psqn_optim_mgsm_private
+  (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
+   unsigned const max_it, unsigned const n_threads, double const c1 = 0.0001,
+   double const c2 = .9){
+  Rcpp::XPtr<snva_psqn_optim> optim(ptr);
+
+  // check that we pass a parameter value of the right length
+  if(optim->n_par != static_cast<size_t>(val.size()))
+    throw std::invalid_argument("psqn_optim_mgsm_private: invalid parameter size");
+
+  Rcpp::NumericVector par = clone(val);
+  optim->set_n_threads(n_threads);
+  double const res = optim->optim_priv(&par[0], rel_eps, max_it, c1, c2);
+  par.attr("value") = res;
+  return par;
 }
 
 // [[Rcpp::export(rng = false)]]

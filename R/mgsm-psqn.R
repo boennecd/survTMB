@@ -66,9 +66,14 @@ make_mgsm_psqn_obj <- function(
     n_nodes = args_pass$n_nodes, link = args_pass$link,
     max_threads = n_threads)
 
-  # return the object with starting values
+  # update starting values
   par <- c(args_pass$b, args_pass$theta, va_start)
+  par <- psqn_optim_mgsm_private(
+    val = par, ptr = cpp_ptr, rel_eps = .Machine$double.eps^(1/2),
+    max_it = 1000, n_threads = n_threads, c1 = 1e-4, c2 = .9)
 
+  # return the object with starting values and functions to evaluate the
+  # lower bound and its gradient
   n_threads <- args_pass$n_threads
   fn <- function(x, ...)
     eval_psqn_mgsm(x, ptr = cpp_ptr, n_threads = n_threads)
@@ -102,7 +107,7 @@ optim_mgsm_psqn <- function(object, par = NULL,
                             rel_eps = sqrt(.Machine$double.eps),
                             max_it = 1000L, n_threads = object$n_threads,
                             c1 = 1e-4, c2 = .9, use_bfgs = TRUE,
-                            cg_tol = .5, strong_wolfe = TRUE, trace = 0L){
+                            cg_tol = .2, strong_wolfe = TRUE, trace = 0L){
   #####
   # chekcs
   stopifnot(
