@@ -2,7 +2,6 @@
 
 S3method(print,MGSM_ADFit)
 S3method(print,MGSM_ADFun)
-export(clear_cppad_mem)
 export(cov_to_theta)
 export(cp_to_dp)
 export(dp_to_cp)

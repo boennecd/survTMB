@@ -1,5 +1,4 @@
 #define INCLUDE_RCPP
-#include "XPtr_wrapper.h"
 #include "get-x.h"
 #include "utils.h"
 #include "snva.h"
@@ -292,9 +291,7 @@ SEXP get_VA_funcs
   unsigned const n_threads(data["n_threads"]);
   setup_parallel_ad setup_ADd(n_threads);
 
-  auto out = new XPtr_wrapper<VA_func>(new VA_func(data, parameters));
-  add_clearable(out);
-  return static_cast<Rcpp::XPtr<VA_func> >(*out);
+  return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
 }
 
 // [[Rcpp::export(rng = false)]]

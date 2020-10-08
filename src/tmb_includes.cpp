@@ -1,5 +1,4 @@
 #include "tmb_includes.h"
-#include "clear-mem.h"
 
 template<class Type>
 class vec_dot_atomic : public CppAD::atomic_base<Type> {
@@ -401,23 +400,3 @@ QUAD_FORM_SYM_SPEC(quad_form_sym_atomic_ADd , ADdd)
 QUAD_FORM_SYM_SPEC(quad_form_sym_atomic_ADdd, ADddd)
 
 #undef QUAD_FORM_SYM_SPEC
-
-void add_atomics_to_be_cleared(){
-  static bool have_been_added = false;
-  if(have_been_added)
-    return;
-
-  track_atomic(&vec_dot_d);
-  track_atomic(&vec_dot_ADd);
-  track_atomic(&vec_dot_ADdd);
-
-  track_atomic(&quad_form_d);
-  track_atomic(&quad_form_ADd);
-  track_atomic(&quad_form_ADdd);
-
-  track_atomic(&quad_form_sym_atomic_d);
-  track_atomic(&quad_form_sym_atomic_ADd);
-  track_atomic(&quad_form_sym_atomic_ADdd);
-
-  have_been_added = true;
-}

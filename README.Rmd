@@ -75,15 +75,13 @@ fit_model <- function(link, n_threads = 2L, method = "Laplace",
       dense_hess = .(dense_hess), sparse_hess = .(sparse_hess))
     fit <- if(.(do_fit))
       fit_mgsm(adfun, method = .(method)) else NULL
-    if(.(do_free)){
+    if(.(do_free))
       free_laplace(adfun)
-      clear_cppad_mem(.(n_threads), keep_work_space = TRUE)
-    }
     list(fit = fit, fun = adfun)
   }), parent.frame())
 
 # # estimate the model using different methods. Start w/ Laplace
-# (lap_ph <- fit_model("PO"))$fit
+(lap_ph <- fit_model("PO"))$fit
 
 # w/ GVA
 (gva_fit <- fit_model("PO", method = "GVA"))$fit
@@ -276,10 +274,6 @@ fit_model("probit", method = "SNVA", param_type = "CP_trans")$fit
 We provide a benchmark of the estimation methods used in section 
 [example](#example) below.
 
-```{r clear_mem_comp_time}
-clear_cppad_mem(4L)
-```
-
 ```{r comp_time, cache = 1, dependson = "fit_example"}
 for(mth in c("GVA")){
 # for(mth in c("Laplace", "GVA")){
@@ -358,7 +352,6 @@ microbenchmark(`Using psqn` = {
 ```{r rep_rep_clear_mem_comp_time, echo = FALSE, results = "hide"}
 rm(list = ls())
 gc()
-clear_cppad_mem(4L)
 ```
 
 ## Joint Models
@@ -561,7 +554,6 @@ We only see a low amount of skewness.
 ```{r joint_cleanup, echo = FALSE, results = "hide"}
 rm(list = ls())
 gc()
-clear_cppad_mem(6L)
 ```
 
 

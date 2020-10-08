@@ -1,7 +1,6 @@
 #include "gva-utils.h"
 #include <array>
 #include <memory>
-#include "clear-mem.h"
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -34,7 +33,6 @@ integral_atomic<Type, Fam>::get_cached(unsigned const n){
 #endif
 
   cached_values[idx].reset(new output_T("integral_atomic<Type, Fam>", n));
-  track_atomic(cached_values[idx].get());
 
   return *cached_values[idx];
 }

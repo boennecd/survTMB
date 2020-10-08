@@ -1,5 +1,4 @@
 #define INCLUDE_RCPP
-#include "XPtr_wrapper.h"
 #include "snva-utils.h"
 #include "get-x.h"
 #include "psqn.h"
@@ -264,10 +263,8 @@ SEXP psqn_get_mgsm_funcs
                        n_nodes, link);
   }
 
-  auto out = new XPtr_wrapper<snva_psqn_optim>
+  return Rcpp::XPtr<snva_psqn_optim>
     (new snva_psqn_optim(funcs, max_threads));
-  add_clearable(out);
-  return static_cast<Rcpp::XPtr<snva_psqn_optim> >(*out);
 }
 
 // [[Rcpp::export(rng = false)]]

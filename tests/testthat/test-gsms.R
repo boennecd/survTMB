@@ -56,6 +56,4 @@ test_that("Gradients are correct with a high epsilon", {
     drop(with(fit, grad(start_coef))),
     c(11115.8432497678, -33621.8717162036, 22883.8510911714,
       32976.8315701619, 36842.5634464707, 32730.3964620881))
-
-  clear_cppad_mem(2L)
 })

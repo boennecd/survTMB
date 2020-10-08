@@ -13,7 +13,7 @@ optim_mgsm_psqn(
   c1 = 1e-04,
   c2 = 0.9,
   use_bfgs = TRUE,
-  cg_tol = 0.5,
+  cg_tol = 0.2,
   strong_wolfe = TRUE,
   trace = 0L
 )

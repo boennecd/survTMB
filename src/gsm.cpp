@@ -1,5 +1,4 @@
 #include "gsm.h"
-#include "XPtr_wrapper.h"
 
 namespace gsm_objs {
 double gsm_probit::g_log() const {
@@ -82,10 +81,8 @@ Rcpp::XPtr<gsm_base> create_gsm_obj(
     arma::vec const &y, double const eps, double const kappa,
     unsigned const n_threads, arma::vec const &offset_eta,
     arma::vec const &offset_etaD){
-  auto out = new XPtr_wrapper<gsm_base>(new T(
-    X, XD, Z, y, eps, kappa, n_threads, offset_eta, offset_etaD));
-  add_clearable(out);
-  return static_cast<Rcpp::XPtr<gsm_base> >(*out);
+  return Rcpp::XPtr<gsm_base>(new T(
+      X, XD, Z, y, eps, kappa, n_threads, offset_eta, offset_etaD));
 }
 } // namespace gsm_objs
 
