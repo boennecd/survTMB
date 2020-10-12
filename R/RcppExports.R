@@ -45,24 +45,24 @@ joint_funcs_eval_grad <- function(p, par) {
     .Call(`_survTMB_joint_funcs_eval_grad`, p, par)
 }
 
-psqn_get_mgsm_funcs <- function(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads) {
-    .Call(`_survTMB_psqn_get_mgsm_funcs`, data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads)
+psqn_get_mgsm_funcs <- function(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method) {
+    .Call(`_survTMB_psqn_get_mgsm_funcs`, data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method)
 }
 
-psqn_optim_mgsm <- function(val, ptr, rel_eps, max_it, n_threads, c1 = 0.0001, c2 = .9, use_bfgs = TRUE, trace = 0L, cg_tol = .1, strong_wolfe = TRUE) {
-    .Call(`_survTMB_psqn_optim_mgsm`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe)
+psqn_optim_mgsm <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method) {
+    .Call(`_survTMB_psqn_optim_mgsm`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method)
 }
 
-psqn_optim_mgsm_private <- function(val, ptr, rel_eps, max_it, n_threads, c1 = 0.0001, c2 = .9) {
-    .Call(`_survTMB_psqn_optim_mgsm_private`, val, ptr, rel_eps, max_it, n_threads, c1, c2)
+psqn_optim_mgsm_private <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, method) {
+    .Call(`_survTMB_psqn_optim_mgsm_private`, val, ptr, rel_eps, max_it, n_threads, c1, c2, method)
 }
 
-eval_psqn_mgsm <- function(val, ptr, n_threads) {
-    .Call(`_survTMB_eval_psqn_mgsm`, val, ptr, n_threads)
+eval_psqn_mgsm <- function(val, ptr, n_threads, method) {
+    .Call(`_survTMB_eval_psqn_mgsm`, val, ptr, n_threads, method)
 }
 
-grad_psqn_mgsm <- function(val, ptr, n_threads) {
-    .Call(`_survTMB_grad_psqn_mgsm`, val, ptr, n_threads)
+grad_psqn_mgsm <- function(val, ptr, n_threads, method) {
+    .Call(`_survTMB_grad_psqn_mgsm`, val, ptr, n_threads, method)
 }
 
 get_VA_funcs <- function(data, parameters) {

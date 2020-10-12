@@ -742,11 +742,8 @@ mgsm_setup <- function(
   theta_VA <- .get_MGSM_VA_start(
     n_rng = n_rng, params = params, data_ad_func = data_ad_func,
     opt_func = opt_func)
-  theta_VA_names <- c(paste0("mu", 1:n_rng), names(params$theta))
-  theta_VA_names <- c(outer(
-    theta_VA_names, paste0("g", 1:n_grp), function(x, y)
-    paste0(y, ":", x)))
-  names(theta_VA) <- theta_VA_names
+  names(theta_VA) <- theta_VA_names <-
+    mgsm_get_gva_names(n_rng, n_grp, params$theta)
 
   get_gva_out <- function(theta_VA){
     adfunc_VA <- local({
@@ -839,6 +836,13 @@ mgsm_setup <- function(
   }
 
   get_gva_out(theta_VA)
+}
+
+mgsm_get_gva_names <- function(n_rng, n_grp, theta){
+  theta_VA_names <- c(paste0("mu", 1:n_rng), names(theta))
+  c(outer(
+    theta_VA_names, paste0("g", 1:n_grp), function(x, y)
+      paste0(y, ":", x)))
 }
 
 .get_snva_out <- function(

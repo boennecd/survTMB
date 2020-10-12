@@ -11,7 +11,7 @@ make_mgsm_psqn_obj(
   tformula = NULL,
   Z,
   cluster,
-  do_setup = c("GVA", "SNVA"),
+  method = c("SNVA", "GVA", ),
   n_nodes = 20L,
   link = c("PH", "PO", "probit"),
   theta = NULL,
@@ -44,7 +44,7 @@ the random effects.}
 \item{cluster}{vector with integers or factors for group identifiers
 (one for each observation).}
 
-\item{do_setup}{character vector indicating which approximation to setup.
+\item{method}{Method character vector indicating which approximation to setup.
 See \code{\link{make_mgsm_ADFun}}.}
 
 \item{n_nodes}{integer with the number of nodes to use in (adaptive)

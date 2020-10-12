@@ -239,12 +239,12 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 320.52 325.29 325.48 325.74 326.34 327.57
-#>               Compute sparse Hessian  19.59  19.72  20.03  19.94  20.36  20.93
-#>         Invert dense Hessian (naive)   5.32   5.35   5.39   5.39   5.41   5.51
-#>        Invert sparse Hessian (naive)   1.00   1.12   1.21   1.13   1.36   1.60
-#>   Invert dense Hessian (alternative)   1.33   1.35   1.37   1.37   1.39   1.41
-#>  Invert sparse Hessian (alternative)   2.83   2.95   3.06   3.02   3.19   3.27
+#>                Compute dense Hessian 314.62 314.85 315.24 315.27 315.49 316.13
+#>               Compute sparse Hessian  19.21  19.48  19.67  19.58  19.81  20.24
+#>         Invert dense Hessian (naive)   5.25   5.27   5.33   5.33   5.37   5.43
+#>        Invert sparse Hessian (naive)   1.01   1.09   1.18   1.12   1.35   1.41
+#>   Invert dense Hessian (alternative)   1.33   1.34   1.37   1.36   1.37   1.49
+#>  Invert sparse Hessian (alternative)   2.76   3.07   3.16   3.22   3.26   3.40
 #>  neval
 #>     10
 #>     10
@@ -270,9 +270,9 @@ microbenchmark(
   times = 10)
 #> Unit: milliseconds
 #>               expr   min    lq  mean median    uq   max neval
-#>  W/o Hessians       28.9  29.1  31.6   29.7  34.5  39.6    10
-#>  W/ dense Hessian   81.7  82.1  82.8   82.5  83.6  84.2    10
-#>  W/ sparse Hessian 662.0 668.5 677.3  671.7 677.3 719.7    10
+#>  W/o Hessians       28.8  29.3  30.2   30.1  30.8  32.3    10
+#>  W/ dense Hessian   81.7  82.2  84.8   83.8  86.6  91.4    10
+#>  W/ sparse Hessian 702.5 705.3 709.2  708.7 713.3 717.3    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -623,16 +623,16 @@ for(mth in c("GVA")){
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr   min    lq mean median    uq max neval
-#>  PH          189.2 190.4  192    191 195.1 195     5
-#>  PH     (2L) 119.9 124.2  128    126 135.3 136     5
-#>  PH     (4L)  90.5  95.2   96     96  97.2 101     5
-#>  PO          582.5 582.8  596    589 609.7 615     5
-#>  PO     (2L) 340.1 341.1  349    344 358.1 361     5
-#>  PO     (4L) 232.8 232.8  236    235 237.5 243     5
-#>  probit      724.3 728.9  733    732 735.1 747     5
-#>  probit (2L) 419.1 420.1  429    421 435.8 449     5
-#>  probit (4L) 287.1 287.3  303    300 310.7 329     5
+#>         expr   min    lq  mean median    uq   max neval
+#>  PH          187.4 187.7 190.8  188.7 192.3 198.2     5
+#>  PH     (2L) 119.1 121.0 123.0  122.5 122.6 130.0     5
+#>  PH     (4L)  89.9  90.1  92.4   92.5  94.3  95.3     5
+#>  PO          578.3 578.5 586.7  580.8 584.4 611.6     5
+#>  PO     (2L) 337.8 339.2 348.5  345.6 349.3 370.8     5
+#>  PO     (4L) 236.6 236.7 241.7  239.6 247.6 248.1     5
+#>  probit      743.8 749.4 759.4  754.6 769.5 779.8     5
+#>  probit (2L) 433.9 443.7 449.7  454.5 456.7 459.8     5
+#>  probit (4L) 292.7 294.2 299.2  299.7 299.7 309.5     5
 ```
 
 ``` r
@@ -660,67 +660,88 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          221 222  224    223 223 230     5
-#>  PH     (2L) 140 140  141    141 141 142     5
-#>  PH     (4L) 108 110  112    113 113 115     5
-#>  PO          739 743  746    746 750 753     5
-#>  PO     (2L) 435 436  439    437 443 444     5
-#>  PO     (4L) 295 297  300    301 303 305     5
-#>  probit      920 920  930    928 940 941     5
-#>  probit (2L) 535 536  547    541 547 576     5
-#>  probit (4L) 366 367  369    369 370 372     5
+#>  PH          223 225  227    225 228 234     5
+#>  PH     (2L) 144 145  145    145 146 147     5
+#>  PH     (4L) 110 111  113    113 114 116     5
+#>  PO          739 739  747    744 751 763     5
+#>  PO     (2L) 446 452  452    453 454 456     5
+#>  PO     (4L) 307 308  312    311 314 318     5
+#>  probit      937 941  950    944 949 981     5
+#>  probit (2L) 558 561  564    562 562 578     5
+#>  probit (4L) 379 385  387    387 388 394     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          291 291  295    294 298 299     5
-#>  PH     (2L) 184 185  187    186 188 190     5
-#>  PH     (4L) 137 138  140    141 142 144     5
-#>  PO          744 744  752    745 759 767     5
-#>  PO     (2L) 436 437  443    438 441 462     5
-#>  PO     (4L) 301 301  302    301 303 305     5
-#>  probit      924 925  927    926 929 931     5
-#>  probit (2L) 540 541  546    543 546 558     5
-#>  probit (4L) 364 365  371    374 377 377     5
+#>  PH          294 295  302    303 306 313     5
+#>  PH     (2L) 185 186  188    188 191 192     5
+#>  PH     (4L) 137 140  142    144 145 145     5
+#>  PO          745 748  756    749 761 779     5
+#>  PO     (2L) 437 443  448    451 454 455     5
+#>  PO     (4L) 302 303  307    305 306 319     5
+#>  probit      964 967  968    968 969 971     5
+#>  probit (2L) 558 566  572    568 576 594     5
+#>  probit (4L) 387 387  389    389 391 394     5
 ```
 
 ### Using the psqn Interface
 
 Another option is to use [the psqn
 package](https://github.com/boennecd/psqn) through this package. This
-can be done as follows
+can be done as
+follows:
 
 ``` r
-# get the object needed to perform the estimation 
-psqn_obj <- make_mgsm_psqn_obj(
+# get the object needed to perform the estimation both for a SNVA and for 
+# a GVA
+psqn_obj_snva <- make_mgsm_psqn_obj(
   formula = Surv(y, uncens) ~ trt, data = dat, 
-  df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+  df = 3L, Z = ~trt, cluster = as.factor(center), method = "SNVA", 
+  n_nodes = 15L, link = "PO", n_threads = 2L)
+psqn_obj_gva  <- make_mgsm_psqn_obj(
+  formula = Surv(y, uncens) ~ trt, data = dat, 
+  df = 3L, Z = ~trt, cluster = as.factor(center), method = "GVA", 
   n_nodes = 15L, link = "PO", n_threads = 2L)
 
-# perform the estimation
-psqn_opt <- optim_mgsm_psqn(psqn_obj)
+# perform the estimation using either approximation
+psqn_opt_snva <- optim_mgsm_psqn(psqn_obj_snva)
+psqn_opt_gva  <- optim_mgsm_psqn(psqn_obj_gva)
 
 # check that the function value is the same
-all.equal(psqn_opt$value, snva_fit$fit$optim$value)
+all.equal(psqn_opt_snva$value, snva_fit$fit$optim$value)
 #> [1] "Mean relative difference: 8.27e-07"
+all.equal(psqn_opt_gva $value, gva_fit $fit$optim$value)
+#> [1] "Mean relative difference: 4.65e-07"
 ```
 
-It is a bit slower in this case as shown below but can be faster when
-there are more clusters.
+It is not very attractive to use the optimization method from the psqn
+package in this case as shown below.
 
 ``` r
-microbenchmark(`Using psqn` = { 
-  psqn_obj <- make_mgsm_psqn_obj(
-    formula = Surv(y, uncens) ~ trt, data = dat, 
-    df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-    n_nodes = 15L, link = "PO", n_threads = 2L)
-  optim_mgsm_psqn(psqn_obj)
-}, times = 5)
+microbenchmark(
+  `Using psqn (SNVA)` = { 
+    psqn_obj <- make_mgsm_psqn_obj(
+      formula = Surv(y, uncens) ~ trt, data = dat, 
+      df = 3L, Z = ~trt, cluster = as.factor(center), method = "SNVA", 
+      n_nodes = 15L, link = "PO", n_threads = 2L)
+    optim_mgsm_psqn(psqn_obj)
+  },
+  `Using psqn (GVA) ` = { 
+    psqn_obj <- make_mgsm_psqn_obj(
+      formula = Surv(y, uncens) ~ trt, data = dat, 
+      df = 3L, Z = ~trt, cluster = as.factor(center), method = "GVA", 
+      n_nodes = 15L, link = "PO", n_threads = 2L)
+    optim_mgsm_psqn(psqn_obj)
+  }, times = 5)
 #> Unit: milliseconds
-#>        expr min  lq mean median  uq max neval
-#>  Using psqn 646 646  648    647 648 650     5
+#>               expr min  lq mean median  uq max neval
+#>  Using psqn (SNVA) 669 671  672    673 673 677     5
+#>  Using psqn (GVA)  183 183  185    184 186 189     5
 ```
+
+However, the optimization method from the psqn package may be more
+useful when there are more clusters.
 
 ## Joint Models
 

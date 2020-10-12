@@ -17,8 +17,8 @@ using namespace Rcpp;
 using namespace Rcpp;
 
 // psqn_get_mgsm_funcs
-SEXP psqn_get_mgsm_funcs(Rcpp::List data, double const eps, double const kappa, arma::vec const& b, arma::vec const& theta, arma::vec const& theta_va, int const n_nodes, std::string const& link, unsigned const max_threads);
-RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP kappaSEXP, SEXP bSEXP, SEXP thetaSEXP, SEXP theta_vaSEXP, SEXP n_nodesSEXP, SEXP linkSEXP, SEXP max_threadsSEXP) {
+SEXP psqn_get_mgsm_funcs(Rcpp::List data, double const eps, double const kappa, arma::vec const& b, arma::vec const& theta, arma::vec const& theta_va, int const n_nodes, std::string const& link, unsigned const max_threads, std::string const& method);
+RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP kappaSEXP, SEXP bSEXP, SEXP thetaSEXP, SEXP theta_vaSEXP, SEXP n_nodesSEXP, SEXP linkSEXP, SEXP max_threadsSEXP, SEXP methodSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
@@ -30,29 +30,14 @@ RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP k
   Rcpp::traits::input_parameter< int const >::type n_nodes(n_nodesSEXP);
   Rcpp::traits::input_parameter< std::string const& >::type link(linkSEXP);
   Rcpp::traits::input_parameter< unsigned const >::type max_threads(max_threadsSEXP);
-  rcpp_result_gen = Rcpp::wrap(psqn_get_mgsm_funcs(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads));
-  return rcpp_result_gen;
-  END_RCPP
-}
-// psqn_optim_mgsm_private
-Rcpp::NumericVector psqn_optim_mgsm_private(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2);
-RcppExport SEXP _survTMB_psqn_optim_mgsm_private(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP) {
-  BEGIN_RCPP
-  Rcpp::RObject rcpp_result_gen;
-  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
-  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
-  Rcpp::traits::input_parameter< double const >::type rel_eps(rel_epsSEXP);
-  Rcpp::traits::input_parameter< unsigned const >::type max_it(max_itSEXP);
-  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
-  Rcpp::traits::input_parameter< double const >::type c1(c1SEXP);
-  Rcpp::traits::input_parameter< double const >::type c2(c2SEXP);
-  rcpp_result_gen = Rcpp::wrap(psqn_optim_mgsm_private(val, ptr, rel_eps, max_it, n_threads, c1, c2));
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_get_mgsm_funcs(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method));
   return rcpp_result_gen;
   END_RCPP
 }
 // psqn_optim_mgsm
-Rcpp::List psqn_optim_mgsm(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2, bool const use_bfgs, int const trace, double const cg_tol, bool const strong_wolfe);
-RcppExport SEXP _survTMB_psqn_optim_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP use_bfgsSEXP, SEXP traceSEXP, SEXP cg_tolSEXP, SEXP strong_wolfeSEXP) {
+Rcpp::List psqn_optim_mgsm(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2, bool const use_bfgs, int const trace, double const cg_tol, bool const strong_wolfe, std::string const& method);
+RcppExport SEXP _survTMB_psqn_optim_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP use_bfgsSEXP, SEXP traceSEXP, SEXP cg_tolSEXP, SEXP strong_wolfeSEXP, SEXP methodSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
@@ -66,31 +51,51 @@ RcppExport SEXP _survTMB_psqn_optim_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_ep
   Rcpp::traits::input_parameter< int const >::type trace(traceSEXP);
   Rcpp::traits::input_parameter< double const >::type cg_tol(cg_tolSEXP);
   Rcpp::traits::input_parameter< bool const >::type strong_wolfe(strong_wolfeSEXP);
-  rcpp_result_gen = Rcpp::wrap(psqn_optim_mgsm(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe));
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_optim_mgsm(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// psqn_optim_mgsm_private
+Rcpp::NumericVector psqn_optim_mgsm_private(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2, std::string const& method);
+RcppExport SEXP _survTMB_psqn_optim_mgsm_private(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP methodSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< double const >::type rel_eps(rel_epsSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type max_it(max_itSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< double const >::type c1(c1SEXP);
+  Rcpp::traits::input_parameter< double const >::type c2(c2SEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_optim_mgsm_private(val, ptr, rel_eps, max_it, n_threads, c1, c2, method));
   return rcpp_result_gen;
   END_RCPP
 }
 // eval_psqn_mgsm
-double eval_psqn_mgsm(NumericVector val, SEXP ptr, unsigned const n_threads);
-RcppExport SEXP _survTMB_eval_psqn_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP n_threadsSEXP) {
+double eval_psqn_mgsm(Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads, std::string const& method);
+RcppExport SEXP _survTMB_eval_psqn_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP n_threadsSEXP, SEXP methodSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
-  Rcpp::traits::input_parameter< NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
   Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
   Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
-  rcpp_result_gen = Rcpp::wrap(eval_psqn_mgsm(val, ptr, n_threads));
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(eval_psqn_mgsm(val, ptr, n_threads, method));
   return rcpp_result_gen;
   END_RCPP
 }
 // grad_psqn_mgsm
-NumericVector grad_psqn_mgsm(NumericVector val, SEXP ptr, unsigned const n_threads);
-RcppExport SEXP _survTMB_grad_psqn_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP n_threadsSEXP) {
+Rcpp::NumericVector grad_psqn_mgsm(Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads, std::string const& method);
+RcppExport SEXP _survTMB_grad_psqn_mgsm(SEXP valSEXP, SEXP ptrSEXP, SEXP n_threadsSEXP, SEXP methodSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
-  Rcpp::traits::input_parameter< NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
   Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
   Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
-  rcpp_result_gen = Rcpp::wrap(grad_psqn_mgsm(val, ptr, n_threads));
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(grad_psqn_mgsm(val, ptr, n_threads, method));
   return rcpp_result_gen;
   END_RCPP
 }
@@ -406,11 +411,11 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
   {"_survTMB_pedigree_get_size", (DL_FUNC) &_survTMB_pedigree_get_size, 1},
   {"_survTMB_set_n_threads", (DL_FUNC) &_survTMB_set_n_threads, 1},
-  {"_survTMB_psqn_get_mgsm_funcs", (DL_FUNC) &_survTMB_psqn_get_mgsm_funcs, 9},
-  {"_survTMB_psqn_optim_mgsm", (DL_FUNC) &_survTMB_psqn_optim_mgsm, 11},
-  {"_survTMB_psqn_optim_mgsm_private", (DL_FUNC) &_survTMB_psqn_optim_mgsm_private, 7},
-  {"_survTMB_eval_psqn_mgsm", (DL_FUNC) &_survTMB_eval_psqn_mgsm, 3},
-  {"_survTMB_grad_psqn_mgsm", (DL_FUNC) &_survTMB_grad_psqn_mgsm, 3},
+  {"_survTMB_psqn_get_mgsm_funcs", (DL_FUNC) &_survTMB_psqn_get_mgsm_funcs, 10},
+  {"_survTMB_psqn_optim_mgsm", (DL_FUNC) &_survTMB_psqn_optim_mgsm, 12},
+  {"_survTMB_psqn_optim_mgsm_private", (DL_FUNC) &_survTMB_psqn_optim_mgsm_private, 8},
+  {"_survTMB_eval_psqn_mgsm", (DL_FUNC) &_survTMB_eval_psqn_mgsm, 4},
+  {"_survTMB_grad_psqn_mgsm", (DL_FUNC) &_survTMB_grad_psqn_mgsm, 4},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };

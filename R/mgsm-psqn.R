@@ -1,22 +1,22 @@
 #' Create mgsm Object to Pass to psqn Method
 #' @inheritParams make_mgsm_ADFun
-#'
-#' @param do_setup character vector indicating which approximation to setup.
+#' @param method Method character vector indicating which approximation to setup.
 #' See \code{\link{make_mgsm_ADFun}}.
 #'
 #' @importFrom stats setNames
 #' @export
 make_mgsm_psqn_obj <- function(
   formula, data, df, tformula = NULL, Z, cluster,
-  do_setup = c("GVA", "SNVA"), n_nodes = 20L,
+  method = c("SNVA", "GVA", ), n_nodes = 20L,
   link = c("PH", "PO", "probit"),
   theta = NULL, beta = NULL, opt_func = .opt_default, n_threads = 1L,
   skew_start = -.0001, kappa = .MGSM_default_kappa){
   #####
   # checks
+  method <- method[1]
   stopifnot(
     is.function(opt_func),
-    all(do_setup %in% c(.gva_char, .snva_char)))
+    all(method %in% c(.gva_char, .snva_char)))
 
   #####
   # get arguments to pass on
@@ -50,11 +50,24 @@ make_mgsm_psqn_obj <- function(
   if(length(args_pass$skew_start) == 1L && args_pass$n_rng > 1L)
     args_pass$skew_start <- rep(args_pass$skew_start, args_pass$n_rng)
 
-  va_start <- .get_MGSM_VA_start(
-    n_rng = args_pass$n_rng, params = params, data_ad_func = data_ad_func,
-    opt_func = opt_func, skew_start = args_pass$skew_start, is_cp = FALSE)
-  names(va_start) <- mgsm_get_snva_names(
-    args_pass$n_rng, args_pass$n_grp, "DP")
+  if(method == "SNVA"){
+    va_start <- .get_MGSM_VA_start(
+      n_rng = args_pass$n_rng, params = params, data_ad_func = data_ad_func,
+      opt_func = opt_func, skew_start = args_pass$skew_start, is_cp = FALSE)
+    names(va_start) <- mgsm_get_snva_names(
+      args_pass$n_rng, args_pass$n_grp, "DP")
+
+  } else if(method == "GVA"){
+    va_start <- .get_MGSM_VA_start(
+      n_rng = args_pass$n_rng, params = params, data_ad_func = data_ad_func,
+      opt_func = opt_func)
+    names(va_start) <- mgsm_get_gva_names(n_rng = args_pass$n_rng,
+                                          n_grp = args_pass$n_grp,
+                                          theta = args_pass$theta)
+
+
+  } else
+    stop("unkown method")
 
   # create the C++ object
   setup_atomic_cache(
@@ -64,30 +77,34 @@ make_mgsm_psqn_obj <- function(
     data = cluster_data, eps = args_pass$eps, kappa = args_pass$kappa,
     b = args_pass$b, theta = args_pass$theta, theta_va = va_start,
     n_nodes = args_pass$n_nodes, link = args_pass$link,
-    max_threads = n_threads)
+    max_threads = n_threads, method = method)
 
   # update starting values
   par <- c(args_pass$b, args_pass$theta, va_start)
   par <- psqn_optim_mgsm_private(
     val = par, ptr = cpp_ptr, rel_eps = .Machine$double.eps^(1/2),
-    max_it = 1000, n_threads = n_threads, c1 = 1e-4, c2 = .9)
+    max_it = 1000, n_threads = n_threads, c1 = 1e-4, c2 = .9,
+    method = method)
 
   # return the object with starting values and functions to evaluate the
   # lower bound and its gradient
   n_threads <- args_pass$n_threads
   fn <- function(x, ...)
-    eval_psqn_mgsm(x, ptr = cpp_ptr, n_threads = n_threads)
+    eval_psqn_mgsm(x, ptr = cpp_ptr, n_threads = n_threads,
+                   method = method)
   gr <- function(x, ...)
-    grad_psqn_mgsm(x, ptr = cpp_ptr, n_threads = n_threads)
+    grad_psqn_mgsm(x, ptr = cpp_ptr, n_threads = n_threads,
+                   method = method)
 
   out <- structure(list(
     par = par, cpp_ptr = cpp_ptr, y = args_pass$y, event = args_pass$event,
     X = args_pass$X, XD = args_pass$XD, Z = args_pass$Z,
     grp = args_pass$grp, terms = args_pass$terms, cl = match.call(),
-    link = args_pass$link, fn = fn, gr = gr, n_threads = n_threads),
+    link = args_pass$link, fn = fn, gr = gr, n_threads = n_threads,
+    method = method),
     class = "mgsm_psqn")
 
-  rm(list = setdiff(ls(), c("cpp_ptr", "out", "n_threads")))
+  rm(list = setdiff(ls(), c("cpp_ptr", "out", "n_threads", "method")))
   out
 }
 
@@ -133,7 +150,8 @@ optim_mgsm_psqn <- function(object, par = NULL,
   out <- psqn_optim_mgsm(val = par, ptr = object$cpp_ptr, rel_eps = rel_eps,
                          max_it = max_it, n_threads = n_threads, c1 = c1,
                          c2 = c2, use_bfgs = use_bfgs, trace = trace,
-                         cg_tol = cg_tol, strong_wolfe = strong_wolfe)
+                         cg_tol = cg_tol, strong_wolfe = strong_wolfe,
+                         method = object$method)
 
   # sort out variational parameters from model parameters
   is_val <- grepl("^g\\d+:", names(par))

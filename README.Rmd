@@ -320,34 +320,52 @@ for(param_type in c("DP", "CP_trans")){
 
 ### Using the psqn Interface
 Another option is to use [the psqn package](https://github.com/boennecd/psqn)
-through this package. This can be done as follows
+through this package. This can be done as follows:
 
 ```{r mgsm_use_psqn, cache = 1}
-# get the object needed to perform the estimation 
-psqn_obj <- make_mgsm_psqn_obj(
+# get the object needed to perform the estimation both for a SNVA and for 
+# a GVA
+psqn_obj_snva <- make_mgsm_psqn_obj(
   formula = Surv(y, uncens) ~ trt, data = dat, 
-  df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
+  df = 3L, Z = ~trt, cluster = as.factor(center), method = "SNVA", 
+  n_nodes = 15L, link = "PO", n_threads = 2L)
+psqn_obj_gva  <- make_mgsm_psqn_obj(
+  formula = Surv(y, uncens) ~ trt, data = dat, 
+  df = 3L, Z = ~trt, cluster = as.factor(center), method = "GVA", 
   n_nodes = 15L, link = "PO", n_threads = 2L)
 
-# perform the estimation
-psqn_opt <- optim_mgsm_psqn(psqn_obj)
+# perform the estimation using either approximation
+psqn_opt_snva <- optim_mgsm_psqn(psqn_obj_snva)
+psqn_opt_gva  <- optim_mgsm_psqn(psqn_obj_gva)
 
 # check that the function value is the same
-all.equal(psqn_opt$value, snva_fit$fit$optim$value)
+all.equal(psqn_opt_snva$value, snva_fit$fit$optim$value)
+all.equal(psqn_opt_gva $value, gva_fit $fit$optim$value)
 ```
 
-It is a bit slower in this case as shown below but can be faster when there 
-are more clusters.
+It is not very attractive to use the optimization method from the psqn 
+package in this case as shown below. 
 
 ```{r mgsm_time_psqn, cache = 1}
-microbenchmark(`Using psqn` = { 
-  psqn_obj <- make_mgsm_psqn_obj(
-    formula = Surv(y, uncens) ~ trt, data = dat, 
-    df = 3L, Z = ~trt, cluster = as.factor(center), do_setup = "SNVA", 
-    n_nodes = 15L, link = "PO", n_threads = 2L)
-  optim_mgsm_psqn(psqn_obj)
-}, times = 5)
+microbenchmark(
+  `Using psqn (SNVA)` = { 
+    psqn_obj <- make_mgsm_psqn_obj(
+      formula = Surv(y, uncens) ~ trt, data = dat, 
+      df = 3L, Z = ~trt, cluster = as.factor(center), method = "SNVA", 
+      n_nodes = 15L, link = "PO", n_threads = 2L)
+    optim_mgsm_psqn(psqn_obj)
+  },
+  `Using psqn (GVA) ` = { 
+    psqn_obj <- make_mgsm_psqn_obj(
+      formula = Surv(y, uncens) ~ trt, data = dat, 
+      df = 3L, Z = ~trt, cluster = as.factor(center), method = "GVA", 
+      n_nodes = 15L, link = "PO", n_threads = 2L)
+    optim_mgsm_psqn(psqn_obj)
+  }, times = 5)
 ```
+
+However, the optimization method from the psqn 
+package may be more useful when there are more clusters.
 
 ```{r rep_rep_clear_mem_comp_time, echo = FALSE, results = "hide"}
 rm(list = ls())
