@@ -245,11 +245,11 @@ Again, the skewness parameter have not moved much from the defaults.
 We estimate the same model below with other link functions.
 
 ```{r other_link, cache = 1, dependson = "fit_example"}
-# ######
-# # w/ Laplace
-# fit_model("PH"    , do_free = TRUE)$fit
-# fit_model("PO"    , do_free = TRUE)$fit
-# fit_model("probit", do_free = TRUE)$fit
+######
+# w/ Laplace
+fit_model("PH"    , do_free = TRUE)$fit
+fit_model("PO"    , do_free = TRUE)$fit
+fit_model("probit", do_free = TRUE)$fit
 
 ######
 # w/ GVA
@@ -275,8 +275,7 @@ We provide a benchmark of the estimation methods used in section
 [example](#example) below.
 
 ```{r comp_time, cache = 1, dependson = "fit_example"}
-for(mth in c("GVA")){
-# for(mth in c("Laplace", "GVA")){
+for(mth in c("Laplace", "GVA")){
   msg <- sprintf("Method: %s", mth)
   cat(sprintf("\n%s\n%s\n", msg, 
               paste0(rep("-", nchar(msg)), collapse = "")))
