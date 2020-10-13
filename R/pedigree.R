@@ -23,8 +23,6 @@
 #' @param trace logical for whether to print tracing information.
 #' @param kappa numeric scalar with the penalty in the relaxed problem
 #' ensuring the monotonicity of the survival curve.
-#' @param dtformula \code{\link{formula}} with the derivative of the
-#' baseline survival function.
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export

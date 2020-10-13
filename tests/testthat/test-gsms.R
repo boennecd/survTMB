@@ -57,3 +57,25 @@ test_that("Gradients are correct with a high epsilon", {
     c(11115.8432497678, -33621.8717162036, 22883.8510911714,
       32976.8315701619, 36842.5634464707, 32730.3964620881))
 })
+
+test_that("gsm gives the same when dtformula is provided", {
+  f <- function(x){
+    x <- log(x)
+    cbind(x, x^2, x^3)
+  }
+  df <- function(x){
+    y <- log(x)
+    cbind(1, 2 * y, 3 * y^2) / x
+  }
+
+  r1 <- gsm(
+    Surv(y, uncens) ~ trt, tformula = ~ f(y) - 1, dtformula = ~ df(y) - 1,
+    data = eortc, link = "PH", do_fit = TRUE, n_threads = 1L)
+  r2 <- gsm(
+    Surv(y, uncens) ~ trt, tformula = ~ f(y) - 1,
+    data = eortc, link = "PH", do_fit = TRUE, n_threads = 1L)
+
+  what <- c("gamma", "beta")
+  expect_equal(r1$fit[what], r2$fit[what])
+  expect_equal(r1$XD, r2$XD, check.attributes = FALSE)
+})

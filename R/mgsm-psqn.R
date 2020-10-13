@@ -7,10 +7,10 @@
 #' @export
 make_mgsm_psqn_obj <- function(
   formula, data, df, tformula = NULL, Z, cluster,
-  method = c("SNVA", "GVA", ), n_nodes = 20L,
+  method = c("SNVA", "GVA"), n_nodes = 20L,
   link = c("PH", "PO", "probit"),
   theta = NULL, beta = NULL, opt_func = .opt_default, n_threads = 1L,
-  skew_start = -.0001, kappa = .MGSM_default_kappa){
+  skew_start = -.0001, kappa = .MGSM_default_kappa, dtformula = NULL){
   #####
   # checks
   method <- method[1]
@@ -25,7 +25,8 @@ make_mgsm_psqn_obj <- function(
     formula = formula, data = data, df = df, tformula = tformula, Z = Z,
     cluster = cluster, n_nodes = n_nodes,
     link = link, theta = theta, beta = beta, opt_func = opt_func,
-    n_threads = n_threads, skew_start = skew_start, kappa = kappa)
+    n_threads = n_threads, skew_start = skew_start, kappa = kappa,
+    dtformula = dtformula)
 
   #####
   # create C++ object and return

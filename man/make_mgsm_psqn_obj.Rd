@@ -11,7 +11,7 @@ make_mgsm_psqn_obj(
   tformula = NULL,
   Z,
   cluster,
-  method = c("SNVA", "GVA", ),
+  method = c("SNVA", "GVA"),
   n_nodes = 20L,
   link = c("PH", "PO", "probit"),
   theta = NULL,
@@ -19,7 +19,8 @@ make_mgsm_psqn_obj(
   opt_func = .opt_default,
   n_threads = 1L,
   skew_start = -1e-04,
-  kappa = .MGSM_default_kappa
+  kappa = .MGSM_default_kappa,
+  dtformula = NULL
 )
 }
 \arguments{
@@ -67,6 +68,9 @@ a somewhat arbitrary value.}
 
 \item{kappa}{numeric scalar with the penalty in the relaxed problem
 ensuring the monotonicity of the survival curve.}
+
+\item{dtformula}{\code{\link{formula}} with the derivative of the
+baseline survival function.}
 }
 \description{
 Create mgsm Object to Pass to psqn Method

@@ -331,6 +331,8 @@ free_laplace <- function(obj){
 #'                    \code{FALSE}.
 #' @param kappa numeric scalar with the penalty in the relaxed problem
 #' ensuring the monotonicity of the survival curve.
+#' @param dtformula \code{\link{formula}} with the derivative of the
+#' baseline survival function.
 #'
 #' @details
 #' Possible link functions for \code{link} are:
@@ -397,7 +399,8 @@ make_mgsm_ADFun <- function(
   param_type = c("DP", "CP_trans", "CP"), link = c("PH", "PO", "probit"),
   theta = NULL, beta = NULL, opt_func = .opt_default, n_threads = 1L,
   skew_start = -.0001, dense_hess = FALSE,
-  sparse_hess = FALSE, kappa = .MGSM_default_kappa){
+  sparse_hess = FALSE, kappa = .MGSM_default_kappa,
+  dtformula = NULL){
   #####
   # checks
   param_type <- param_type[1]
@@ -415,7 +418,8 @@ make_mgsm_ADFun <- function(
     formula = formula, data = data, df = df, tformula = tformula, Z = Z,
     cluster = cluster, n_nodes = n_nodes,
     link = link, theta = theta, beta = beta, opt_func = opt_func,
-    n_threads = n_threads, skew_start = skew_start, kappa = kappa)
+    n_threads = n_threads, skew_start = skew_start, kappa = kappa,
+    dtformula = dtformula)
 
   #####
   # setup ADFun object for the Laplace approximation
@@ -467,7 +471,8 @@ make_mgsm_ADFun <- function(
 
 mgsm_setup <- function(
   formula, data, df, tformula, Z, cluster, n_nodes,
-  link, theta, beta, opt_func, n_threads, skew_start, kappa){
+  link, theta, beta, opt_func, n_threads, skew_start, kappa,
+  dtformula){
   link <- link[1]
   stopifnot(
     is.integer(df), df > 0L, inherits(formula, "formula"),
@@ -481,7 +486,9 @@ mgsm_setup <- function(
     is.function(opt_func),
     is.integer(n_threads) && n_threads > 0L && length(n_threads) == 1L,
     is.numeric(skew_start), length(skew_start) == 1L,
-    is.numeric(kappa), length(kappa) == 1L, is.finite(kappa))
+    is.numeric(kappa), length(kappa) == 1L, is.finite(kappa),
+    is.null(dtformula) || (!is.null(tformula) &&
+                             inherits(dtformula, "formula")))
   eval(bquote(stopifnot(
     .(-.skew_boundary) < skew_start && skew_start < .(.skew_boundary))))
 
@@ -512,7 +519,7 @@ mgsm_setup <- function(
   gsm_output <- gsm(formula = formula, tformula = tformula, data = data,
                     df = df, link = link, n_threads = n_threads,
                     do_fit = need_beta, opt_func = opt_func, eps = eps,
-                    kappa = kappa)
+                    kappa = kappa, dtformula = dtformula)
 
   mt_X <- gsm_output$mt_Z
   X <- gsm_output$Z
