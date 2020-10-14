@@ -74,11 +74,14 @@ class entropy_term_integral : public CppAD::atomic_base<Type> {
   HermiteData<double> const &xw_double = GaussHermiteDataCached<double>(n);
   HermiteData<Type>   const &xw_type   = GaussHermiteDataCached<Type>  (n);
 
+  static constexpr double const dsmall =
+    std::numeric_limits<double>::epsilon() *
+    std::numeric_limits<double>::epsilon();
+
   Type const zero = Type(0.),
               one = Type(1.),
               two = Type(2.),
-            small = Type(std::numeric_limits<double>::epsilon() *
-              std::numeric_limits<double>::epsilon()),
+            small = Type(dsmall),
         type_M_PI = Type(M_PI);
 
 public:
@@ -91,7 +94,8 @@ public:
    * in scope while all CppAD::ADfun functions are still in use. */
   static entropy_term_integral& get_cached(unsigned const);
 
-  static double comp(double const sigma_sq, HermiteData<double> const &hd){
+  static double comp(double sigma_sq, HermiteData<double> const &hd){
+    sigma_sq = std::max(sigma_sq, dsmall);
     double out(0.);
     double const mult_sum(M_2_SQRTPI / sqrt(sigma_sq + 1.)),
                      mult(mult_sum * sqrt(sigma_sq / M_2_PI));

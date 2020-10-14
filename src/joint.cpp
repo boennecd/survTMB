@@ -418,8 +418,7 @@ public:
               zero(0.),
               half(.5),
             two_pi(2. / M_PI),
-       sqrt_two_pi(sqrt(two_pi)),
-             small(std::numeric_limits<double>::epsilon());
+       sqrt_two_pi(sqrt(two_pi));
 
     /* evaluate the lower bound */
     survTMB::accumulator_mock<Type> result;
@@ -576,10 +575,8 @@ public:
       {
         Type misc_term = half * atomic::logdet(Lambda);
         auto const llt_mat = Lambda.llt();
-        vector<Type> const va_rho_scaled =
-          (llt_mat.matrixU() * va_rho.matrix()).array() + small;
-        misc_term -= GaussHermite::SNVA::entropy_term(
-          vec_dot(va_rho_scaled, va_rho_scaled), n_nodes);
+        Type const entro_arg = quad_form_sym(va_rho, Lambda);
+        misc_term -= GaussHermite::SNVA::entropy_term(entro_arg, n_nodes);
         term += misc_term;
       }
 

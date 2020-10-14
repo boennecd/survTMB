@@ -318,8 +318,7 @@ public:
                 etaD_fix = XD * b_ad;
     Type const sqrt_2_pi(sqrt(M_2_PI)),
                     one(1.),
-                    two(2.),
-                  small(std::numeric_limits<double>::epsilon());
+                    two(2.);
 
     /* assign object used in the variational distribution */
     vecAD va_d = va_lambda * va_rho;
@@ -379,7 +378,7 @@ public:
       mat_mult_trace(va_lambda, vcov_inv);
     half_term /= two;
 
-    Type const entrop_arg = quad_form_sym(va_rho, va_lambda) + small;
+    Type const entrop_arg = quad_form_sym(va_rho, va_lambda);
     term += half_term - SNVA::entropy_term(entrop_arg, n_nodes) -
       quad_form(va_mu, vcov_inv, va_d) * sqrt_2_pi;
 

@@ -53,8 +53,7 @@ void SNVA_comp
             etaD_fix = XD * b;
   Type const sqrt_2_pi(sqrt(M_2_PI)),
                    one(1.),
-                   two(2.),
-                 small(std::numeric_limits<double>::epsilon());
+                   two(2.);
 
   /* assign object used in the variational distribution */
   std::vector<vecT> va_ds;
@@ -136,8 +135,7 @@ void SNVA_comp
       va_lambda_sum += va_lambdas[g];
       lb_t_mult_other -= quad_form(va_mus[g], vcov_inv, va_ds[g]);
 
-      Type const entrop_arg =
-        quad_form_sym(va_rhos[g], va_lambdas[g]) + small;
+      Type const entrop_arg = quad_form_sym(va_rhos[g], va_lambdas[g]);
       last_terms -= entropy_term(entrop_arg, n_nodes);
 
     }

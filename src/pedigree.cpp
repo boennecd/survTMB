@@ -157,7 +157,6 @@ public:
     Type const sqrt_2_pi(sqrt(M_2_PI)),
                      one(1.),
                      two(2.),
-                   small(std::numeric_limits<double>::epsilon()),
               type_M_LN2(M_LN2);
 
     /* assign parameters */
@@ -263,7 +262,7 @@ public:
 
       Type log_det_sigma;
       matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
-      Type const entrop_arg = quad_form_sym(rho, lambda) + small;
+      Type const entrop_arg = quad_form_sym(rho, lambda);
 
       term += (
         atomic::logdet(lambda) - quad_form_sym(mu, sigma_inv)
