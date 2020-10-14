@@ -2,13 +2,15 @@
 #' @inheritParams make_mgsm_ADFun
 #' @param method Method character vector indicating which approximation to setup.
 #' See \code{\link{make_mgsm_ADFun}}.
+#' @param param_type characters for the parameterization used with the SNVA.
+#' See \code{\link{make_mgsm_ADFun}}.
 #'
 #' @importFrom stats setNames
 #' @export
 make_mgsm_psqn_obj <- function(
   formula, data, df, tformula = NULL, Z, cluster,
   method = c("SNVA", "GVA"), n_nodes = 20L,
-  link = c("PH", "PO", "probit"),
+  param_type = c("DP", "CP_trans", "CP"), link = c("PH", "PO", "probit"),
   theta = NULL, beta = NULL, opt_func = .opt_default, n_threads = 1L,
   skew_start = -.0001, kappa = .MGSM_default_kappa, dtformula = NULL){
   #####
@@ -26,7 +28,8 @@ make_mgsm_psqn_obj <- function(
     cluster = cluster, n_nodes = n_nodes,
     link = link, theta = theta, beta = beta, opt_func = opt_func,
     n_threads = n_threads, skew_start = skew_start, kappa = kappa,
-    dtformula = dtformula)
+    dtformula = dtformula, param_type = param_type)
+  param_type <- args_pass$param_type
 
   #####
   # create C++ object and return
@@ -54,9 +57,10 @@ make_mgsm_psqn_obj <- function(
   if(method == "SNVA"){
     va_start <- .get_MGSM_VA_start(
       n_rng = args_pass$n_rng, params = params, data_ad_func = data_ad_func,
-      opt_func = opt_func, skew_start = args_pass$skew_start, is_cp = FALSE)
+      opt_func = opt_func, skew_start = args_pass$skew_start, is_cp =
+        param_type != "DP")
     names(va_start) <- mgsm_get_snva_names(
-      args_pass$n_rng, args_pass$n_grp, "DP")
+      args_pass$n_rng, args_pass$n_grp, param_type)
 
   } else if(method == "GVA"){
     va_start <- .get_MGSM_VA_start(
@@ -78,7 +82,7 @@ make_mgsm_psqn_obj <- function(
     data = cluster_data, eps = args_pass$eps, kappa = args_pass$kappa,
     b = args_pass$b, theta = args_pass$theta, theta_va = va_start,
     n_nodes = args_pass$n_nodes, link = args_pass$link,
-    max_threads = n_threads, method = method)
+    max_threads = n_threads, method = method, param_type = param_type)
 
   # update starting values
   par <- c(args_pass$b, args_pass$theta, va_start)

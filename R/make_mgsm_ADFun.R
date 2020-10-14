@@ -403,9 +403,7 @@ make_mgsm_ADFun <- function(
   dtformula = NULL){
   #####
   # checks
-  param_type <- param_type[1]
   stopifnot(
-    param_type %in% c("DP", "CP_trans", "CP"),
     is.logical(dense_hess), length(dense_hess) == 1L, !is.na(dense_hess),
     is.logical(sparse_hess), length(sparse_hess) == 1L, !is.na(sparse_hess),
     is.function(opt_func),
@@ -419,7 +417,8 @@ make_mgsm_ADFun <- function(
     cluster = cluster, n_nodes = n_nodes,
     link = link, theta = theta, beta = beta, opt_func = opt_func,
     n_threads = n_threads, skew_start = skew_start, kappa = kappa,
-    dtformula = dtformula)
+    dtformula = dtformula, param_type = param_type)
+  param_type <- args_pass$param_type
 
   #####
   # setup ADFun object for the Laplace approximation
@@ -472,9 +471,11 @@ make_mgsm_ADFun <- function(
 mgsm_setup <- function(
   formula, data, df, tformula, Z, cluster, n_nodes,
   link, theta, beta, opt_func, n_threads, skew_start, kappa,
-  dtformula){
+  dtformula, param_type){
   link <- link[1]
+  param_type <- param_type[1]
   stopifnot(
+    param_type %in% c("DP", "CP_trans", "CP"),
     is.integer(df), df > 0L, inherits(formula, "formula"),
     is.null(tformula) || inherits(tformula, "formula"),
     inherits(Z, "formula"), is.data.frame(data),
@@ -582,7 +583,8 @@ mgsm_setup <- function(
        n_threads = n_threads, eps = eps, kappa = kappa, b = beta,
        theta = theta, terms = list(
          X = mt_X, Z = mt_Z, baseline = mt_b), n_rng = n_rng, n_grp = n_grp,
-       inits = inits, n_nodes = n_nodes, y = y, skew_start = skew_start)
+       inits = inits, n_nodes = n_nodes, y = y, skew_start = skew_start,
+       param_type = param_type)
 }
 
 .tmb_set_n_threads <- function(n, is_laplace = FALSE){

@@ -80,9 +80,9 @@ class gva_psqn_func {
 
 public:
   gva_psqn_func(Rcpp::List data, double const eps, double const kappa,
-                 arma::vec const &b, arma::vec const &theta,
-                 arma::vec const &theta_va, size_use const n_nodes,
-                 std::string const &link):
+                arma::vec const &b, arma::vec const &theta,
+                arma::vec const &theta_va, size_use const n_nodes,
+                std::string const &link, std::string const &param_type):
   this_ad_func(([&](){
     // assign value needed to record the terms from the lower bound for the
     // cluster
@@ -256,7 +256,7 @@ public:
   snva_psqn_func(Rcpp::List data, double const eps, double const kappa,
                  arma::vec const &b, arma::vec const &theta,
                  arma::vec const &theta_va, size_use const n_nodes,
-                 std::string const &link):
+                 std::string const &link, std::string const &param_type):
   this_ad_func(([&](){
     // assign value needed to record the terms from the lower bound for the
     // cluster
@@ -299,8 +299,16 @@ public:
     }
 
     // do the computation
-    auto va_par = SNVA::SNVA_MD_theta_DP_to_DP(
-      &theta_va_ad[0], theta_va_ad.size(), rng_dim);
+    auto va_par = ([&](){
+      if(param_type == "DP")
+        return SNVA::SNVA_MD_theta_DP_to_DP(
+          &theta_va_ad[0], theta_va_ad.size(), rng_dim);
+      else if(param_type != "CP_trans")
+        throw std::invalid_argument("invalid param_type");
+
+      return SNVA::SNVA_MD_theta_CP_trans_to_DP(
+        &theta_va_ad[0], theta_va_ad.size(), rng_dim);
+    })();
     vecAD const va_mu  = std::move(va_par.va_mus[0]),
                 va_rho = std::move(va_par.va_rhos[0]);
     matrix<Type> const va_lambda = std::move(va_par.va_lambdas[0]);
@@ -471,7 +479,8 @@ SEXP psqn_get_mgsm_funcs_generic
    arma::vec const &b, arma::vec const &theta,
    arma::vec const &theta_va, int const n_nodes,
    std::string const &link, unsigned const max_threads,
-   size_use (*get_n_va)(size_use const)){
+   size_use (*get_n_va)(size_use const),
+   std::string const &param_type){
   using ret_T =
     PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
 
@@ -490,7 +499,7 @@ SEXP psqn_get_mgsm_funcs_generic
     for(size_use j = 0; j < n_grp_va; ++j, ++i)
       theta_va_term[j] = theta_va[i];
     funcs.emplace_back(Rcpp::List(d), eps, kappa, b, theta, theta_va_term,
-                       n_nodes, link);
+                       n_nodes, link, param_type);
   }
 
   return Rcpp::XPtr<ret_T>(new ret_T(funcs, max_threads));
@@ -502,17 +511,17 @@ SEXP psqn_get_mgsm_funcs
    arma::vec const &b, arma::vec const &theta,
    arma::vec const &theta_va, int const n_nodes,
    std::string const &link, unsigned const max_threads,
-   std::string const &method){
+   std::string const &method, std::string const &param_type){
   if(method == "SNVA"){
     return psqn_get_mgsm_funcs_generic<snva_psqn_func>
       (data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads,
-       get_n_va_snva);
+       get_n_va_snva, param_type);
   } else if(method != "GVA")
     throw std::invalid_argument("psqn_get_mgsm_funcs: unkown method");
 
   return psqn_get_mgsm_funcs_generic<gva_psqn_func>
     (data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads,
-     get_n_va_gva);
+     get_n_va_gva, param_type);
 }
 
 

@@ -13,6 +13,7 @@ make_mgsm_psqn_obj(
   cluster,
   method = c("SNVA", "GVA"),
   n_nodes = 20L,
+  param_type = c("DP", "CP_trans", "CP"),
   link = c("PH", "PO", "probit"),
   theta = NULL,
   beta = NULL,
@@ -50,6 +51,9 @@ See \code{\link{make_mgsm_ADFun}}.}
 
 \item{n_nodes}{integer with the number of nodes to use in (adaptive)
 Gauss-Hermite quadrature.}
+
+\item{param_type}{characters for the parameterization used with the SNVA.
+See \code{\link{make_mgsm_ADFun}}.}
 
 \item{link}{character specifying the link function.}
 

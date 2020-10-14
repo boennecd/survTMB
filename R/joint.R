@@ -1,4 +1,4 @@
-.min_Y <- sqrt(.Machine$double.eps)
+.min_Y <- .Machine$double.eps
 
 #' @importFrom stats update
 .get_Y_names <- function(formula){

@@ -17,8 +17,8 @@ using namespace Rcpp;
 using namespace Rcpp;
 
 // psqn_get_mgsm_funcs
-SEXP psqn_get_mgsm_funcs(Rcpp::List data, double const eps, double const kappa, arma::vec const& b, arma::vec const& theta, arma::vec const& theta_va, int const n_nodes, std::string const& link, unsigned const max_threads, std::string const& method);
-RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP kappaSEXP, SEXP bSEXP, SEXP thetaSEXP, SEXP theta_vaSEXP, SEXP n_nodesSEXP, SEXP linkSEXP, SEXP max_threadsSEXP, SEXP methodSEXP) {
+SEXP psqn_get_mgsm_funcs(Rcpp::List data, double const eps, double const kappa, arma::vec const& b, arma::vec const& theta, arma::vec const& theta_va, int const n_nodes, std::string const& link, unsigned const max_threads, std::string const& method, std::string const& param_type);
+RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP kappaSEXP, SEXP bSEXP, SEXP thetaSEXP, SEXP theta_vaSEXP, SEXP n_nodesSEXP, SEXP linkSEXP, SEXP max_threadsSEXP, SEXP methodSEXP, SEXP param_typeSEXP) {
   BEGIN_RCPP
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
@@ -31,7 +31,8 @@ RcppExport SEXP _survTMB_psqn_get_mgsm_funcs(SEXP dataSEXP, SEXP epsSEXP, SEXP k
   Rcpp::traits::input_parameter< std::string const& >::type link(linkSEXP);
   Rcpp::traits::input_parameter< unsigned const >::type max_threads(max_threadsSEXP);
   Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
-  rcpp_result_gen = Rcpp::wrap(psqn_get_mgsm_funcs(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method));
+  Rcpp::traits::input_parameter< std::string const& >::type param_type(param_typeSEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_get_mgsm_funcs(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method, param_type));
   return rcpp_result_gen;
   END_RCPP
 }
@@ -411,7 +412,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
   {"_survTMB_pedigree_get_size", (DL_FUNC) &_survTMB_pedigree_get_size, 1},
   {"_survTMB_set_n_threads", (DL_FUNC) &_survTMB_set_n_threads, 1},
-  {"_survTMB_psqn_get_mgsm_funcs", (DL_FUNC) &_survTMB_psqn_get_mgsm_funcs, 10},
+  {"_survTMB_psqn_get_mgsm_funcs", (DL_FUNC) &_survTMB_psqn_get_mgsm_funcs, 11},
   {"_survTMB_psqn_optim_mgsm", (DL_FUNC) &_survTMB_psqn_optim_mgsm, 12},
   {"_survTMB_psqn_optim_mgsm_private", (DL_FUNC) &_survTMB_psqn_optim_mgsm_private, 8},
   {"_survTMB_eval_psqn_mgsm", (DL_FUNC) &_survTMB_eval_psqn_mgsm, 4},

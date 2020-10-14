@@ -45,8 +45,8 @@ joint_funcs_eval_grad <- function(p, par) {
     .Call(`_survTMB_joint_funcs_eval_grad`, p, par)
 }
 
-psqn_get_mgsm_funcs <- function(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method) {
-    .Call(`_survTMB_psqn_get_mgsm_funcs`, data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method)
+psqn_get_mgsm_funcs <- function(data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method, param_type) {
+    .Call(`_survTMB_psqn_get_mgsm_funcs`, data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method, param_type)
 }
 
 psqn_optim_mgsm <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method) {
