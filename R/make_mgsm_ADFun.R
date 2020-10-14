@@ -593,8 +593,7 @@ mgsm_setup <- function(
   out
 }
 
-.get_MGSM_VA_start <- function(
-  n_rng, params, data_ad_func, opt_func, skew_start = NULL, is_cp = NULL){
+.get_MGSM_GVA_start <- function(n_rng, params, data_ad_func, opt_func){
   # set the initial values
   grp_end <- cumsum(data_ad_func$grp_size)
   grp_start <- c(1L, head(grp_end, -1) + 1L)
@@ -605,7 +604,6 @@ mgsm_setup <- function(
   sig_inv <- solve(sig)
   chol_sig_inv <- chol(sig_inv)
 
-  is_snva <- !is.null(skew_start) && !is.null(is_cp)
   theta_VA <- mapply(function(istart, iend){
     # get the data we need
     idx <- istart:iend
@@ -642,28 +640,7 @@ mgsm_setup <- function(
     mu <- opt_ret$par
     sig_use <- solve(he(mu))
 
-    if(is_snva)
-      # SNVA
-      if(is_cp){
-        # centralized parameters
-        get_skew_trans <- function(x)
-          log((.skew_boundary + x) / (.skew_boundary - x))
-
-        dp_pars <- cp_to_dp(mu = mu, Sigma = sig_use, gamma = skew_start)
-        cp_pars <- dp_to_cp(xi = dp_pars$xi, Psi = dp_pars$Psi,
-                            alpha = dp_pars$alpha)
-        c(cp_pars$mu, cov_to_theta(cp_pars$Sigma),
-          get_skew_trans(cp_pars$gamma))
-
-      } else {
-        # direct parameters
-        dp_pars <- cp_to_dp(mu = mu, Sigma = sig_use, gamma = skew_start)
-        c(dp_pars$xi, cov_to_theta(dp_pars$Psi), dp_pars$alpha)
-
-      }
-    else
-      # GVA
-      c(mu, cov_to_theta(sig_use))
+    c(mu, cov_to_theta(sig_use))
   }, istart = grp_start, iend = grp_end)
   c(theta_VA)
 }
@@ -748,7 +725,7 @@ mgsm_setup <- function(
     n_nodes = n_nodes, type = .gva_char, link = data_ad_func$link)
 
   # set names
-  theta_VA <- .get_MGSM_VA_start(
+  theta_VA <- .get_MGSM_GVA_start(
     n_rng = n_rng, params = params, data_ad_func = data_ad_func,
     opt_func = opt_func)
   names(theta_VA) <- theta_VA_names <-
@@ -891,8 +868,6 @@ mgsm_get_gva_names <- function(n_rng, n_grp, theta){
 
   n_p_grp_gva <-  n_p_grp - n_rho
   theta_VA <- if(param_type == "DP"){
-    n_lower_tri <- (n_rng * (n_rng - 1L)) / 2L
-
     vapply(1:n_grp, function(i){
       # setup mean and VA variance
       gva_par <- gva_va_vals[(i - 1L) * n_p_grp_gva + 1:n_p_grp_gva]

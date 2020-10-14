@@ -49,27 +49,41 @@ make_mgsm_psqn_obj <- function(
     XD = args_pass$XD, Z = args_pass$Z, grp = args_pass$grp,
     link = args_pass$link, grp_size = args_pass$grp_size,
     n_threads = args_pass$n_threads)
-  params <- list(eps = args_pass$eps, kappa = args_pass$kappa,
-                 b = args_pass$b, theta = args_pass$theta)
   if(length(args_pass$skew_start) == 1L && args_pass$n_rng > 1L)
     args_pass$skew_start <- rep(args_pass$skew_start, args_pass$n_rng)
 
   if(method == "SNVA"){
-    va_start <- .get_MGSM_VA_start(
-      n_rng = args_pass$n_rng, params = params, data_ad_func = data_ad_func,
-      opt_func = opt_func, skew_start = args_pass$skew_start, is_cp =
-        param_type != "DP")
+    # fit a GVA and use this for the starting values
+    # TODO: we are doing a lot of things twice. Avoid this...
+    cl_org <- match.call()
+    cl_org$method <- "GVA"
+    gva_obj <- eval(cl_org, parent.frame())
+    gva_opt <- optim_mgsm_psqn(gva_obj)
+    args_pass$b     <- head(gva_opt$params,  length(args_pass$b))
+    args_pass$theta <- tail(gva_opt$params, -length(args_pass$b))
+
+    va_start <- gva_opt$va_params
+    n_rng <- args_pass$n_rng
+    skew_start <- args_pass$skew_start
+    mult <- n_rng + (n_rng * (n_rng + 1L)) / 2L
+    va_start <- vapply(seq_len(args_pass$n_grp), function(i){
+      gva_par <- va_start[(i - 1L) * mult + 1:mult]
+      Sig <- theta_to_cov(gva_par[-seq_len(n_rng)])
+      dp_pars <- cp_to_dp(mu = gva_par[1:n_rng], Sigma = Sig,
+                          gamma = skew_start)
+      c(dp_pars$xi, cov_to_theta(dp_pars$Psi), dp_pars$alpha)
+    }, numeric(mult + n_rng), USE.NAMES = FALSE)
+    va_start <- c(va_start)
     names(va_start) <- mgsm_get_snva_names(
-      args_pass$n_rng, args_pass$n_grp, param_type)
+      n_rng, args_pass$n_grp, param_type)
 
   } else if(method == "GVA"){
-    va_start <- .get_MGSM_VA_start(
-      n_rng = args_pass$n_rng, params = params, data_ad_func = data_ad_func,
-      opt_func = opt_func)
+    va_start <- .get_MGSM_GVA_start(
+      n_rng = args_pass$n_rng, params = args_pass,
+      data_ad_func = data_ad_func, opt_func = opt_func)
     names(va_start) <- mgsm_get_gva_names(n_rng = args_pass$n_rng,
                                           n_grp = args_pass$n_grp,
                                           theta = args_pass$theta)
-
 
   } else
     stop("unkown method")
