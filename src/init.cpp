@@ -456,7 +456,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_eval_psqn_mgsm", (DL_FUNC) &_survTMB_eval_psqn_mgsm, 4},
   {"_survTMB_grad_psqn_mgsm", (DL_FUNC) &_survTMB_grad_psqn_mgsm, 4},
   {"_survTMB_get_pedigree_funcs", (DL_FUNC) &_survTMB_get_pedigree_funcs, 11},
-  {"_survTMB_psqn_optim_pedigree", (DL_FUNC) &_survTMB_psqn_optim_pedigree, 11},
+  {"_survTMB_psqn_optim_pedigree", (DL_FUNC) &_survTMB_psqn_optim_pedigree, 12},
   {"_survTMB_psqn_optim_pedigree_private", (DL_FUNC) &_survTMB_psqn_optim_pedigree_private, 8},
   {"_survTMB_eval_psqn_pedigree", (DL_FUNC) &_survTMB_eval_psqn_pedigree, 4},
   {"_survTMB_grad_psqn_pedigree", (DL_FUNC) &_survTMB_grad_psqn_pedigree, 4},
