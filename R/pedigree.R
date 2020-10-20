@@ -23,6 +23,7 @@
 #' @param trace logical for whether to print tracing information.
 #' @param kappa numeric scalar with the penalty in the relaxed problem
 #' ensuring the monotonicity of the survival curve.
+#' @param method character vector indicating which approximation to use.
 #' @inheritParams make_mgsm_ADFun
 #'
 #' @export
@@ -31,9 +32,10 @@ make_pedigree_ADFun <- function(
   sparse_hess = FALSE, link = c("PH", "PO", "probit"),
   opt_func = .opt_default, skew_start = -.0001, omega = NULL,
   beta = NULL, sds = NULL, trace = FALSE, kappa = .MGSM_default_kappa,
-  dtformula = NULL){
+  dtformula = NULL, method = c("SNVA", "GVA")){
   # checks
   link <- link[1L]
+  method <- method[1L]
   stopifnot(
     is.list(c_data), length(c_data) > 0L,
     is.integer(n_nodes), length(n_nodes) == 1L, n_nodes > 0L,
@@ -47,7 +49,8 @@ make_pedigree_ADFun <- function(
     is.null(sds) || (
       is.numeric(sds) && is.vector(sds) && all(sds > 0)),
     is.logical(trace), length(trace) == 1L,
-    is.double(kappa), length(kappa) == 1L, kappa >= 0)
+    is.double(kappa), length(kappa) == 1L, kappa >= 0,
+    method %in% c("SNVA", "GVA"))
   eval(bquote(stopifnot(
     .(-.skew_boundary) < skew_start && skew_start < .(.skew_boundary))))
 
@@ -60,7 +63,7 @@ make_pedigree_ADFun <- function(
     stopifnot(inherits(y, "Surv"), isTRUE(attr(y, "type") == "right"))
 
     list(cor_mats = x$cor_mats, X = t(gsm_dat$X), XD = t(gsm_dat$XD),
-         Z = t(gsm_dat$Z), y = y[, 1], event = y[, 2], y_surv = y)
+         Z = t(gsm_dat$Z), event = y[, 2], y_surv = y)
   })
 
   #####
@@ -68,7 +71,7 @@ make_pedigree_ADFun <- function(
   miss_model_params <- is.null(beta) || is.null(omega) || is.null(sds)
   if(is.null(beta) || is.null(omega)){
     if(trace)
-      cat("Finding starting values for fixed effects...\n")
+      cat("Finding starting values for the fixed effects...\n")
 
     fix_start <- local({
       X  <- t(do.call(cbind, lapply(c_data, `[[`, "X")))
@@ -104,7 +107,6 @@ make_pedigree_ADFun <- function(
     n_obs <- c_data[[i]]$n_obs
     expr <- substitute({
       stopifnot(
-        is.numeric(x$y), length(x$y) == n_obs, all(is.finite(x$y)),
         is.numeric(x$event), length(x$event) == n_obs,
         all(is.finite(x$event)),
         is.matrix(x$X), NCOL(x$X) == n_obs, NROW(x$X) == length(omega),
@@ -129,7 +131,7 @@ make_pedigree_ADFun <- function(
   va_par <- sapply(c_data, function(c_dat){
     g <<- g + 1L
 
-    n_obs <- length(c_dat$y)
+    n_obs <- length(c_dat$event)
     sigma <- matrix(0., n_obs, n_obs)
     for(i in seq_along(sds))
       sigma <- sigma + sds[i]^2 * c_dat$cor_mats[[i]]
@@ -170,6 +172,13 @@ make_pedigree_ADFun <- function(
 
     sig_use <- .rescale_cov(sig_use)
 
+    if(method == "GVA"){
+      sig_use <- cov_to_theta(sig_use)
+      out <- c(setNames(mu, paste0("mu", seq_along(mu))),
+               sig_use)
+      return(setNames(out, paste0(sprintf("g%d:", g), names(out))))
+    }
+
     out <- cp_to_dp(
       mu = mu, Sigma = sig_use, gamma = rep(skew_start, n_obs))
 
@@ -208,83 +217,39 @@ make_pedigree_ADFun <- function(
   if(trace)
     cat("Creating ADFun...\n")
 
-  data <- list(n_threads = n_threads, sparse_hess = sparse_hess,
-               n_nodes = n_nodes, link = link, c_data = c_data)
-  parameters <- list(omega = omega, beta = beta, log_sds = log(sds),
-                     va_par = va_par, eps = .MGSM_defaul_eps,
-                     kappa = kappa)
-
   # setup cache
   setup_atomic_cache(n_nodes = n_nodes, type = .snva_char, link = link)
-
-  adfun <- get_pedigree_funcs(data = data, parameters = parameters)
-  par <- c(parameters$omega, parameters$beta, parameters$log_sds,
-           parameters$va_par)
-  gr_vec <- rep(0, length(par))
+  adfun <- get_pedigree_funcs(
+    data = c_data, n_nodes = n_nodes, link = link, omega = omega,
+    beta = beta, log_sds = log(sds), va_par = va_par, method = method,
+    eps = .MGSM_defaul_eps, kappa = kappa, n_threads = n_threads)
+  par <- c(omega, beta, log(sds), va_par)
 
   #####
   # find variational parameters
-  is_va <- -seq_len(length(omega) + length(beta) + length(sds))
-  new_vas <- local({
-    if(trace)
-      cat("Finding starting values for variational parameters...\n")
-
-    # start with GVA
-    is_alpha <- which(grepl("^g\\d+:alpha", names(par)))
-    stopifnot(length(is_alpha) > 0)
-    exclude <- c(is_va, -is_alpha)
-    fn_va <- function(x, ...){
-      par[exclude] <- x
-      pedigree_funcs_eval_lb(p = adfun, par)
-    }
-    gr_va <- function(x, ...){
-      par[exclude] <- x
-      pedigree_funcs_eval_grad(p = adfun, par, out = gr_vec)
-      gr_vec[exclude]
-    }
-
-    va_opt <- opt_func(par[exclude], fn_va, gr_va,
-                       control = list(maxit = 1000L))
-    par[exclude] <- va_opt$par
-
-    # then SNVA
-    exclude <- is_va
-    va_opt <- opt_func(par[exclude], fn_va, gr_va,
-                       control = list(maxit = 1000L))
-
-    va_opt$par
-  })
-  par[is_va] <- new_vas
-
-  # if(miss_model_params){
-  #   # quickly set model parameters to something which is more consistent
-  #   # with the VA parameters
-  #   model_pars <- which(!grepl("^g\\d+:", names(par)))
-  #   fn_mod <- function(x, ...){
-  #     par[model_pars] <- x
-  #     pedigree_funcs_eval_lb(p = adfun, par)
-  #   }
-  #   gr_mod <- function(x, ...){
-  #     par[model_pars] <- x
-  #     pedigree_funcs_eval_grad(p = adfun, par, out = gr_vec)
-  #     gr_vec[model_pars]
-  #   }
-  #
-  #   opt_mod <- .opt_default(par[model_pars], fn_mod, gr_mod)
-  #   if(opt_mod$ok)
-  #     par[model_pars] <- opt_mod$par
-  # }
+  if(trace)
+    cat("Finding starting values for the variational parameters...\n")
+  par <- psqn_optim_pedigree_private(
+    val = par, ptr = adfun, rel_eps = sqrt(.Machine$double.eps),
+    max_it = 1000L, n_threads = n_threads, c1 = 1e-4, c2 = .9,
+    method = method)
+  if(trace)
+    cat(sprintf(
+      "The lower bound at the starting values is: %.3f\n",
+      -attr(par, "value")))
+  par <- c(par)
 
   #####
   # create output list
   out <- list(
     par = par,
     fn = function(x, ...){
-      pedigree_funcs_eval_lb(p = adfun, x)
+      eval_psqn_pedigree(x, ptr = adfun, n_threads = n_threads,
+                         method = method)
     },
     gr = function(x, ...){
-      pedigree_funcs_eval_grad(p = adfun, x, out = gr_vec)
-      gr_vec
+      grad_psqn_pedigree(x, ptr = adfun, n_threads = n_threads,
+                         method = method)
     },
     he = function(x, ...){
       stop("he not implemented")
@@ -296,7 +261,6 @@ make_pedigree_ADFun <- function(
     cl = match.call()
     # TODO: save terms
   )
-  rm(list = setdiff(ls(), c("out", "adfun", "gr_vec")))
-
+  rm(list = setdiff(ls(), c("out", "adfun", "n_threads", "method")))
   out
 }

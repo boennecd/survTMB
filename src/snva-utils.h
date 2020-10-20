@@ -74,9 +74,7 @@ class entropy_term_integral : public CppAD::atomic_base<Type> {
   HermiteData<double> const &xw_double = GaussHermiteDataCached<double>(n);
   HermiteData<Type>   const &xw_type   = GaussHermiteDataCached<Type>  (n);
 
-  static constexpr double const dsmall =
-    std::numeric_limits<double>::epsilon() *
-    std::numeric_limits<double>::epsilon();
+  static double const dsmall;
 
   Type const zero = Type(0.),
               one = Type(1.),
@@ -170,6 +168,11 @@ public:
     return true;
   }
 };
+
+template<class Type>
+double const entropy_term_integral<Type>::dsmall =
+  std::numeric_limits<double>::epsilon() *
+  std::numeric_limits<double>::epsilon();
 
 template<class Type>
 AD<Type> entropy_term

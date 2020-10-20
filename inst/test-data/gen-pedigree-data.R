@@ -220,7 +220,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
         Z[i, m_id] <- 1
     }
     met_mat <- tcrossprod(Z %*% rel_mat_full, Z)
-    met_mat <- met_mat[keep, keep]
+    met_mat <- met_mat[keep, keep, drop = FALSE]
 
     # simulate the error term
     Sig <- sds[1]^2 * rel_mat + sds[2]^2 * met_mat
@@ -263,7 +263,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
 if(.do_sim){
   .old_seed <- .Random.seed
   set.seed(2)
-  dat <- sim_pedigree_data(do_plot = TRUE, max_members = 75L,
+  dat <- sim_pedigree_data(do_plot = TRUE, max_members = 20L,
                            n_families = 1000L)
   saveRDS(dat, file.path("inst", "test-data", "pedigree.RDS"))
   .Random.seed <- .old_seed

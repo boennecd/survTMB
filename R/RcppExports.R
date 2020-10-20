@@ -93,20 +93,24 @@ predict_orth_poly <- function(x, alpha, norm2) {
     .Call(`_survTMB_predict_orth_poly`, x, alpha, norm2)
 }
 
-get_pedigree_funcs <- function(data, parameters) {
-    .Call(`_survTMB_get_pedigree_funcs`, data, parameters)
+get_pedigree_funcs <- function(data, n_nodes, link, omega, beta, log_sds, va_par, eps, kappa, n_threads, method) {
+    .Call(`_survTMB_get_pedigree_funcs`, data, n_nodes, link, omega, beta, log_sds, va_par, eps, kappa, n_threads, method)
 }
 
-pedigree_funcs_eval_lb <- function(p, par) {
-    .Call(`_survTMB_pedigree_funcs_eval_lb`, p, par)
+psqn_optim_pedigree <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method) {
+    .Call(`_survTMB_psqn_optim_pedigree`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method)
 }
 
-pedigree_funcs_eval_grad <- function(p, par, out) {
-    invisible(.Call(`_survTMB_pedigree_funcs_eval_grad`, p, par, out))
+psqn_optim_pedigree_private <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, method) {
+    .Call(`_survTMB_psqn_optim_pedigree_private`, val, ptr, rel_eps, max_it, n_threads, c1, c2, method)
 }
 
-pedigree_get_size <- function(p) {
-    .Call(`_survTMB_pedigree_get_size`, p)
+eval_psqn_pedigree <- function(val, ptr, n_threads, method) {
+    .Call(`_survTMB_eval_psqn_pedigree`, val, ptr, n_threads, method)
+}
+
+grad_psqn_pedigree <- function(val, ptr, n_threads, method) {
+    .Call(`_survTMB_grad_psqn_pedigree`, val, ptr, n_threads, method)
 }
 
 fix_atomic_seqfault <- function() {

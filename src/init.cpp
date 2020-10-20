@@ -231,38 +231,6 @@ RcppExport SEXP _survTMB_gsm_eval_hess(SEXP ptrSEXP, SEXP betaSEXP, SEXP gammaSE
   return rcpp_result_gen;
   END_RCPP
 }
-// get_pedigree_funcs
-SEXP get_pedigree_funcs(Rcpp::List data, Rcpp::List parameters);
-RcppExport SEXP _survTMB_get_pedigree_funcs(SEXP dataSEXP, SEXP parametersSEXP) {
-  BEGIN_RCPP
-  Rcpp::RObject rcpp_result_gen;
-  Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
-  Rcpp::traits::input_parameter< Rcpp::List >::type parameters(parametersSEXP);
-  rcpp_result_gen = Rcpp::wrap(get_pedigree_funcs(data, parameters));
-  return rcpp_result_gen;
-  END_RCPP
-}
-// pedigree_funcs_eval_lb
-double pedigree_funcs_eval_lb(SEXP p, SEXP par);
-RcppExport SEXP _survTMB_pedigree_funcs_eval_lb(SEXP pSEXP, SEXP parSEXP) {
-  BEGIN_RCPP
-  Rcpp::RObject rcpp_result_gen;
-  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
-  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
-  rcpp_result_gen = Rcpp::wrap(pedigree_funcs_eval_lb(p, par));
-  return rcpp_result_gen;
-  END_RCPP
-}
-void pedigree_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out);
-RcppExport SEXP _survTMB_pedigree_funcs_eval_grad(SEXP pSEXP, SEXP parSEXP, SEXP outSEXP) {
-  BEGIN_RCPP
-  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
-  Rcpp::traits::input_parameter< SEXP >::type par(parSEXP);
-  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type out(outSEXP);
-  pedigree_funcs_eval_grad(p, par, out);
-  return R_NilValue;
-  END_RCPP
-}
 // joint_start_ll
 arma::vec joint_start_ll(arma::vec const& Y, arma::vec const& tstart, arma::vec const& tstop, arma::vec const& omega, arma::vec const& delta, arma::mat const& Z, unsigned const n_nodes, arma::vec const& coefs, bool const grad, bool const use_log, std::string const basis_type);
 RcppExport SEXP _survTMB_joint_start_ll(SEXP YSEXP, SEXP tstartSEXP, SEXP tstopSEXP, SEXP omegaSEXP, SEXP deltaSEXP, SEXP ZSEXP, SEXP n_nodesSEXP, SEXP coefsSEXP, SEXP gradSEXP, SEXP use_logSEXP, SEXP basis_typeSEXP) {
@@ -360,16 +328,6 @@ RcppExport SEXP _survTMB_setup_atomic_cache(SEXP n_nodesSEXP, SEXP typeSEXP, SEX
   return R_NilValue;
   END_RCPP
 }
-// pedigree_get_size
-Rcpp::List pedigree_get_size(SEXP p);
-RcppExport SEXP _survTMB_pedigree_get_size(SEXP pSEXP) {
-  BEGIN_RCPP
-  Rcpp::RObject rcpp_result_gen;
-  Rcpp::traits::input_parameter< SEXP >::type p(pSEXP);
-  rcpp_result_gen = Rcpp::wrap(pedigree_get_size(p));
-  return rcpp_result_gen;
-  END_RCPP
-}
 // set_n_threads
 int set_n_threads(int const n_threads);
 RcppExport SEXP _survTMB_set_n_threads(SEXP n_threadsSEXP) {
@@ -377,6 +335,90 @@ RcppExport SEXP _survTMB_set_n_threads(SEXP n_threadsSEXP) {
   Rcpp::RObject rcpp_result_gen;
   Rcpp::traits::input_parameter< int const >::type n_threads(n_threadsSEXP);
   rcpp_result_gen = Rcpp::wrap(set_n_threads(n_threads));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// get_pedigree_funcs
+SEXP get_pedigree_funcs(Rcpp::List data, int const n_nodes, std::string const& link, arma::vec const& omega, arma::vec const& beta, arma::vec const& log_sds, arma::vec const& va_par, double const eps, double const kappa, unsigned const n_threads, std::string const& method);
+RcppExport SEXP _survTMB_get_pedigree_funcs(SEXP dataSEXP, SEXP n_nodesSEXP, SEXP linkSEXP, SEXP omegaSEXP, SEXP betaSEXP, SEXP log_sdsSEXP, SEXP va_parSEXP, SEXP epsSEXP, SEXP kappaSEXP, SEXP n_threadsSEXP, SEXP methodSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::List >::type data(dataSEXP);
+  Rcpp::traits::input_parameter< int const >::type n_nodes(n_nodesSEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type link(linkSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type omega(omegaSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type beta(betaSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type log_sds(log_sdsSEXP);
+  Rcpp::traits::input_parameter< arma::vec const& >::type va_par(va_parSEXP);
+  Rcpp::traits::input_parameter< double const >::type eps(epsSEXP);
+  Rcpp::traits::input_parameter< double const >::type kappa(kappaSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(get_pedigree_funcs(data, n_nodes, link, omega, beta, log_sds, va_par, eps, kappa, n_threads, method));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// psqn_optim_pedigree
+Rcpp::List psqn_optim_pedigree(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2, bool const use_bfgs, int const trace, double const cg_tol, bool const strong_wolfe, std::string const& method);
+RcppExport SEXP _survTMB_psqn_optim_pedigree(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP use_bfgsSEXP, SEXP traceSEXP, SEXP cg_tolSEXP, SEXP strong_wolfeSEXP, SEXP methodSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< double const >::type rel_eps(rel_epsSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type max_it(max_itSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< double const >::type c1(c1SEXP);
+  Rcpp::traits::input_parameter< double const >::type c2(c2SEXP);
+  Rcpp::traits::input_parameter< bool const >::type use_bfgs(use_bfgsSEXP);
+  Rcpp::traits::input_parameter< int const >::type trace(traceSEXP);
+  Rcpp::traits::input_parameter< double const >::type cg_tol(cg_tolSEXP);
+  Rcpp::traits::input_parameter< bool const >::type strong_wolfe(strong_wolfeSEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_optim_pedigree(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// psqn_optim_pedigree_private
+Rcpp::NumericVector psqn_optim_pedigree_private(Rcpp::NumericVector val, SEXP ptr, double const rel_eps, unsigned const max_it, unsigned const n_threads, double const c1, double const c2, std::string const& method);
+RcppExport SEXP _survTMB_psqn_optim_pedigree_private(SEXP valSEXP, SEXP ptrSEXP, SEXP rel_epsSEXP, SEXP max_itSEXP, SEXP n_threadsSEXP, SEXP c1SEXP, SEXP c2SEXP, SEXP methodSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< double const >::type rel_eps(rel_epsSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type max_it(max_itSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< double const >::type c1(c1SEXP);
+  Rcpp::traits::input_parameter< double const >::type c2(c2SEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(psqn_optim_pedigree_private(val, ptr, rel_eps, max_it, n_threads, c1, c2, method));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// eval_psqn_pedigree
+double eval_psqn_pedigree(Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads, std::string const& method);
+RcppExport SEXP _survTMB_eval_psqn_pedigree(SEXP valSEXP, SEXP ptrSEXP, SEXP n_threadsSEXP, SEXP methodSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(eval_psqn_pedigree(val, ptr, n_threads, method));
+  return rcpp_result_gen;
+  END_RCPP
+}
+// grad_psqn_pedigree
+Rcpp::NumericVector grad_psqn_pedigree(Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads, std::string const& method);
+RcppExport SEXP _survTMB_grad_psqn_pedigree(SEXP valSEXP, SEXP ptrSEXP, SEXP n_threadsSEXP, SEXP methodSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::traits::input_parameter< Rcpp::NumericVector >::type val(valSEXP);
+  Rcpp::traits::input_parameter< SEXP >::type ptr(ptrSEXP);
+  Rcpp::traits::input_parameter< unsigned const >::type n_threads(n_threadsSEXP);
+  Rcpp::traits::input_parameter< std::string const& >::type method(methodSEXP);
+  rcpp_result_gen = Rcpp::wrap(grad_psqn_pedigree(val, ptr, n_threads, method));
   return rcpp_result_gen;
   END_RCPP
 }
@@ -403,20 +445,21 @@ static const R_CallMethodDef CallEntries[] = {
   {"_survTMB_gsm_eval_ll", (DL_FUNC) &_survTMB_gsm_eval_ll, 3},
   {"_survTMB_gsm_eval_grad", (DL_FUNC) &_survTMB_gsm_eval_grad, 3},
   {"_survTMB_gsm_eval_hess", (DL_FUNC) &_survTMB_gsm_eval_hess, 3},
-  {"_survTMB_get_pedigree_funcs", (DL_FUNC) &_survTMB_get_pedigree_funcs, 2},
-  {"_survTMB_pedigree_funcs_eval_lb", (DL_FUNC) &_survTMB_pedigree_funcs_eval_lb, 2},
-  {"_survTMB_pedigree_funcs_eval_grad", (DL_FUNC) &_survTMB_pedigree_funcs_eval_grad, 3},
   {"_survTMB_get_orth_poly", (DL_FUNC) &_survTMB_get_orth_poly, 2},
   {"_survTMB_predict_orth_poly", (DL_FUNC) &_survTMB_predict_orth_poly, 3},
   {"_survTMB_fix_atomic_seqfault", (DL_FUNC) &_survTMB_fix_atomic_seqfault, 0},
   {"_survTMB_setup_atomic_cache", (DL_FUNC) &_survTMB_setup_atomic_cache, 3},
-  {"_survTMB_pedigree_get_size", (DL_FUNC) &_survTMB_pedigree_get_size, 1},
   {"_survTMB_set_n_threads", (DL_FUNC) &_survTMB_set_n_threads, 1},
   {"_survTMB_psqn_get_mgsm_funcs", (DL_FUNC) &_survTMB_psqn_get_mgsm_funcs, 11},
   {"_survTMB_psqn_optim_mgsm", (DL_FUNC) &_survTMB_psqn_optim_mgsm, 12},
   {"_survTMB_psqn_optim_mgsm_private", (DL_FUNC) &_survTMB_psqn_optim_mgsm_private, 8},
   {"_survTMB_eval_psqn_mgsm", (DL_FUNC) &_survTMB_eval_psqn_mgsm, 4},
   {"_survTMB_grad_psqn_mgsm", (DL_FUNC) &_survTMB_grad_psqn_mgsm, 4},
+  {"_survTMB_get_pedigree_funcs", (DL_FUNC) &_survTMB_get_pedigree_funcs, 11},
+  {"_survTMB_psqn_optim_pedigree", (DL_FUNC) &_survTMB_psqn_optim_pedigree, 11},
+  {"_survTMB_psqn_optim_pedigree_private", (DL_FUNC) &_survTMB_psqn_optim_pedigree_private, 8},
+  {"_survTMB_eval_psqn_pedigree", (DL_FUNC) &_survTMB_eval_psqn_pedigree, 4},
+  {"_survTMB_grad_psqn_pedigree", (DL_FUNC) &_survTMB_grad_psqn_pedigree, 4},
   {"run_testthat_tests", (DL_FUNC) &run_testthat_tests, 0},
   {NULL, NULL, 0}
 };

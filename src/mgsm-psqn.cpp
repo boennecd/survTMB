@@ -21,6 +21,7 @@ public:
   DATA_MATRIX(XD);
   DATA_MATRIX(Z);
 
+  /** not thread-safe due to the R interaction! */
   psqn_func_data(Rcpp::List data): data(data) {
     data = R_NilValue;
   }
@@ -172,14 +173,13 @@ public:
     //       as it is right now with CppAD but it does yield some overhead
     matrix<Type> const vcov = survTMB::get_vcov_from_trian(theta_ad);
     Type log_det_vcov;
-    matrix<Type> vcov_inv;
-    vcov_inv = atomic::matinvpd(vcov, log_det_vcov);
+    matrix<Type> const vcov_inv = atomic::matinvpd(vcov, log_det_vcov);
 
     Type half_term = atomic::logdet(va_var) -
       quad_form_sym(va_mu, vcov_inv) -
       mat_mult_trace(va_var, vcov_inv) -
       log_det_vcov + Type(rng_dim);
-    term += half_term /= Type(2.);
+    term += half_term / Type(2.);
 
     // we work with the negative lower bound
     term *= -one;
@@ -572,8 +572,6 @@ Rcpp::List psqn_optim_mgsm
      cg_tol, strong_wolfe);
 }
 
-
-
 template <class outT>
 Rcpp::NumericVector psqn_optim_mgsm_private_generic
   (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
@@ -607,8 +605,6 @@ Rcpp::NumericVector psqn_optim_mgsm_private
   return psqn_optim_mgsm_private_generic<gva_psqn_func>
     (val, ptr, rel_eps, max_it, n_threads, c1, c2);
 }
-
-
 
 template<class outT>
 double eval_psqn_mgsm_generic(Rcpp::NumericVector val, SEXP ptr,

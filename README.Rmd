@@ -629,12 +629,12 @@ rev_img <- function(x, ...)
 rev_img(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl, 
         zlim = c(-1, 1))
 library(Matrix)
-as(dat$sim_data[[1L]]$rel_mat[1:8, 1:8], "sparseMatrix")
+as(dat$sim_data[[1L]]$rel_mat, "sparseMatrix")
 
 # secondly there is a maternal effect which correlation matrix is as follows
 rev_img(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
         zlim = c(-1, 1))
-as(dat$sim_data[[1L]]$met_mat[1:8, 1:8], "sparseMatrix")
+as(dat$sim_data[[1L]]$met_mat, "sparseMatrix")
 
 # some summary stats are
 length(c_data)    # number of clusters (families)
@@ -664,23 +664,22 @@ system.time(
   func <- make_pedigree_ADFun(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
     tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
-    dtformula = ~ dsbase_haz(y) - 1,
+    dtformula = ~ dsbase_haz(y) - 1, method = "GVA",
     c_data = c_data, link = "probit", n_threads = 6L))
 
--func$fn(func$par) # lower bound of the log-likelihood
-
-# check memory usage
-# TODO: export the function
-siz <- survTMB:::pedigree_get_size(environment(func$fn)$adfun)
-
-# the amount of work and memory necessary for computing function values 
-# and derivatives using f is roughly proportional to ...
-siz$size_var 
+# optimize with the method in the package
+system.time(
+  psqn_res <- survTMB:::psqn_optim_pedigree(
+    func$par, ptr = environment(func$fn)$adfun,
+    rel_eps = sqrt(.Machine$double.eps), max_it = 1000L, n_threads = 6L,
+    c1 = 1e-4, c2 = .9, trace = 0L, use_bfgs = TRUE, cg_tol = .1,
+    strong_wolfe = TRUE, method = "GVA"))
+-psqn_res$value       # maximum lower bound 
+head(psqn_res$par, 7) # model parameters. See the true values later
 ```
 
 ```{r pedigree_optim, cache = 1}
-# optimize and compare the results with the true parameters. We start by 
-# using a GVA
+# optimize and compare the results with the true parameters
 library(lbfgs)
 
 # quite ad-hock solution to convergence issues
@@ -717,23 +716,19 @@ rbind(
   Estimates = head(opt_out$par, 7),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 
-# check the skew parameters
+# check the variational parameters
 names(opt_out$par) <- names(func$par)
 reg_exp <- "(^g\\d+)(:.+$)"
 va_ests <- opt_out$par[grepl(reg_exp, names(func$par), perl = TRUE)]
 grp <- gsub(reg_exp, "\\1", names(va_ests), perl = TRUE)
 cps <- tapply(va_ests, grp, function(x){
   n <- length(x)
-  n <- .5 * (sqrt(8 * n + 25) - 5)
-  dp_to_cp(xi = head(x, n), 
-           Psi = theta_to_cov(tail(head(x, -n), -n)), 
-           alpha = tail(x, n))
+  n <- .5 * (sqrt(8 * n + 9) - 3)
+  list(mu    = head(x, n), 
+       Sigma = theta_to_cov(tail(x, -n)))
 })
 
-# distribution of skew parameters
-summary(unlist(lapply(cps, `[[`, "gamma")))
-
-# distribution of approximate means
+# distribution of approximate conditional means
 summary(unlist(lapply(cps, `[[`, "mu")))
 
 # example of some of the conditional covariance matrices
@@ -778,17 +773,99 @@ local({
 })
 ```
 
-```{r pedigree_opt_ite, cache = 1}
+We create a "profile lower bound" plot in 2D as a function of the maternal 
+effect parameter and the genetic effect parameter:
+
+```{r create_profile_lb, message = FALSE, cache = 1}
+sigs <- expand.grid(sd1 = sd1 <- seq(.2, 1.5, length.out = 10), 
+                    sd2 = sd2 <- seq(.1, 1  , length.out = 10))
+
+vals <- mapply(function(sd1, sd2){
+  # get the function which is needed to perform the optimization
+  func <- make_pedigree_ADFun(
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, method = "GVA",
+    tformula  = ~  sbase_haz(y) - 1, dtformula = ~ dsbase_haz(y) - 1, 
+    sds = c(sd1, sd2), c_data = c_data, link = "probit", n_threads = 6L)
+  
+  # assign wrapper functions to optimize all but the covariance matrix 
+  # scales
+  par <- func$par
+  do_opt <- !grepl("^log_sd", names(par))
+  library(lbfgs)
+  fn <- function(x, ...){
+    par[do_opt] <- x
+    func$fn(par)
+  }
+  gr <- function(x, ...){
+    par[do_opt] <- x
+    func$gr(par)[do_opt]
+  }
+  
+  # perform the optimization
+  opt_out <- lbfgs(
+    fn, gr, par[do_opt], m = 20, max_iterations = 25000L, 
+    invisible = 1, delta = .Machine$double.eps^(1/3), past = 100L, 
+    linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
+    max_linesearch = 20)
+  
+  # return 
+  lb <- -opt_out$value
+  message(sprintf("Sigma genetic: %6.2f   Sigma maternal: %6.2f   Lower bound %.2f", 
+                  sd1, sd2, lb))
+  c(`lower bound` = lb, sd1 = sd1, sd2 = sd2)
+}, sd1 = sigs$sd1, sd2 = sigs$sd2)
+```
+
+We make a plot of the contours of the "profile lower bound" below 
+($\sigma_1$ is the genetic effect parameter and $\sigma_2$ is the maternal 
+effect parameter):
+
+```{r show_profile_lb}
+par(mar = c(5, 5, 1, 1))
+contour(sd1, sd2, matrix(vals["lower bound", ], length(sd1)), 
+        xlab = expression(sigma[1]), ylab = expression(sigma[2]))
+# add the true values
+points(dat$sds[1], dat$sds[2], pch = 16)
+```
+
+```{r pedigree_opt_ite, cache = 1, echo = FALSE, eval = FALSE}
 # start at the true parameters
 system.time(
   func <- make_pedigree_ADFun(
     formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
-    omega = dat$omega, beta = dat$beta, sds = dat$sds,
+    # omega = dat$omega, beta = dat$beta, sds = dat$sds,
+    sds = exp(c(-.5, -1.5)),
     tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
-    dtformula = ~ dsbase_haz(y) - 1,
+    dtformula = ~ dsbase_haz(y) - 1, method = "GVA",
     c_data = c_data, link = "probit", n_threads = 6L))
 
 -func$fn(func$par) # lower bound of the log-likelihood
+
+par <- func$par
+glob_var <- seq_len(length(dat$omega) + length(dat$beta) + length(dat$sds))
+fn_glob <- function(x){
+  par[glob_var] <- x
+  func$fn(par)
+}
+gr_glob <- function(x){
+  par[glob_var] <- x
+  func$gr(par)[glob_var]
+}
+
+for(i in 1:1000){
+  opt <- optim(par[glob_var], fn_glob, gr_glob, method = "BFGS")
+  cat(sprintf("\n%d\n", i))
+  print(opt$value)
+  print(par[glob_var] <- opt$par)
+  
+  par <- survTMB:::psqn_optim_pedigree_private(
+    val = par, ptr = environment(func$fn)$adfun, 
+    rel_eps = sqrt(.Machine$double.eps), max_it = 1000L, n_threads = 6L, 
+    c1 = 1e-4, c2 = .9, method = "GVA")
+  print(attr(par, "value"))
+}
+
+gr_glob(par[glob_var])
 
 #####
 # recursively update VA and model parameters

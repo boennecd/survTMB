@@ -1,20 +1,24 @@
 #define INCLUDE_RCPP
 #include "get-x.h"
 #include "snva-utils.h"
+#include "gva-utils.h"
+#include "psqn.h"
+#include "psqn-reporter.h"
+#include <vector>
 
 namespace {
-using namespace GaussHermite::SNVA;
+using namespace GaussHermite;
 
-template<class Tout, class T>
-vector<Tout> get_args(vector<T> const &omega, vector<T> const &beta,
-                      vector<T> const &log_sds, vector<T> const &va_par){
+template<class Tout>
+vector<Tout> get_args(arma::vec const &omega, arma::vec const &beta,
+                      arma::vec const &log_sds, arma::vec const &va_par){
   vector<Tout> out(
-      omega.size() + beta.size() + log_sds.size() + va_par.size());
+      omega.n_elem + beta.n_elem + log_sds.n_elem + va_par.n_elem);
   Tout *o = &out[0];
 
-  auto add_to_vec = [&](vector<T> const &x){
-    for(int i = 0; i < x.size(); ++i, ++o)
-      *o = x[i];
+  auto add_to_vec = [&](arma::vec const &x){
+    for(size_t i = 0; i < x.n_elem; ++i, ++o)
+      *o = Tout(x[i]);
   };
   add_to_vec(omega);
   add_to_vec(beta);
@@ -29,7 +33,6 @@ template<class Type>
 struct cluster_data {
   Rcpp::List data;
 
-  const DATA_VECTOR(y);
   const DATA_VECTOR(event);
   const DATA_MATRIX(X);
   const DATA_MATRIX(XD);
@@ -46,379 +49,641 @@ struct cluster_data {
     return out;
   })();
 
-  size_t const n_members = y.size();
+  size_t const n_members = event.size();
 
+  /** not thread-safe because of the R interaction! */
   cluster_data(Rcpp::List data): data(data) {
-    if((size_t)event.size() != n_members)
+    if(static_cast<size_t>(event.size()) != n_members)
       throw std::invalid_argument("cluster_data<Type>: invalid event");
-    else if((size_t)X.cols()  != n_members)
+    else if(static_cast<size_t>(X.cols())  != n_members)
       throw std::invalid_argument("cluster_data<Type>: invalid X");
-    else if((size_t)XD.cols() != n_members)
+    else if(static_cast<size_t>(XD.cols()) != n_members)
       throw std::invalid_argument("cluster_data<Type>: invalid XD");
-    else if((size_t)Z.cols() != n_members)
+    else if(static_cast<size_t>(Z.cols()) != n_members)
       throw std::invalid_argument("cluster_data<Type>: invalid Z");
     for(auto &V : cor_mats)
-      if((size_t)V.rows() != n_members or (size_t)V.cols() != n_members)
+      if(static_cast<size_t>(V.rows()) != n_members or
+           static_cast<size_t>(V.cols()) != n_members)
         throw std::invalid_argument("cluster_data<Type>: invalid cor_mats");
 
-    data = Rcpp::List();
+    data = R_NilValue;
+  }
+
+  void check(int const n_nodes, size_t const n_priv,
+             arma::vec const &omega, arma::vec const &beta,
+             arma::vec const &log_sds, arma::vec const &va_par){
+    if(n_nodes < 1L)
+      throw std::invalid_argument("pedigree_element_func<Type>: invalid n_nodes");
+    else if(static_cast<size_t>(va_par.size()) != n_priv)
+      throw std::invalid_argument("pedigree_element_func<Type>: invalid va_par");
+    if(static_cast<size_t>(X.rows()) != omega.size())
+      throw std::invalid_argument("pedigree_element_func<Type>: invalid c_data (X)");
+    else if(Z.rows() != beta.size())
+      throw std::invalid_argument("pedigree_element_func<Type>: invalid c_data (Z)");
+    else if(static_cast<size_t>(cor_mats.size()) != log_sds.size())
+      throw std::invalid_argument(
+          "pedigree_element_func<Type>: invalid c_data (cor_mats)");
+    else if(static_cast<size_t>(XD.rows()) != omega.size())
+      throw std::invalid_argument("pedigree_element_func<Type>: invalid c_data (XD)");
   }
 };
 
-template<class Type>
-class VA_worker {
-  Rcpp::List data, parameters;
+class pedigree_element_func_gva  {
+  using Type = AD<double>;
+  using vecAD = vector<Type>;
 
-  std::vector<cluster_data<Type> > const c_data = ([&](){
-    Rcpp::List c_data_R = data["c_data"];
-
-    std::vector<cluster_data<Type> > out;
-    out.reserve(c_data_R.size());
-    for(auto x : c_data_R)
-      out.emplace_back(Rcpp::List(x));
-
-    return out;
-  })();
-
-  const DATA_INTEGER(n_threads);
-  const DATA_LOGICAL(sparse_hess);
-  const DATA_INTEGER(n_nodes);
-  const DATA_STRING(link);
-
-  const PARAMETER_VECTOR(omega);
-  const PARAMETER_VECTOR(beta);
-  const PARAMETER_VECTOR(log_sds);
-  const PARAMETER_VECTOR(va_par);
-  const PARAMETER(eps);
-  const PARAMETER(kappa);
+  size_t const n_global,
+               n_members,
+               n_priv;
+  mutable ADFun<double> this_ad_func;
 
 public:
-  size_t const d_o = omega.size(),
-            n_mats = log_sds.size(),
-        n_clusters = c_data.size(),
-             n_obs = ([&]{
-               size_t out(0L);
-               for(auto &x : c_data)
-                 out += x.y.size();
+  /** Notice that va_par is specific to the element function. TODO: maybe
+   *  not a good idea? */
+  pedigree_element_func_gva
+  (Rcpp::List data, int const n_nodes, std::string const &link,
+   arma::vec const &omega, arma::vec const &beta, arma::vec const &log_sds,
+   arma::vec const &va_par, double const eps_in, double const kappa_in):
+  n_global(omega.size() + beta.size() + log_sds.size()),
+  n_members(Rcpp::NumericVector(static_cast<SEXP>(data["event"])).size()),
+  n_priv(n_members + (n_members * (n_members + 1L)) / 2L),
+  this_ad_func(([&](){
+    // setup data objects
+    cluster_data<Type> c_dat(data);
+    Type const eps(eps_in),
+             kappa(kappa_in);
 
-               return out;
-             })(),
-            n_pars = omega.size() + beta.size() + log_sds.size() +
-              va_par.size();
+    auto &event    = c_dat.event;
+    auto &X        = c_dat.X;
+    auto &XD       = c_dat.XD;
+    auto &Z        = c_dat.Z;
+    auto &cor_mats = c_dat.cor_mats;
 
-#ifdef _OPENMP
-  std::size_t const n_blocks = n_threads;
-#else
-  std::size_t const n_blocks = 1L;
-#endif
+    c_dat.check(n_nodes, n_priv, omega, beta, log_sds, va_par);
 
-  VA_worker(Rcpp::List data, Rcpp::List parameters):
-  data(data), parameters(parameters) {
-    /* checks */
+    // record ADFun. First create the concatenated vector of model
+    // parameters. Then do the copy back after having started the recording.
+    vecAD par = get_args<Type>(omega, beta, log_sds, va_par);
+
+    // start recording
+    CppAD::Independent(par);
+
+    // copy back
+    vecAD omega_ad(omega  .n_elem),
+          beta_ad (beta   .n_elem),
+        log_sds_ad(log_sds.n_elem),
+         va_par_ad(va_par .n_elem);
     {
-      size_t expected_va_pars(0L);
-      for(auto &x : c_data)
-        expected_va_pars +=
-          2L * x.n_members + (x.n_members * (x.n_members + 1L)) / 2L;
-
-      if(n_nodes < 1L)
-        throw std::invalid_argument("VA_worker<Type>: invalid n_nodes");
-      else if(n_threads < 1L)
-        throw std::invalid_argument("VA_worker<Type>: invalid n_threads");
-      else if((size_t)va_par.size() != expected_va_pars)
-        throw std::invalid_argument("VA_worker<Type>: invalid va_par");
-      for(auto &x : c_data)
-        if((size_t)x.X.rows() != d_o)
-          throw std::invalid_argument("VA_worker<Type>: invalid c_data (X)");
-        else if(x.Z.rows() != beta.size())
-          throw std::invalid_argument("VA_worker<Type>: invalid c_data (Z)");
-        else if(x.cor_mats.size() != n_mats)
-          throw std::invalid_argument(
-              "VA_worker<Type>: invalid c_data (cor_mats)");
-        else if((size_t)x.XD.rows() != d_o)
-          throw std::invalid_argument("VA_worker<Type>: invalid c_data (XD)");
+      Type *pi = &par[0];
+      auto fill_ad_vec = [&](vector<Type> &x){
+        Type *xi = &x[0];
+        for(int i = 0; i < x.size(); ++i, ++pi, ++xi)
+          *xi = *pi;
+      };
+      fill_ad_vec(omega_ad);
+      fill_ad_vec(beta_ad);
+      fill_ad_vec(log_sds_ad);
+      fill_ad_vec(va_par_ad);
     }
 
-#ifdef _OPENMP
-    omp_set_num_threads(n_threads);
-#endif
+    // constants
+    Type const one(1.),
+               two(2.);
 
-    data = Rcpp::List();
-    parameters = Rcpp::List();
+    vecAD const var_ad = ([&](){
+      vecAD out(log_sds_ad.size());
+      for(int i = 0; i < out.size(); ++i)
+        out[i] = exp(two * log_sds_ad[i]);
+      return out;
+    })();
+
+    // do the computation
+    GVA::ph    <Type>     ph_func(eps, kappa, n_nodes);
+    GVA::po    <Type>     po_func(eps, kappa, n_nodes);
+    GVA::probit<Type> probit_func(eps, kappa, n_nodes);
+
+    vecAD va_mu(n_members);
+    for(size_t i = 0; i < n_members; ++i)
+      va_mu[i] = va_par_ad[i];
+    matrix<Type> const va_var = survTMB::get_vcov_from_trian
+      (&va_par_ad[n_members], n_members);
+    Type term(0);
+
+    // handle terms from the conditional density
+    for(size_t i = 0; i < n_members; ++i){
+      vecAD const x  = X .col(i),
+                  xd = XD.col(i),
+                  z  = Z .col(i);
+
+      Type const &err_var = va_var(i, i),
+                   err_sd = sqrt(err_var),
+                 err_mean = va_mu[i],
+                  eta_fix = vec_dot(omega_ad, x) + vec_dot(beta_ad, z),
+                 etaD_fix = vec_dot(omega_ad, xd);
+
+      if(link == "PH")
+        term += ph_func(
+          eta_fix, etaD_fix, event[i], err_mean, err_sd, err_var);
+      else if(link == "PO")
+        term += po_func(
+          eta_fix, etaD_fix, event[i], err_mean, err_sd, err_var);
+      else if(link == "probit")
+        term += probit_func(
+          eta_fix, etaD_fix, event[i], err_mean, err_sd, err_var);
+      else
+        error("'%s' not implemented", link.c_str());
+    }
+
+    /* add prior and entropy terms */
+    matrix<Type> sigma(n_members, n_members);
+    sigma.setZero();
+    for(int i = 0; i < var_ad.size(); ++i)
+      for(size_t j = 0; j < n_members; ++j)
+        for(size_t k = 0; k < n_members; ++k)
+          sigma(k, j) += var_ad[i] * cor_mats[i](k, j);
+
+    Type log_det_sigma;
+    matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
+
+    term += (
+      atomic::logdet(va_var) - quad_form_sym(va_mu, sigma_inv)
+      - mat_mult_trace(va_var, sigma_inv) - log_det_sigma
+      + Type(n_members)) / two;
+
+    vector<Type> result(1L);
+    result[0] = -term;
+
+    // stop recording and return
+    ADFun<double> func_out;
+    func_out.Dependent(par, result);
+    func_out.optimize();
+    return func_out;
+  })()) { }
+
+  pedigree_element_func_gva(pedigree_element_func_gva&& other):
+  n_global(other.n_global), n_members(other.n_members),
+  n_priv(other.n_priv),
+  this_ad_func(std::move(other.this_ad_func)){ }
+
+  pedigree_element_func_gva(pedigree_element_func_gva const &other):
+  n_global(other.n_global), n_members(other.n_members),
+  n_priv(other.n_priv) {
+    // we may not use the copy constructor but we may use the assignment
+    // constructor
+    this_ad_func = other.this_ad_func;
   }
 
-  template<typename Tout>
-  vector<Tout> get_args() const {
-    return ::get_args<Tout, Type>(omega, beta, log_sds, va_par);
+  size_t global_dim() const {
+    return n_global;
+  }
+  size_t private_dim() const {
+    return n_priv;
   }
 
-  Type operator()(vector<Type> &args) const {
-    /* assign constant */
+  double func(double const *point) const {
+    // copy
+    // TODO: avoid repeated memory allocation?
+    vector<double> par(n_global + n_priv);
+    double *p = &par[0];
+    for(size_t i = 0; i < n_global + n_priv; ++i, ++p, ++point)
+      *p = *point;
+
+    // evaluate
+    return this_ad_func.Forward(0, par)[0];
+  }
+  double grad
+  (double const * __restrict__ point, double * __restrict__ gr) const {
+    // copy
+    // TODO: avoid repeated memory allocation?
+    vector<double> par(n_global + n_priv);
+    double *p = &par[0];
+    for(size_t i = 0; i < n_global + n_priv; ++i, ++p, ++point)
+      *p = *point;
+
+    // evaluate
+    double const out = this_ad_func.Forward(0, par)[0];
+    vector<double> w(1);
+    w[0] = 1;
+
+    vector<double> grad = this_ad_func.Reverse(1, w);
+    for(size_t i = 0; i < n_global + n_priv; ++i, ++gr)
+      *gr = grad[i];
+
+    return out;
+  }
+
+  bool thread_safe() const {
+    return true;
+  }
+};
+
+class pedigree_element_func_snva  {
+  using Type = AD<double>;
+  using vecAD = vector<Type>;
+
+  size_t const n_global,
+               n_members,
+               n_priv;
+  mutable ADFun<double> this_ad_func;
+
+public:
+  /** Notice that va_par is specific to the element function. TODO: maybe
+   *  not a good idea? */
+  pedigree_element_func_snva
+  (Rcpp::List data, int const n_nodes, std::string const &link,
+   arma::vec const &omega, arma::vec const &beta, arma::vec const &log_sds,
+   arma::vec const &va_par, double const eps_in, double const kappa_in):
+  n_global(omega.size() + beta.size() + log_sds.size()),
+  n_members(Rcpp::NumericVector(static_cast<SEXP>(data["event"])).size()),
+  n_priv(2L * n_members + (n_members * (n_members + 1L)) / 2L),
+  this_ad_func(([&](){
+    // setup data objects
+    cluster_data<Type> c_dat(data);
+    Type const eps(eps_in),
+             kappa(kappa_in);
+
+    auto &event    = c_dat.event;
+    auto &X        = c_dat.X;
+    auto &XD       = c_dat.XD;
+    auto &Z        = c_dat.Z;
+    auto &cor_mats = c_dat.cor_mats;
+
+    c_dat.check(n_nodes, n_priv, omega, beta, log_sds, va_par);
+
+    // record ADFun. First create the concatenated vector of model
+    // parameters. Then do the copy back after having started the recording.
+    vecAD par = get_args<Type>(omega, beta, log_sds, va_par);
+
+    // start recording
+    CppAD::Independent(par);
+
+    // copy back
+    vecAD omega_ad(omega  .n_elem),
+          beta_ad (beta   .n_elem),
+        log_sds_ad(log_sds.n_elem),
+         va_par_ad(va_par .n_elem);
+    {
+      Type *pi = &par[0];
+      auto fill_ad_vec = [&](vector<Type> &x){
+        Type *xi = &x[0];
+        for(int i = 0; i < x.size(); ++i, ++pi, ++xi)
+          *xi = *pi;
+      };
+      fill_ad_vec(omega_ad);
+      fill_ad_vec(beta_ad);
+      fill_ad_vec(log_sds_ad);
+      fill_ad_vec(va_par_ad);
+    }
+
+    // constants
     Type const sqrt_2_pi(sqrt(M_2_PI)),
                      one(1.),
                      two(2.),
               type_M_LN2(M_LN2);
 
-    /* assign parameters */
-    if((size_t)args.size() != n_pars)
-      throw std::invalid_argument("VA_worker::operator(): invalid args");
-
-    Type const *a = &args[0];
-    auto set_vec = [&](size_t const n){
-      typename Eigen::Map<const Eigen::Matrix<Type,Eigen::Dynamic,1> >
-        out(a, n);
-      a += n;
+    vector<Type> const var_ad = ([&](){
+      vector<Type> out(log_sds_ad.size());
+      for(int i = 0; i < out.size(); ++i)
+        out[i] = exp(two * log_sds_ad[i]);
       return out;
-    };
+    })();
 
-    auto aomega = set_vec(omega.size()),
-          abeta = set_vec(beta.size()),
-       alog_sds = set_vec(log_sds.size());
+    SNVA::SNVA_MD_input<Type> va_par_trans =
+      SNVA::SNVA_MD_theta_DP_to_DP(
+        va_par_ad.data(), va_par_ad.size(), n_members);
+    matrix<Type> const &lambda = va_par_trans.va_lambdas[0];
+    vecAD const &mu = va_par_trans.va_mus[0],
+               &rho = va_par_trans.va_rhos[0];
+    matrix<Type> const rho_mat = asMatrix(rho, rho.size(), 1L);
 
-    vector<Type> const a_var = ([&](){
-                         vector<Type> out(alog_sds.size());
-                         for(int i = 0; i < out.size(); ++i)
-                           out[i] = exp(two * alog_sds[i]);
-                         return out;
-                         })();
+    // do the computation
+    SNVA::ph    <Type>     ph_func(eps, kappa, n_nodes);
+    SNVA::po    <Type>     po_func(eps, kappa, n_nodes);
+    SNVA::probit<Type> probit_func(eps, kappa, n_nodes);
 
-    /* handle VA pars */
-    std::vector<SNVA_MD_input<Type> > ava_par;
-    ava_par.reserve(c_data.size());
-    for(auto &c_dat : c_data){
-      size_t const n_ele = c_dat.n_members,
-                n_parmas = 2L * n_ele + (n_ele * (n_ele + 1L)) / 2L;
-      ava_par.emplace_back(
-        SNVA_MD_theta_DP_to_DP(a, n_parmas, n_ele));
-      a += n_parmas;
+    vecAD const delta = ([&](){
+      vector<Type> out = atomic::matmul(lambda, rho_mat);
+      Type const denom = sqrt(one + vec_dot(out, rho));
+      out /= denom;
+      return out;
+    })();
+    Type term(0.);
+
+    // handle terms from the conditional density
+    for(size_t i = 0; i < n_members; ++i){
+      vecAD const x  = X .col(i),
+                  xd = XD.col(i),
+                  z  = Z .col(i);
+
+      Type const &sd_sq = lambda(i, i),
+                     sd = sqrt(sd_sq),
+                     &d = delta[i],
+                  rho_i = d / sd_sq / sqrt(one - d * d / sd_sq),
+               d_scaled = sqrt_2_pi * d,
+              dist_mean = mu[i] + d_scaled,
+               dist_var = sd_sq - d_scaled * d_scaled,
+                eta_fix = vec_dot(omega_ad, x) + vec_dot(beta_ad, z),
+               etaD_fix = vec_dot(omega_ad, xd);
+
+      if(link == "PH")
+        term += ph_func(
+          eta_fix, etaD_fix, event[i], mu[i], sd, rho_i, d, sd_sq,
+          dist_mean, dist_var);
+      else if(link == "PO")
+        term += po_func(
+          eta_fix, etaD_fix, event[i], mu[i], sd, rho_i, d, sd_sq,
+          dist_mean, dist_var);
+      else if(link == "probit")
+        term += probit_func(
+          eta_fix, etaD_fix, event[i], mu[i], sd, rho_i, d, sd_sq,
+          dist_mean, dist_var);
+      else
+        error("'%s' not implemented", link.c_str());
     }
 
-    survTMB::accumulator_mock<Type> result;
-    bool const is_in_parallel = CppAD::thread_alloc::in_parallel();
-    ph    <Type>     ph_func(eps, kappa, n_nodes);
-    po    <Type>     po_func(eps, kappa, n_nodes);
-    probit<Type> probit_func(eps, kappa, n_nodes);
-    for(size_t g = 0; g < n_clusters; ++g){
-      if(is_in_parallel and !is_my_region(*result.obj)){
-        result.obj->parallel_region();
-        continue;
-      }
+    /* add prior and entropy terms */
+    matrix<Type> sigma(n_members, n_members);
+    sigma.setZero();
+    for(int i = 0; i < var_ad.size(); ++i)
+      for(size_t j = 0; j < n_members; ++j)
+        for(size_t k = 0; k < n_members; ++k)
+          sigma(k, j) += var_ad[i] * cor_mats[i](k, j);
 
-      /* compute objects needed for the variational distribution */
-      matrix<Type> const &lambda = ava_par[g].va_lambdas[0];
-      vector<Type> const &mu = ava_par[g].va_mus[0],
-                        &rho = ava_par[g].va_rhos[0];
-      matrix<Type> const rho_mat = asMatrix(rho, rho.size(), 1L);
+    Type log_det_sigma;
+    matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
+    Type const entrop_arg = quad_form_sym(rho, lambda);
 
-      vector<Type> const delta = ([&](){
-        vector<Type> out = atomic::matmul(lambda, rho_mat);
-        Type const denom = sqrt(one + vec_dot(out, rho));
-        out /= denom;
-        return out;
-      })();
-
-      /* add terms from each cluster member */
-      Type term(0.);
-      auto const &c_dat = c_data[g];
-      size_t const n_members =  c_dat.n_members;
-      for(size_t i = 0; i < n_members; ++i){
-        vector<Type> const x  = c_dat.X .col(i),
-                           xd = c_dat.XD.col(i),
-                           z  = c_dat.Z .col(i);
-
-        Type const &sd_sq = lambda(i, i),
-                       sd = sqrt(sd_sq),
-                       &d = delta[i],
-                      rho = d / sd_sq / sqrt(one - d * d / sd_sq),
-                 d_scaled = sqrt_2_pi * d,
-                dist_mean = mu[i] + d_scaled,
-                 dist_var = sd_sq - d_scaled * d_scaled,
-                  eta_fix = vec_dot(aomega, x) + vec_dot(abeta, z),
-                 etaD_fix = vec_dot(aomega, xd);
-
-        if(link == "PH")
-          term += ph_func(
-            eta_fix, etaD_fix, c_dat.event[i], mu[i], sd, rho, d, sd_sq,
-            dist_mean, dist_var);
-        else if(link == "PO")
-          term += po_func(
-            eta_fix, etaD_fix, c_dat.event[i], mu[i], sd, rho, d, sd_sq,
-            dist_mean, dist_var);
-        else if(link == "probit")
-          term += probit_func(
-            eta_fix, etaD_fix, c_dat.event[i], mu[i], sd, rho, d, sd_sq,
-            dist_mean, dist_var);
-        else
-          error("'%s' not implemented", link.c_str());
-      }
-
-      /* add prior and entropy terms */
-      matrix<Type> sigma(n_members, n_members);
-      sigma.setZero();
-      for(int i = 0; i < a_var.size(); ++i)
-        for(size_t j = 0; j < n_members; ++j)
-          for(size_t k = 0; k < n_members; ++k)
-            sigma(k, j) += a_var[i] * c_dat.cor_mats[i](k, j);
-
-      Type log_det_sigma;
-      matrix<Type> const sigma_inv = atomic::matinvpd(sigma, log_det_sigma);
-      Type const entrop_arg = quad_form_sym(rho, lambda);
-
-      term += (
-        atomic::logdet(lambda) - quad_form_sym(mu, sigma_inv)
-          - mat_mult_trace(lambda, sigma_inv) - log_det_sigma
-          + Type(n_members)) / two;
+    term += (
+      atomic::logdet(lambda) - quad_form_sym(mu, sigma_inv)
+      - mat_mult_trace(lambda, sigma_inv) - log_det_sigma
+      + Type(n_members)) / two;
       term -= sqrt_2_pi * quad_form(mu, sigma_inv, delta) + type_M_LN2
-        + entropy_term(entrop_arg, n_nodes);
+        + SNVA::entropy_term(entrop_arg, n_nodes);
 
-      result -= term;
-    }
+    vector<Type> result(1L);
+    result[0] = -term;
 
-    return result;
+    // stop recording and return
+    ADFun<double> func_out;
+    func_out.Dependent(par, result);
+    func_out.optimize();
+    return func_out;
+  })()) { }
+
+  pedigree_element_func_snva(pedigree_element_func_snva&& other):
+  n_global(other.n_global), n_members(other.n_members),
+  n_priv(other.n_priv),
+  this_ad_func(std::move(other.this_ad_func)){ }
+
+  pedigree_element_func_snva(pedigree_element_func_snva const &other):
+  n_global(other.n_global), n_members(other.n_members),
+  n_priv(other.n_priv) {
+    // we may not use the copy constructor but we may use the assignment
+    // constructor
+    this_ad_func = other.this_ad_func;
   }
-};
 
-class VA_func {
-  using ADd   = CppAD::AD<double>;
-  using ADdd  = CppAD::AD<ADd>;
-  using ADddd = CppAD::AD<ADdd>;
-  template<class Type>
-  using ADFun = CppAD::ADFun<Type>;
-
-  size_t n_pars;
-
-public:
-  size_t get_n_pars() const {
-    return n_pars;
+  size_t global_dim() const {
+    return n_global;
+  }
+  size_t private_dim() const {
+    return n_priv;
   }
 
-  struct size_out {
-    size_t size_var = 0L,
-           size_par = 0L;
-  };
+  double func(double const *point) const {
+    // copy
+    // TODO: avoid repeated memory allocation?
+    vector<double> par(n_global + n_priv);
+    double *p = &par[0];
+    for(size_t i = 0; i < n_global + n_priv; ++i, ++p, ++point)
+      *p = *point;
 
-  size_out get_size() const {
-    size_out out;
-    for(auto const &f : funcs){
-      out.size_var += f->size_var();
-      out.size_par += f->size_par();
-    }
+    // evaluate
+    return this_ad_func.Forward(0, par)[0];
+  }
+  double grad
+  (double const * __restrict__ point, double * __restrict__ gr) const {
+    // copy
+    // TODO: avoid repeated memory allocation?
+    vector<double> par(n_global + n_priv);
+    double *p = &par[0];
+    for(size_t i = 0; i < n_global + n_priv; ++i, ++p, ++point)
+      *p = *point;
+
+    // evaluate
+    double const out = this_ad_func.Forward(0, par)[0];
+    vector<double> w(1);
+    w[0] = 1;
+
+    vector<double> grad = this_ad_func.Reverse(1, w);
+    for(size_t i = 0; i < n_global + n_priv; ++i, ++gr)
+      *gr = grad[i];
 
     return out;
   }
 
-  std::vector<std::unique_ptr<ADFun<double> > >   funcs;
-
-  VA_func(Rcpp::List data, Rcpp::List parameters){
-    {
-      /* to compute function and gradient */
-      VA_worker<ADd> w(data, parameters);
-      funcs.resize(w.n_blocks);
-      n_pars = w.n_pars;
-      vector<ADd> args = w.get_args<ADd>();
-
-#ifdef _OPENMP
-#pragma omp parallel for if(w.n_blocks > 1L) firstprivate(args)
-#endif
-      for(unsigned i = 0; i < w.n_blocks; ++i){
-        funcs[i].reset(new ADFun<double>());
-
-        CppAD::Independent(args);
-        vector<ADd> y(1);
-        y[0] = w(args);
-
-        funcs[i]->Dependent(args, y);
-        funcs[i]->optimize();
-      }
-    }
+  bool thread_safe() const {
+    return true;
   }
 };
 
+template<class outT> size_t get_n_va(size_t const n_members){
+  return 0L;
+}
+
+template<> size_t get_n_va<pedigree_element_func_snva>
+(size_t const n_members){
+  return 2L * n_members + (n_members * (n_members + 1L)) / 2L;
+}
+
+template<> size_t get_n_va<pedigree_element_func_gva>
+(size_t const n_members){
+  return n_members + (n_members * (n_members + 1L)) / 2L;
+}
 } // namespaces
+
+template <class outT>
+SEXP get_pedigree_funcs_generic
+  (Rcpp::List data, int const n_nodes, std::string const &link,
+   arma::vec const &omega, arma::vec const &beta, arma::vec const &log_sds,
+   arma::vec const &va_par, double const eps, double const kappa,
+   unsigned const n_threads){
+  using ret_T =
+    PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
+  shut_up();
+  setup_parallel_ad setup_ADd(n_threads);
+
+  std::vector<outT> funcs;
+  size_t const n_clusters = data.size();
+  funcs.reserve(n_clusters);
+
+  size_t va_i(0);
+  for(size_t g = 0; g < n_clusters; ++g){
+    Rcpp::List data_g = data[g];
+    size_t const n_members = Rcpp::NumericVector(
+      static_cast<SEXP>(data_g["event"])).size(),
+                 n_va      = get_n_va<outT>(n_members);
+    arma::vec va_par_g(n_va);
+    for(size_t i = 0; i < n_va; ++i, ++va_i)
+      va_par_g[i] = va_par[va_i];
+    funcs.emplace_back(
+      data_g, n_nodes, link, omega, beta, log_sds,
+      va_par_g, eps, kappa);
+  }
+
+  return Rcpp::XPtr<ret_T>(new ret_T(funcs, n_threads));
+}
 
 // [[Rcpp::export(rng = false)]]
 SEXP get_pedigree_funcs
-  (Rcpp::List data, Rcpp::List parameters){
-  shut_up();
+  (Rcpp::List data, int const n_nodes, std::string const &link,
+   arma::vec const &omega, arma::vec const &beta, arma::vec const &log_sds,
+   arma::vec const &va_par, double const eps, double const kappa,
+   unsigned const n_threads, std::string const &method){
+  if(method == "SNVA"){
+    return get_pedigree_funcs_generic<pedigree_element_func_snva>
+    (data, n_nodes, link, omega, beta, log_sds, va_par, eps, kappa,
+     n_threads);
+  } else if(method != "GVA")
+    throw std::invalid_argument("get_pedigree_funcs: unkown method");
 
-  unsigned const n_threads(data["n_threads"]);
-  setup_parallel_ad setup_ADd(n_threads);
-  return Rcpp::XPtr<VA_func>(new VA_func(data, parameters));
+  return get_pedigree_funcs_generic<pedigree_element_func_gva>
+    (data, n_nodes, link, omega, beta, log_sds, va_par, eps, kappa,
+     n_threads);
 }
 
-// [[Rcpp::export(rng = false)]]
-double pedigree_funcs_eval_lb(SEXP p, SEXP par){
-  shut_up();
+template <class outT>
+Rcpp::List psqn_optim_pedigree_generic
+  (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
+   unsigned const max_it, unsigned const n_threads, double const c1,
+   double const c2, bool const use_bfgs, int const trace,
+   double const cg_tol, bool const strong_wolfe){
+  using ret_T =
+    PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
+  Rcpp::XPtr<ret_T> optim(ptr);
 
-  Rcpp::XPtr<VA_func > ptr(p);
-  std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
-  vector<double> parv = get_vec<double>(par);
-  if((size_t)parv.size() != ptr->get_n_pars())
-    throw std::invalid_argument("pedigree_funcs_eval_lb: invalid par");
+  // TODO: check the size
 
-  unsigned const n_blocks = ptr->funcs.size();
-  double out(0);
-#ifdef _OPENMP
-#pragma omp parallel for ordered if(n_blocks > 1L) firstprivate(parv)  schedule(static, 1)
-#endif
-  for(unsigned i = 0; i < n_blocks; ++i){
-    double const term = funcs[i]->Forward(0, parv)[0];
-#ifdef _OPENMP
-    /* TODO: replace with a reduction */
-#pragma omp ordered
-#endif
-    out += term;
-  }
-
-  return out;
-}
-
-// [[Rcpp::export(rng = false)]]
-void pedigree_funcs_eval_grad(SEXP p, SEXP par, Rcpp::NumericVector out){
-  shut_up();
-
-  Rcpp::XPtr<VA_func > ptr(p);
-  std::vector<std::unique_ptr<CppAD::ADFun<double> > > &funcs = ptr->funcs;
-  vector<double> parv = get_vec<double>(par);
-  if((size_t)parv.size() != ptr->get_n_pars())
-    throw std::invalid_argument("pedigree_funcs_eval_grad: invalid par");
-
-  size_t const n_blocks = ptr->funcs.size(),
-                      n = parv.size();
-  if(static_cast<size_t>(out.size()) != n)
-    throw std::invalid_argument("pedigree_funcs_eval_grad: invalid out");
-  for(unsigned i = 0; i < n; ++i)
-    out[i] = 0.;
-
-#ifdef _OPENMP
-#pragma omp parallel for ordered if(n_blocks > 1L) firstprivate(parv) schedule(static, 1)
-#endif
-  for(unsigned i = 0; i < n_blocks; ++i){
-    funcs[i]->Forward(0, parv);
-    vector<double> w(1);
-    w[0] = 1;
-
-    vector<double> grad_i = funcs[i]->Reverse(1, w);
-#ifdef _OPENMP
-    /* TODO: replace with a reduction */
-#pragma omp ordered
-    {
-#endif
-    for(unsigned j = 0; j < n; ++j)
-      out[j] += grad_i[j];
-#ifdef _OPENMP
-    }
-#endif
-  }
-}
-
-// [[Rcpp::export(rng = false)]]
-Rcpp::List pedigree_get_size(SEXP p){
-  Rcpp::XPtr<VA_func > ptr(p);
-
-  auto const out = ptr->get_size();
+  Rcpp::NumericVector par = clone(val);
+  optim->set_n_threads(n_threads);
+  auto res = optim->optim(&par[0], rel_eps, max_it, c1, c2,
+                          use_bfgs, trace, cg_tol, strong_wolfe);
+  Rcpp::NumericVector counts = Rcpp::NumericVector::create(
+    res.n_eval, res.n_grad,  res.n_cg);
+  counts.names() = Rcpp::CharacterVector::create
+    ("function", "gradient", "n_cg");
 
   return Rcpp::List::create(
-    Rcpp::Named("size_var") = out.size_var,
-    Rcpp::Named("size_par") = out.size_par);
+    Rcpp::_["par"] = par, Rcpp::_["value"] = res.value,
+    Rcpp::_["info"] = static_cast<int>(res.info),
+    Rcpp::_["counts"] = counts,
+    Rcpp::_["convergence"] = res.info == PSQN::info_code::converged);
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::List psqn_optim_pedigree
+  (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
+   unsigned const max_it, unsigned const n_threads, double const c1,
+   double const c2, bool const use_bfgs, int const trace,
+   double const cg_tol, bool const strong_wolfe, std::string const &method){
+  if(method == "SNVA"){
+    return psqn_optim_pedigree_generic<pedigree_element_func_snva>
+    (val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol,
+     strong_wolfe);
+  } else if(method != "GVA")
+    throw std::invalid_argument("psqn_optim_pedigree: unkown method");
+
+  return psqn_optim_pedigree_generic<pedigree_element_func_gva>
+    (val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol,
+     strong_wolfe);
+}
+
+template <class outT>
+Rcpp::NumericVector psqn_optim_pedigree_private_generic
+  (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
+   unsigned const max_it, unsigned const n_threads, double const c1,
+   double const c2){
+  using ret_T =
+    PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
+  Rcpp::XPtr<ret_T> optim(ptr);
+
+  // TODO: check the size
+
+  Rcpp::NumericVector par = clone(val);
+  optim->set_n_threads(n_threads);
+  double const res = optim->optim_priv(&par[0], rel_eps, max_it, c1, c2);
+  par.attr("value") = res;
+  return par;
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::NumericVector psqn_optim_pedigree_private
+  (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
+   unsigned const max_it, unsigned const n_threads, double const c1,
+   double const c2, std::string const &method){
+  if(method == "SNVA"){
+    return psqn_optim_pedigree_private_generic<pedigree_element_func_snva>
+    (val, ptr, rel_eps, max_it, n_threads, c1, c2);
+  } else if(method != "GVA")
+    throw std::invalid_argument("psqn_optim_pedigree_private: unkown method");
+
+  return psqn_optim_pedigree_private_generic<pedigree_element_func_gva>
+    (val, ptr, rel_eps, max_it, n_threads, c1, c2);
+}
+
+template <class outT>
+double eval_psqn_pedigree_generic
+  (Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads){
+  using ret_T =
+    PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
+  Rcpp::XPtr<ret_T> optim(ptr);
+
+  // TODO: check the size
+
+  optim->set_n_threads(n_threads);
+  return optim->eval(&val[0], nullptr, false);
+}
+
+// [[Rcpp::export(rng = false)]]
+double eval_psqn_pedigree(Rcpp::NumericVector val, SEXP ptr,
+                          unsigned const n_threads,
+                          std::string const &method){
+  if(method == "SNVA"){
+    return eval_psqn_pedigree_generic<pedigree_element_func_snva>
+    (val, ptr, n_threads);
+  } else if(method != "GVA")
+    throw std::invalid_argument("eval_psqn_pedigree: unkown method");
+
+  return eval_psqn_pedigree_generic<pedigree_element_func_gva>
+    (val, ptr, n_threads);
+}
+
+template <class outT>
+Rcpp::NumericVector grad_psqn_pedigree_generic
+  (Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads){
+  using ret_T =
+    PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
+  Rcpp::XPtr<ret_T> optim(ptr);
+
+  // TODO: check the size
+
+  Rcpp::NumericVector grad(val.size());
+  optim->set_n_threads(n_threads);
+  grad.attr("value") = optim->eval(&val[0], &grad[0], true);
+
+  return grad;
+}
+
+// [[Rcpp::export(rng = false)]]
+Rcpp::NumericVector grad_psqn_pedigree
+  (Rcpp::NumericVector val, SEXP ptr, unsigned const n_threads,
+   std::string const &method){
+  if(method == "SNVA"){
+    return grad_psqn_pedigree_generic<pedigree_element_func_snva>
+    (val, ptr, n_threads);
+  } else if(method != "GVA")
+    throw std::invalid_argument("grad_psqn_pedigree: unkown method");
+
+  return grad_psqn_pedigree_generic<pedigree_element_func_gva>
+    (val, ptr, n_threads);
 }

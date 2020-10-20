@@ -20,7 +20,8 @@ make_pedigree_ADFun(
   sds = NULL,
   trace = FALSE,
   kappa = .MGSM_default_kappa,
-  dtformula = NULL
+  dtformula = NULL,
+  method = c("SNVA", "GVA")
 )
 }
 \arguments{
@@ -72,6 +73,8 @@ ensuring the monotonicity of the survival curve.}
 
 \item{dtformula}{\code{\link{formula}} with the derivative of the
 baseline survival function.}
+
+\item{method}{character vector indicating which approximation to use.}
 }
 \description{
 Construct Objective Functions with Derivatives for a Mixed Generalized
