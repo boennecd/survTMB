@@ -15,7 +15,9 @@ optim_mgsm_psqn(
   use_bfgs = TRUE,
   cg_tol = 0.2,
   strong_wolfe = TRUE,
-  trace = 0L
+  trace = 0L,
+  max_cg = NULL,
+  pre_method = 1L
 )
 }
 \arguments{
@@ -30,8 +32,7 @@ default value is used if this is \code{NULL}.}
 
 \item{n_threads}{number of threads to use.}
 
-\item{c1, c2, use_bfgs, cg_tol, strong_wolfe, trace}{arguments passed to
-\code{\link{psqn}}.}
+\item{c1, c2, use_bfgs, cg_tol, strong_wolfe, trace, max_cg, pre_method}{arguments passed to the C++ version of \code{\link{psqn}}.}
 }
 \description{
 Optimize mgsm Object Using the psqn Method

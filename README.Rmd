@@ -584,15 +584,15 @@ gc()
 <!--   \right) -->
 <!-- \end{align*}$$ -->
 
-The package contains an implementation of models which can used to estimate 
-heritability using pedigree data. These are GSMs of the following form 
+The package contains an implementation of models which can be used to estimate 
+heritability using pedigree data. These are mixed GSMs of the following form 
 
 $$\begin{align*} g(S(t\mid \vec x_{ij}, \epsilon_{ij})) &=   \vec\omega^\top\vec f(t) + \vec\beta^\top\vec x_{ij} +\epsilon_{ij} \\\vec\epsilon_i &= (\epsilon_{i1}, \dots, \epsilon_{in_i})^\top \sim   N^{(n_i)}\left(\vec 0, \sum_{l = 1}^K\sigma_l^2 C_{il}  \right)\end{align*}$$
 
 where $g$ is a given link function, $\vec f$ is a given function, the 
 $\epsilon_{ij}$s are individual specific random effects, and the $K$ 
 $C_{il}$ matrices are known. Various types of $C_{il}$ matrices can be used. 
-A typical example is to use a kinship matrix to estimate genetic effect 
+A typical example is to use a kinship matrix to estimate genetic effects.
 Other examples are to include 
 maternal effects, paternal effects, shared environment etc. 
 
@@ -610,7 +610,7 @@ dat <- readRDS(file.path("inst", "test-data", "pedigree.RDS"))
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
   data <- data.frame(Z = x$Z, y = x$y, event = x$event)
-  cor_mats <- list(x$rel_mat, x$met_mat)
+  cor_mats <- list(x$rel_mat)
   list(data = data, cor_mats = cor_mats)
 })
 
@@ -618,10 +618,9 @@ c_data <- lapply(dat$sim_data, function(x){
 # family for the first family is shown here
 library(kinship2)
 plot(dat$sim_data[[1L]]$pedAll)
-
-# we only have the "last row" (youngest generation). There are two effects 
-# like in Mahjani et al. (2020). See table S17 in supplemental information. 
-# The first is a genetic effects which correlation matrix is as follows
+# we only have the "last row" (youngest generation). There are is a gemetic
+# effect like in Mahjani et al. (2020). See table S17 in supplemental 
+# information. 
 par(mar = c(2, 2, 1, 1))
 cl <- colorRampPalette(c("Red", "White", "Blue"))(101)
 rev_img <- function(x, ...)
@@ -631,11 +630,7 @@ rev_img(dat$sim_data[[1L]]$rel_mat, xaxt = "n", yaxt = "n", col = cl,
 library(Matrix)
 as(dat$sim_data[[1L]]$rel_mat, "sparseMatrix")
 
-# secondly there is a maternal effect which correlation matrix is as follows
-rev_img(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
-        zlim = c(-1, 1))
-as(dat$sim_data[[1L]]$met_mat, "sparseMatrix")
-
+#####
 # some summary stats are
 length(c_data)    # number of clusters (families)
 
@@ -652,7 +647,7 @@ sum(sapply(c_data, function(x) sum(x$data$event)))
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
   x <- log(x)
-  cbind(x^3, x^2, x)
+  cbind(cubed = x^3, squared = x^2, x = x)
 }
 dsbase_haz <- function(x){
   y <- log(x)
@@ -662,20 +657,18 @@ dsbase_haz <- function(x){
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
-    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
-    dtformula = ~ dsbase_haz(y) - 1, method = "GVA",
-    c_data = c_data, link = "probit", n_threads = 6L))
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, skew_start = -.001,
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, n_nodes = 15L,
+    dtformula = ~ dsbase_haz(y) - 1, method = "SNVA",
+    c_data = c_data, link = "probit", n_threads = 6L, 
+    args_gva_opt = list(max_cg = 100L, c2 = .01)))
 
 # optimize with the method in the package
-system.time(
-  psqn_res <- survTMB:::psqn_optim_pedigree(
-    func$par, ptr = environment(func$fn)$adfun,
-    rel_eps = sqrt(.Machine$double.eps), max_it = 1000L, n_threads = 6L,
-    c1 = 1e-4, c2 = .9, trace = 0L, use_bfgs = TRUE, cg_tol = .1,
-    strong_wolfe = TRUE, method = "GVA"))
--psqn_res$value       # maximum lower bound 
-head(psqn_res$par, 7) # model parameters. See the true values later
+system.time(psqn_res <- optim_pedigree_psqn(
+  func, max_cg = 200L, rel_eps = .Machine$double.eps^(4/7), 
+  c2 = .01, cg_tol = .1))
+-psqn_res$value # maximum lower bound 
+psqn_res$params # model parameters. See the true values later
 ```
 
 ```{r pedigree_optim, cache = 1}
@@ -701,7 +694,7 @@ fn_wrapper <- function(par, ..., do_print = FALSE){
 system.time(
   opt_out <- lbfgs(
     fn_wrapper, func$gr, func$par, m = 20, max_iterations = 25000L, 
-    invisible = 1, delta = .Machine$double.eps^(1/3), past = 100L, 
+    invisible = 1, delta = .Machine$double.eps^(4/7), past = 100L, 
     linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
     max_linesearch = 20))
 ```
@@ -712,10 +705,13 @@ We show the estimates below and compare them with the true values.
 -opt_out$value # lower bound on the marginal log-likelihood in the end
 
 rbind(
-  `Starting values` = head(func$par, 7), 
-  Estimates = head(opt_out$par, 7),
+  `Starting values` = head(func$par, 6), 
+  `Estimates lbfgs` = head(opt_out$par, 6),
+  `Estimates psqn ` = head(psqn_res$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
+```
 
+```{illustrate_pedigree_v_params_est, eval = FALSE, echo = FALSE}
 # check the variational parameters
 names(opt_out$par) <- names(func$par)
 reg_exp <- "(^g\\d+)(:.+$)"
@@ -773,19 +769,19 @@ local({
 })
 ```
 
-We create a "profile lower bound" plot in 2D as a function of the maternal 
-effect parameter and the genetic effect parameter:
+We create a "profile lower bound" plot as a function of the 
+the genetic effect parameter:
 
 ```{r create_profile_lb, message = FALSE, cache = 1}
-sigs <- expand.grid(sd1 = sd1 <- seq(.2, 1.5, length.out = 10), 
-                    sd2 = sd2 <- seq(.1, 1  , length.out = 10))
+sds <- seq(.2, 1.5, length.out = 20)
 
-vals <- mapply(function(sd1, sd2){
+vals <- mapply(function(sd1){
   # get the function which is needed to perform the optimization
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, method = "GVA",
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, method = "SNVA",
     tformula  = ~  sbase_haz(y) - 1, dtformula = ~ dsbase_haz(y) - 1, 
-    sds = c(sd1, sd2), c_data = c_data, link = "probit", n_threads = 6L)
+    sds = sd1, c_data = c_data, link = "probit", n_threads = 6L, 
+    args_gva_opt = list(max_cg = 100L, c2 = .1, max_it = 1L))
   
   # assign wrapper functions to optimize all but the covariance matrix 
   # scales
@@ -810,22 +806,21 @@ vals <- mapply(function(sd1, sd2){
   
   # return 
   lb <- -opt_out$value
-  message(sprintf("Sigma genetic: %6.2f   Sigma maternal: %6.2f   Lower bound %.2f", 
-                  sd1, sd2, lb))
-  c(`lower bound` = lb, sd1 = sd1, sd2 = sd2)
-}, sd1 = sigs$sd1, sd2 = sigs$sd2)
+  message(sprintf("Sigma genetic: %6.2f   Lower bound %.2f", 
+                  sd1, lb))
+  c(`lower bound` = lb, sd1 = sd1)
+}, sd1 = sds)
 ```
 
-We make a plot of the contours of the "profile lower bound" below 
-($\sigma_1$ is the genetic effect parameter and $\sigma_2$ is the maternal 
-effect parameter):
+We make a plot of the "profile lower bound" below 
+as a function the genetic effect parameter:
 
 ```{r show_profile_lb}
 par(mar = c(5, 5, 1, 1))
-contour(sd1, sd2, matrix(vals["lower bound", ], length(sd1)), 
-        xlab = expression(sigma[1]), ylab = expression(sigma[2]))
-# add the true values
-points(dat$sds[1], dat$sds[2], pch = 16)
+plot(sds, vals["lower bound", ], type = "p", pch = 16, 
+     xlab = expression(sigma[1]), ylab = "Lower bound")
+lines(smooth.spline(sds, vals["lower bound", ]))
+abline(v = dat$sds[1])
 ```
 
 ```{r pedigree_opt_ite, cache = 1, echo = FALSE, eval = FALSE}

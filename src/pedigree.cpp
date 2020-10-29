@@ -557,7 +557,8 @@ Rcpp::List psqn_optim_pedigree_generic
   (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
    unsigned const max_it, unsigned const n_threads, double const c1,
    double const c2, bool const use_bfgs, int const trace,
-   double const cg_tol, bool const strong_wolfe){
+   double const cg_tol, bool const strong_wolfe, size_t const max_cg,
+   int const pre_method){
   using ret_T =
     PSQN::optimizer<outT, PSQN::R_reporter, PSQN::R_interrupter>;
   Rcpp::XPtr<ret_T> optim(ptr);
@@ -567,7 +568,8 @@ Rcpp::List psqn_optim_pedigree_generic
   Rcpp::NumericVector par = clone(val);
   optim->set_n_threads(n_threads);
   auto res = optim->optim(&par[0], rel_eps, max_it, c1, c2,
-                          use_bfgs, trace, cg_tol, strong_wolfe);
+                          use_bfgs, trace, cg_tol, strong_wolfe, max_cg,
+                          static_cast<PSQN::precondition>(pre_method));
   Rcpp::NumericVector counts = Rcpp::NumericVector::create(
     res.n_eval, res.n_grad,  res.n_cg);
   counts.names() = Rcpp::CharacterVector::create
@@ -585,17 +587,18 @@ Rcpp::List psqn_optim_pedigree
   (Rcpp::NumericVector val, SEXP ptr, double const rel_eps,
    unsigned const max_it, unsigned const n_threads, double const c1,
    double const c2, bool const use_bfgs, int const trace,
-   double const cg_tol, bool const strong_wolfe, std::string const &method){
+   double const cg_tol, bool const strong_wolfe, std::string const &method,
+   size_t const max_cg, int const pre_method){
   if(method == "SNVA"){
     return psqn_optim_pedigree_generic<pedigree_element_func_snva>
     (val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol,
-     strong_wolfe);
+     strong_wolfe, max_cg, pre_method);
   } else if(method != "GVA")
     throw std::invalid_argument("psqn_optim_pedigree: unkown method");
 
   return psqn_optim_pedigree_generic<pedigree_element_func_gva>
     (val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol,
-     strong_wolfe);
+     strong_wolfe, max_cg, pre_method);
 }
 
 template <class outT>

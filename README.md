@@ -237,14 +237,14 @@ microbenchmark(
   `Invert dense Hessian (alternative)`  = alte_vcov(dense_hess), 
   `Invert sparse Hessian (alternative)` = alte_vcov(sparse_hess),
   times = 10)
-#> Unit: milliseconds
+#> Unit: microseconds
 #>                                 expr    min     lq   mean median     uq    max
-#>                Compute dense Hessian 323.79 324.55 327.79 328.27 330.75 332.25
-#>               Compute sparse Hessian  19.30  19.47  19.66  19.66  19.86  19.98
-#>         Invert dense Hessian (naive)   5.14   5.29   5.40   5.38   5.44   5.67
-#>        Invert sparse Hessian (naive)   1.04   1.11   1.19   1.17   1.30   1.33
-#>   Invert dense Hessian (alternative)   1.31   1.36   1.39   1.38   1.40   1.52
-#>  Invert sparse Hessian (alternative)   2.72   2.85   3.01   3.01   3.16   3.41
+#>                Compute dense Hessian 322756 326220 326443 326681 327234 328511
+#>               Compute sparse Hessian  19787  19850  20169  20090  20293  21225
+#>         Invert dense Hessian (naive)   5270   5294   5372   5335   5416   5689
+#>        Invert sparse Hessian (naive)    999   1022   1141   1116   1277   1353
+#>   Invert dense Hessian (alternative)   1308   1342   1382   1349   1479   1493
+#>  Invert sparse Hessian (alternative)   2743   2755   2996   2978   3184   3240
 #>  neval
 #>     10
 #>     10
@@ -269,10 +269,10 @@ microbenchmark(
                                   sparse_hess = TRUE), 
   times = 10)
 #> Unit: milliseconds
-#>               expr   min    lq  mean median    uq   max neval
-#>  W/o Hessians       28.8  29.0  29.7   29.3  29.6  33.3    10
-#>  W/ dense Hessian   79.7  81.7  84.6   83.4  89.1  90.6    10
-#>  W/ sparse Hessian 683.8 692.6 697.8  697.9 704.3 710.7    10
+#>               expr   min    lq  mean median    uq max neval
+#>  W/o Hessians       28.7  29.4  41.7   32.1  33.9 133    10
+#>  W/ dense Hessian   79.9  80.8  85.0   82.0  85.6 100    10
+#>  W/ sparse Hessian 668.9 673.3 685.8  681.5 699.1 707    10
 ```
 
 ### Approximation of the Conditional Distribution
@@ -692,29 +692,29 @@ for(mth in c("Laplace", "GVA")){
 #> ---------------
 #> Unit: milliseconds
 #>         expr  min   lq mean median   uq  max neval
-#>  PH           900  900  904    901  908  909     5
-#>  PH     (2L)  574  577  587    582  597  606     5
-#>  PH     (4L)  422  426  435    430  440  459     5
-#>  PO          1514 1514 1529   1515 1519 1584     5
-#>  PO     (2L)  943  946  955    955  957  975     5
-#>  PO     (4L)  680  684  697    688  707  726     5
-#>  probit      2367 2368 2396   2408 2416 2423     5
-#>  probit (2L)  984  986  993    996  998  998     5
-#>  probit (4L) 1093 1094 1102   1099 1106 1118     5
+#>  PH           912  917  922    921  922  938     5
+#>  PH     (2L)  585  590  596    594  595  618     5
+#>  PH     (4L)  438  439  461    442  452  535     5
+#>  PO          1512 1521 1522   1523 1528 1528     5
+#>  PO     (2L)  952  958  961    963  963  967     5
+#>  PO     (4L)  688  702  708    706  710  735     5
+#>  probit      2366 2374 2378   2376 2382 2391     5
+#>  probit (2L)  982  993 1014    993 1049 1055     5
+#>  probit (4L) 1104 1119 1132   1123 1154 1159     5
 #> 
 #> Method: GVA
 #> -----------
 #> Unit: milliseconds
-#>         expr   min    lq  mean median    uq   max neval
-#>  PH          185.3 185.6 187.3  186.0 188.3 191.1     5
-#>  PH     (2L) 119.7 120.0 121.5  121.4 122.0 124.5     5
-#>  PH     (4L)  88.6  88.7  89.9   89.2  90.2  92.7     5
-#>  PO          578.7 579.2 579.9  579.8 580.0 581.8     5
-#>  PO     (2L) 340.9 341.1 342.6  342.3 342.8 345.8     5
-#>  PO     (4L) 229.4 229.7 230.9  230.0 230.6 235.0     5
-#>  probit      717.2 718.0 719.9  719.6 721.6 722.9     5
-#>  probit (2L) 421.1 422.1 424.5  423.7 425.4 430.0     5
-#>  probit (4L) 282.8 285.3 285.9  285.5 287.8 288.0     5
+#>         expr   min  lq mean median    uq   max neval
+#>  PH          191.0 191  194    194 196.7 198.1     5
+#>  PH     (2L) 120.2 120  122    122 123.1 123.7     5
+#>  PH     (4L)  91.1  92   93     92  94.5  95.5     5
+#>  PO          575.9 578  581    583 582.8 586.7     5
+#>  PO     (2L) 340.9 345  347    346 351.6 351.9     5
+#>  PO     (4L) 234.4 235  239    238 241.8 243.2     5
+#>  probit      718.7 722  727    729 730.8 733.0     5
+#>  probit (2L) 424.9 426  428    427 429.4 430.3     5
+#>  probit (4L) 291.2 291  294    293 294.4 299.3     5
 ```
 
 ``` r
@@ -742,29 +742,29 @@ for(param_type in c("DP", "CP_trans")){
 #> -----------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          214 217  217    218 218 221     5
-#>  PH     (2L) 138 140  142    141 145 146     5
-#>  PH     (4L) 106 107  109    108 111 112     5
-#>  PO          733 735  736    735 737 741     5
-#>  PO     (2L) 431 446  444    447 447 449     5
-#>  PO     (4L) 296 298  319    301 306 394     5
-#>  probit      908 911  913    914 914 919     5
-#>  probit (2L) 533 533  538    534 537 554     5
-#>  probit (4L) 359 359  362    361 365 368     5
+#>  PH          221 223  224    224 226 226     5
+#>  PH     (2L) 140 141  143    141 145 146     5
+#>  PH     (4L) 108 109  128    109 114 200     5
+#>  PO          748 751  752    751 752 756     5
+#>  PO     (2L) 438 442  445    446 448 452     5
+#>  PO     (4L) 304 304  324    307 310 396     5
+#>  probit      921 927  928    928 930 932     5
+#>  probit (2L) 536 538  541    540 543 546     5
+#>  probit (4L) 362 372  371    372 373 376     5
 #> 
 #> Method: SNVA (CP_trans)
 #> -----------------------
 #> Unit: milliseconds
 #>         expr min  lq mean median  uq max neval
-#>  PH          285 285  288    289 289 292     5
-#>  PH     (2L) 182 184  186    185 189 190     5
-#>  PH     (4L) 135 135  138    138 142 143     5
-#>  PO          738 742  749    743 747 774     5
-#>  PO     (2L) 437 441  446    448 449 454     5
-#>  PO     (4L) 296 298  300    300 302 305     5
-#>  probit      918 919  920    921 921 922     5
-#>  probit (2L) 535 542  544    545 545 551     5
-#>  probit (4L) 362 363  365    366 368 368     5
+#>  PH          288 288  290    290 293 294     5
+#>  PH     (2L) 178 178  180    181 181 184     5
+#>  PH     (4L) 134 135  138    137 140 144     5
+#>  PO          739 740  742    741 744 745     5
+#>  PO     (2L) 438 439  443    441 443 453     5
+#>  PO     (4L) 299 299  303    303 303 312     5
+#>  probit      920 921  922    922 922 925     5
+#>  probit (2L) 535 536  537    537 540 540     5
+#>  probit (4L) 365 365  368    367 368 375     5
 ```
 
 ### Using the psqn Interface
@@ -792,9 +792,9 @@ psqn_opt_gva  <- optim_mgsm_psqn(psqn_obj_gva)
 
 # check that the function value is the same
 all.equal(psqn_opt_snva$value, snva_fit$fit$optim$value)
-#> [1] "Mean relative difference: 8.27e-07"
+#> [1] "Mean relative difference: 1.1e-06"
 all.equal(psqn_opt_gva $value, gva_fit $fit$optim$value)
-#> [1] "Mean relative difference: 4.65e-07"
+#> [1] "Mean relative difference: 1.1e-06"
 ```
 
 It is not very attractive to use the optimization method from the psqn
@@ -818,8 +818,8 @@ microbenchmark(
   }, times = 5)
 #> Unit: milliseconds
 #>               expr min  lq mean median  uq max neval
-#>  Using psqn (SNVA) 656 657  658    657 659 663     5
-#>  Using psqn (GVA)  181 181  183    182 182 187     5
+#>  Using psqn (SNVA) 262 265  266    265 268 271     5
+#>  Using psqn (GVA)  177 177  178    177 178 181     5
 ```
 
 However, the optimization method from the psqn package may be more
@@ -1254,8 +1254,8 @@ skewness.
 
 <!-- \end{align*}$$ -->
 
-The package contains an implementation of models which can used to
-estimate heritability using pedigree data. These are GSMs of the
+The package contains an implementation of models which can be used to
+estimate heritability using pedigree data. These are mixed GSMs of the
 following form
 
   
@@ -1277,8 +1277,8 @@ function, ![\\vec f](https://latex.codecogs.com/svg.latex?%5Cvec%20f
 matrices are known. Various types of
 ![C\_{il}](https://latex.codecogs.com/svg.latex?C_%7Bil%7D "C_{il}")
 matrices can be used. A typical example is to use a kinship matrix to
-estimate genetic effect Other examples are to include maternal effects,
-paternal effects, shared environment etc.
+estimate genetic effects. Other examples are to include maternal
+effects, paternal effects, shared environment etc.
 
 As an example, we will use the `pedigree.RDS` in the
 [inst/test-data](inst/test-data) directory.
@@ -1295,7 +1295,7 @@ dat <- readRDS(file.path("inst", "test-data", "pedigree.RDS"))
 # prepare the cluster data
 c_data <- lapply(dat$sim_data, function(x){
   data <- data.frame(Z = x$Z, y = x$y, event = x$event)
-  cor_mats <- list(x$rel_mat, x$met_mat)
+  cor_mats <- list(x$rel_mat)
   list(data = data, cor_mats = cor_mats)
 })
 
@@ -1308,10 +1308,9 @@ plot(dat$sim_data[[1L]]$pedAll)
 <img src="man/figures/README-pedigree_example-1.png" width="100%" />
 
 ``` r
-
-# we only have the "last row" (youngest generation). There are two effects 
-# like in Mahjani et al. (2020). See table S17 in supplemental information. 
-# The first is a genetic effects which correlation matrix is as follows
+# we only have the "last row" (youngest generation). There are is a gemetic
+# effect like in Mahjani et al. (2020). See table S17 in supplemental 
+# information. 
 par(mar = c(2, 2, 1, 1))
 cl <- colorRampPalette(c("Red", "White", "Blue"))(101)
 rev_img <- function(x, ...)
@@ -1337,27 +1336,7 @@ as(dat$sim_data[[1L]]$rel_mat, "sparseMatrix")
 #> 26 0.125 0.125 0.125 .     .     0.500 0.500 1.000 0.500
 #> 27 0.125 0.125 0.125 .     .     0.500 0.500 0.500 1.000
 
-# secondly there is a maternal effect which correlation matrix is as follows
-rev_img(dat$sim_data[[1L]]$met_mat, xaxt = "n", yaxt = "n", col = cl, 
-        zlim = c(-1, 1))
-```
-
-<img src="man/figures/README-pedigree_example-3.png" width="100%" />
-
-``` r
-as(dat$sim_data[[1L]]$met_mat, "sparseMatrix")
-#> 9 x 9 sparse Matrix of class "dgCMatrix"
-#>     11  12  13  18  19 24 25 26 27
-#> 11 1.0 1.0 1.0 0.5 0.5  .  .  .  .
-#> 12 1.0 1.0 1.0 0.5 0.5  .  .  .  .
-#> 13 1.0 1.0 1.0 0.5 0.5  .  .  .  .
-#> 18 0.5 0.5 0.5 1.0 1.0  .  .  .  .
-#> 19 0.5 0.5 0.5 1.0 1.0  .  .  .  .
-#> 24 .   .   .   .   .    1  1  1  1
-#> 25 .   .   .   .   .    1  1  1  1
-#> 26 .   .   .   .   .    1  1  1  1
-#> 27 .   .   .   .   .    1  1  1  1
-
+#####
 # some summary stats are
 length(c_data)    # number of clusters (families)
 #> [1] 1000
@@ -1375,12 +1354,12 @@ sum(obs_in_cl)
 
 # number of observed events
 sum(sapply(c_data, function(x) sum(x$data$event)))
-#> [1] 2212
+#> [1] 693
 
 # use a third order polynomial as in the true model
 sbase_haz <- function(x){
   x <- log(x)
-  cbind(x^3, x^2, x)
+  cbind(cubed = x^3, squared = x^2, x = x)
 }
 dsbase_haz <- function(x){
   y <- log(x)
@@ -1390,34 +1369,37 @@ dsbase_haz <- function(x){
 # create ADFun
 system.time(
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, 
-    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, 
-    dtformula = ~ dsbase_haz(y) - 1, method = "GVA",
-    c_data = c_data, link = "probit", n_threads = 6L))
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, skew_start = -.001,
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE, n_nodes = 15L,
+    dtformula = ~ dsbase_haz(y) - 1, method = "SNVA",
+    c_data = c_data, link = "probit", n_threads = 6L, 
+    args_gva_opt = list(max_cg = 100L, c2 = .01)))
 #> Finding starting values for the fixed effects...
-#> Maximum log-likelihood without random effects is: -5839.172
-#> Creating ADFun...
-#> Finding starting values for the variational parameters...
-#> The lower bound at the starting values is: -5803.582
+#> Maximum log-likelihood without random effects is: -3166.694
+#> Creating ADFun for the GVA...
+#> Finding starting values for the variational parameters in the GVA...
+#> The lower bound at the starting values with the GVA is: -3170.881
+#> Optimizing the GVA to get starting values...
+#> Maximum lower bound with the GVA is -3139.17...
+#> Creating ADFun for the SNVA...
+#> Finding starting values for the variational parameters in the SNVA...
+#> The lower bound at the starting values for the SNVA is: -3138.159
 #>    user  system elapsed 
-#>   2.406   0.036   1.892
+#>  70.954   0.024  13.592
 
 # optimize with the method in the package
-system.time(
-  psqn_res <- survTMB:::psqn_optim_pedigree(
-    func$par, ptr = environment(func$fn)$adfun,
-    rel_eps = sqrt(.Machine$double.eps), max_it = 1000L, n_threads = 6L,
-    c1 = 1e-4, c2 = .9, trace = 0L, use_bfgs = TRUE, cg_tol = .1,
-    strong_wolfe = TRUE, method = "GVA"))
+system.time(psqn_res <- optim_pedigree_psqn(
+  func, max_cg = 200L, rel_eps = .Machine$double.eps^(4/7), 
+  c2 = .01, cg_tol = .1))
 #>    user  system elapsed 
-#> 109.693   0.008  18.287
--psqn_res$value       # maximum lower bound 
-#> [1] -5686
-head(psqn_res$par, 7) # model parameters. See the true values later
-#>  omega:sbase_haz(y)  omega:sbase_haz(y) omega:sbase_haz(y)x            beta:Z.1 
-#>              0.0082              0.0122              0.2708             -1.0277 
-#>            beta:Z.2            log_sds1            log_sds2 
-#>              0.2010             -0.7533             -0.4486
+#>  1138.0     0.2   189.7
+-psqn_res$value # maximum lower bound 
+#> [1] -3138
+psqn_res$params # model parameters. See the true values later
+#>   omega:sbase_haz(y)cubed omega:sbase_haz(y)squared       omega:sbase_haz(y)x 
+#>                    0.0093                    0.0250                    0.3301 
+#>                  beta:Z.1                  beta:Z.2                  log_sds1 
+#>                   -2.3077                    0.2420                   -0.1558
 ```
 
 ``` r
@@ -1443,117 +1425,49 @@ fn_wrapper <- function(par, ..., do_print = FALSE){
 system.time(
   opt_out <- lbfgs(
     fn_wrapper, func$gr, func$par, m = 20, max_iterations = 25000L, 
-    invisible = 1, delta = .Machine$double.eps^(1/3), past = 100L, 
+    invisible = 1, delta = .Machine$double.eps^(4/7), past = 100L, 
     linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
     max_linesearch = 20))
-#>    user  system elapsed 
-#> 229.865   0.059  38.326
+#>     user   system  elapsed 
+#> 4564.732    0.256  761.233
 ```
 
 We show the estimates below and compare them with the true values.
 
 ``` r
 -opt_out$value # lower bound on the marginal log-likelihood in the end
-#> [1] -5684
+#> [1] -3138
 
 rbind(
-  `Starting values` = head(func$par, 7), 
-  Estimates = head(opt_out$par, 7),
+  `Starting values` = head(func$par, 6), 
+  `Estimates lbfgs` = head(opt_out$par, 6),
+  `Estimates psqn ` = head(psqn_res$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
-#>                 omega:sbase_haz(y) omega:sbase_haz(y) omega:sbase_haz(y)x
-#> Starting values            0.00641            0.00959               0.211
-#> Estimates                  0.00824            0.01230               0.273
-#> True values                0.01000            0.02000               0.333
-#>                 beta:Z.1 beta:Z.2 log_sds1 log_sds2
-#> Starting values   -0.801    0.159   -0.693   -0.693
-#> Estimates         -1.043    0.203   -0.757   -0.402
-#> True values       -1.250    0.250    0.000   -0.693
-
-# check the variational parameters
-names(opt_out$par) <- names(func$par)
-reg_exp <- "(^g\\d+)(:.+$)"
-va_ests <- opt_out$par[grepl(reg_exp, names(func$par), perl = TRUE)]
-grp <- gsub(reg_exp, "\\1", names(va_ests), perl = TRUE)
-cps <- tapply(va_ests, grp, function(x){
-  n <- length(x)
-  n <- .5 * (sqrt(8 * n + 9) - 3)
-  list(mu    = head(x, n), 
-       Sigma = theta_to_cov(tail(x, -n)))
-})
-
-# distribution of approximate conditional means
-summary(unlist(lapply(cps, `[[`, "mu")))
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#>  -0.782  -0.436  -0.091   0.010   0.373   2.237
-
-# example of some of the conditional covariance matrices
-vcovs_ests <- lapply(cps[1:4 + 4], "[[", "Sigma")
-par(mfcol = c(2, 2), mar = c(2, 2, 1, 1))
-cl <- colorRampPalette(c("Red", "White", "Blue"))(201)
-for(S in vcovs_ests)
-  image(cor(S), xaxt = "n", yaxt = "n", col = cl, zlim = c(-1, 1))
+#>                 omega:sbase_haz(y)cubed omega:sbase_haz(y)squared
+#> Starting values                 0.00911                    0.0245
+#> Estimates lbfgs                 0.00929                    0.0250
+#> Estimates psqn                  0.00930                    0.0250
+#> True values                     0.01000                    0.0200
+#>                 omega:sbase_haz(y)x beta:Z.1 beta:Z.2 log_sds1
+#> Starting values               0.323    -2.26    0.237   -0.207
+#> Estimates lbfgs               0.330    -2.31    0.242   -0.156
+#> Estimates psqn                0.330    -2.31    0.242   -0.156
+#> True values                   0.333    -2.50    0.250    0.000
 ```
 
-<img src="man/figures/README-pedigree_show_est-1.png" width="100%" />
+We create a “profile lower bound” plot as a function of the the genetic
+effect parameter:
 
 ``` r
+sds <- seq(.2, 1.5, length.out = 20)
 
-# distribution of correlation matrix indices
-sapply(vcovs_ests, function(x) {
-  n <- NCOL(x)
-  x <- cor(x)
-  quantile(x[-cumsum(c(1L, rep(n + 1L, n - 1L)))])
-}) 
-#>        g101   g102   g103   g104
-#> 0%   -0.674 -0.550 -0.538 -0.508
-#> 25%  -0.671 -0.550 -0.523 -0.505
-#> 50%  -0.486 -0.540 -0.387 -0.501
-#> 75%   0.639 -0.385  0.918 -0.412
-#> 100%  0.951  0.935  0.929  0.925
-
-# compare estimated covariance matrix with the true one for some of the 
-# clusters
-par(mfcol = c(2, 2), mar = c(2, 2, 4, 1))
-local({
-  is_sds <- grepl("^log_sds", names(func$par))
-  sds_ests <- exp(opt_out$par[is_sds])
-  sds_true <- dat$sds
-  
-  for(i in 1:4){
-    cmats <- c_data[[i]]$cor_mats
-    n_obs <- NCOL(cmats[[1L]])
-    sig_est <- sig_tru <- diag(n_obs)
-    for(m in seq_along(cmats)){
-      sig_est <- sig_est + sds_ests[m]^2 * cmats[[m]]
-      sig_tru <- sig_tru + sds_true[m]^2 * cmats[[m]]
-    }
-    
-    mx <- max(abs(sig_est), abs(sig_tru))
-    image(sig_est, xaxt = "n", yaxt = "n", col = cl, zlim = c(-mx, mx), 
-          main = sprintf("Estimate (group %d)", i))
-    image(sig_tru, xaxt = "n", yaxt = "n", col = cl, zlim = c(-mx, mx), 
-          main = sprintf("Truth (group %d)", i))
-  }
-  
-  invisible()
-})
-```
-
-<img src="man/figures/README-pedigree_show_est-2.png" width="100%" /><img src="man/figures/README-pedigree_show_est-3.png" width="100%" />
-
-We create a “profile lower bound” plot in 2D as a function of the
-maternal effect parameter and the genetic effect parameter:
-
-``` r
-sigs <- expand.grid(sd1 = sd1 <- seq(.2, 1.5, length.out = 10), 
-                    sd2 = sd2 <- seq(.1, 1  , length.out = 10))
-
-vals <- mapply(function(sd1, sd2){
+vals <- mapply(function(sd1){
   # get the function which is needed to perform the optimization
   func <- make_pedigree_ADFun(
-    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, method = "GVA",
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, method = "SNVA",
     tformula  = ~  sbase_haz(y) - 1, dtformula = ~ dsbase_haz(y) - 1, 
-    sds = c(sd1, sd2), c_data = c_data, link = "probit", n_threads = 6L)
+    sds = sd1, c_data = c_data, link = "probit", n_threads = 6L, 
+    args_gva_opt = list(max_cg = 100L, c2 = .1, max_it = 1L))
   
   # assign wrapper functions to optimize all but the covariance matrix 
   # scales
@@ -1578,24 +1492,21 @@ vals <- mapply(function(sd1, sd2){
   
   # return 
   lb <- -opt_out$value
-  message(sprintf("Sigma genetic: %6.2f   Sigma maternal: %6.2f   Lower bound %.2f", 
-                  sd1, sd2, lb))
-  c(`lower bound` = lb, sd1 = sd1, sd2 = sd2)
-}, sd1 = sigs$sd1, sd2 = sigs$sd2)
+  message(sprintf("Sigma genetic: %6.2f   Lower bound %.2f", 
+                  sd1, lb))
+  c(`lower bound` = lb, sd1 = sd1)
+}, sd1 = sds)
 ```
 
-We make a plot of the contours of the “profile lower bound” below
-(![\\sigma\_1](https://latex.codecogs.com/svg.latex?%5Csigma_1
-"\\sigma_1") is the genetic effect parameter and
-![\\sigma\_2](https://latex.codecogs.com/svg.latex?%5Csigma_2
-"\\sigma_2") is the maternal effect parameter):
+We make a plot of the “profile lower bound” below as a function the
+genetic effect parameter:
 
 ``` r
 par(mar = c(5, 5, 1, 1))
-contour(sd1, sd2, matrix(vals["lower bound", ], length(sd1)), 
-        xlab = expression(sigma[1]), ylab = expression(sigma[2]))
-# add the true values
-points(dat$sds[1], dat$sds[2], pch = 16)
+plot(sds, vals["lower bound", ], type = "p", pch = 16, 
+     xlab = expression(sigma[1]), ylab = "Lower bound")
+lines(smooth.spline(sds, vals["lower bound", ]))
+abline(v = dat$sds[1])
 ```
 
 <img src="man/figures/README-show_profile_lb-1.png" width="100%" />

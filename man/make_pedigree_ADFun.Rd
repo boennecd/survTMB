@@ -21,7 +21,8 @@ make_pedigree_ADFun(
   trace = FALSE,
   kappa = .MGSM_default_kappa,
   dtformula = NULL,
-  method = c("SNVA", "GVA")
+  method = c("SNVA", "GVA"),
+  args_gva_opt = list()
 )
 }
 \arguments{
@@ -75,6 +76,9 @@ ensuring the monotonicity of the survival curve.}
 baseline survival function.}
 
 \item{method}{character vector indicating which approximation to use.}
+
+\item{args_gva_opt}{arguments to pass to \code{\link{optim_pedigree_psqn}}
+when optimizing a GVA to find initial values for the SNVA.}
 }
 \description{
 Construct Objective Functions with Derivatives for a Mixed Generalized

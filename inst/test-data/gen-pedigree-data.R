@@ -144,7 +144,7 @@ sim_fam <- function(rchild, rmatch, max_depth = 2L, max_members = 100L){
 
 #####
 # parameters. Start with family settings
-function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
+function(max_depth = 2L, max_members = 100L, sds = 1,
          n_families = 100L, do_plot = FALSE){
   # then the baseline survival function
   base_haz_func <- function(x){
@@ -162,7 +162,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
   b_val <- 2e-2
   c_val <- 25 * b_val * b_val / a_val / 3
   omega <- c(a_val, b_val, c_val)
-  intecept <- -1.25
+  intecept <- -2.5
 
   plot(function(x) base_haz_func(exp(x)) %*% omega + intecept,
        xlim = c(log(1e-4), log(10)),
@@ -175,7 +175,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
     eta <- drop(-base_haz_func(x) %*% omega - intecept)
     d_eta <- drop(-d_base_haz_func(x) %*% omega)
     -exp(dnorm(eta, log = TRUE) - pnorm(eta, log.p = TRUE)) * d_eta
-  }, xlim = c(1e-4, 10), ylab = "hazard", xlab = "time", ylim = c(0, .25),
+  }, xlim = c(1e-4, 10), ylab = "hazard", xlab = "time", ylim = c(0, .02),
   yaxs="i", bty = "l")
 
   # linear predictor
@@ -211,19 +211,8 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
     rel_mat <- rel_mat[keep, keep, drop = FALSE]
     n_obs <- NROW(rel_mat)
 
-    # matrix for the maternal effect
-    Z <- matrix(0., length(dat$mother), length(dat$mother))
-    rownames(Z) <- dat$id
-    for(i in 1:length(dat$mother)){
-      m_id <- dat$mother[i]
-      if(!is.na(m_id))
-        Z[i, m_id] <- 1
-    }
-    met_mat <- tcrossprod(Z %*% rel_mat_full, Z)
-    met_mat <- met_mat[keep, keep, drop = FALSE]
-
     # simulate the error term
-    Sig <- sds[1]^2 * rel_mat + sds[2]^2 * met_mat
+    Sig <- sds[1]^2 * rel_mat
     epsilon <- drop(rnorm(n_obs) %*% chol(Sig))
 
     Us <- runif(n_obs)
@@ -244,7 +233,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
         return(C * 1.001)
 
       out <- uniroot(f, interval = c(1e-16, C), f.upper = f_U,
-                     tol = sqrt(.Machine$double.eps))
+                     tol = .Machine$double.eps^(3/4))
       out$root
     }, x = targets, C = cens)
 
@@ -252,7 +241,7 @@ function(max_depth = 2L, max_members = 100L, sds = c(1, .5),
     obs_time <- pmin(Ys, cens)
 
     list(y = obs_time, event = is_observed, Z = Zs, rel_mat = rel_mat,
-         met_mat = met_mat, rel_mat_full = rel_mat_full, pedAll = pedAll)
+         rel_mat_full = rel_mat_full, pedAll = pedAll)
   }, simplify = FALSE)
 
   # add the true parameter values and save

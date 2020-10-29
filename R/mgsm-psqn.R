@@ -135,19 +135,24 @@ make_mgsm_psqn_obj <- function(
 #' @param rel_eps relative convergence threshold.
 #' @param max_it maximum number of iterations.
 #' @param n_threads number of threads to use.
-#' @param c1,c2,use_bfgs,cg_tol,strong_wolfe,trace arguments passed to
-#' \code{\link{psqn}}.
+#' @param c1,c2,use_bfgs,cg_tol,strong_wolfe,trace,max_cg,pre_method
+#' arguments passed to the C++ version of \code{\link{psqn}}.
 #'
 #' @export
 optim_mgsm_psqn <- function(object, par = NULL,
                             rel_eps = sqrt(.Machine$double.eps),
                             max_it = 1000L, n_threads = object$n_threads,
                             c1 = 1e-4, c2 = .9, use_bfgs = TRUE,
-                            cg_tol = .2, strong_wolfe = TRUE, trace = 0L){
+                            cg_tol = .2, strong_wolfe = TRUE, trace = 0L,
+                            max_cg = NULL, pre_method = 1L){
   #####
   # chekcs
+  if(is.null(par))
+    par <- object$par
+  if(is.null(max_cg))
+    max_cg <- length(par)
   stopifnot(
-    is.numeric(par) || is.null(par),
+    is.numeric(par), all(is.finite(par)),
     inherits(object, "mgsm_psqn"),
     is.numeric(rel_eps), length(rel_eps) == 1L, is.finite(rel_eps),
     is.integer(max_it), length(max_it) == 1L, is.finite(n_threads),
@@ -158,19 +163,20 @@ optim_mgsm_psqn <- function(object, par = NULL,
     is.numeric(cg_tol), length(cg_tol) == 1L, is.finite(cg_tol),
     is.logical(use_bfgs), length(use_bfgs) == 1L, is.finite(use_bfgs),
     is.logical(strong_wolfe), length(strong_wolfe) == 1L,
-    is.finite(strong_wolfe))
+    is.finite(strong_wolfe),
+    is.integer(max_cg), is.finite(max_cg), length(max_cg) == 1L,
+    is.integer(pre_method), length(pre_method) == 1L, pre_method %in% 0:1)
 
   #####
   # optimize
-  if(is.null(par))
-    par <- object$par
   names(par) <- names(object$par)
 
   out <- psqn_optim_mgsm(val = par, ptr = object$cpp_ptr, rel_eps = rel_eps,
                          max_it = max_it, n_threads = n_threads, c1 = c1,
                          c2 = c2, use_bfgs = use_bfgs, trace = trace,
                          cg_tol = cg_tol, strong_wolfe = strong_wolfe,
-                         method = object$method)
+                         method = object$method, max_cg = max_cg,
+                         pre_method = pre_method)
 
   # sort out variational parameters from model parameters
   is_val <- grepl("^g\\d+:", names(par))

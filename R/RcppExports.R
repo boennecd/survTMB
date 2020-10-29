@@ -49,8 +49,8 @@ psqn_get_mgsm_funcs <- function(data, eps, kappa, b, theta, theta_va, n_nodes, l
     .Call(`_survTMB_psqn_get_mgsm_funcs`, data, eps, kappa, b, theta, theta_va, n_nodes, link, max_threads, method, param_type)
 }
 
-psqn_optim_mgsm <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method) {
-    .Call(`_survTMB_psqn_optim_mgsm`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method)
+psqn_optim_mgsm <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method, max_cg, pre_method) {
+    .Call(`_survTMB_psqn_optim_mgsm`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method, max_cg, pre_method)
 }
 
 psqn_optim_mgsm_private <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, method) {
@@ -97,8 +97,8 @@ get_pedigree_funcs <- function(data, n_nodes, link, omega, beta, log_sds, va_par
     .Call(`_survTMB_get_pedigree_funcs`, data, n_nodes, link, omega, beta, log_sds, va_par, eps, kappa, n_threads, method)
 }
 
-psqn_optim_pedigree <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method) {
-    .Call(`_survTMB_psqn_optim_pedigree`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method)
+psqn_optim_pedigree <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method, max_cg, pre_method) {
+    .Call(`_survTMB_psqn_optim_pedigree`, val, ptr, rel_eps, max_it, n_threads, c1, c2, use_bfgs, trace, cg_tol, strong_wolfe, method, max_cg, pre_method)
 }
 
 psqn_optim_pedigree_private <- function(val, ptr, rel_eps, max_it, n_threads, c1, c2, method) {
