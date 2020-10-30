@@ -1385,14 +1385,14 @@ system.time(
 #> Finding starting values for the variational parameters in the SNVA...
 #> The lower bound at the starting values for the SNVA is: -3138.159
 #>    user  system elapsed 
-#>  70.954   0.024  13.592
+#>  88.743   0.056  16.824
 
 # optimize with the method in the package
 system.time(psqn_res <- optim_pedigree_psqn(
   func, max_cg = 200L, rel_eps = .Machine$double.eps^(4/7), 
   c2 = .01, cg_tol = .1))
-#>    user  system elapsed 
-#>  1138.0     0.2   189.7
+#>     user   system  elapsed 
+#> 1127.768    0.248  188.013
 -psqn_res$value # maximum lower bound 
 #> [1] -3138
 psqn_res$params # model parameters. See the true values later
@@ -1429,7 +1429,7 @@ system.time(
     linesearch_algorithm = "LBFGS_LINESEARCH_BACKTRACKING_WOLFE", 
     max_linesearch = 20))
 #>     user   system  elapsed 
-#> 4564.732    0.256  761.233
+#> 4523.884    0.147  754.298
 ```
 
 We show the estimates below and compare them with the true values.
