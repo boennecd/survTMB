@@ -34,7 +34,7 @@ make_pedigree_ADFun <- function(
   sparse_hess = FALSE, link = c("PH", "PO", "probit"),
   opt_func = .opt_default, skew_start = -.0001, omega = NULL,
   beta = NULL, sds = NULL, trace = FALSE, kappa = .MGSM_default_kappa,
-  dtformula = NULL, method = c("SNVA", "GVA"), args_gva_opt = list()){
+  dtformula = NULL, method = c("SNVA", "GVA", "Laplace"), args_gva_opt = list()){
   # checks
   link <- link[1L]
   method <- method[1L]
@@ -52,7 +52,7 @@ make_pedigree_ADFun <- function(
       is.numeric(sds) && is.vector(sds) && all(sds > 0)),
     is.logical(trace), length(trace) == 1L,
     is.double(kappa), length(kappa) == 1L, kappa >= 0,
-    method %in% c("SNVA", "GVA"),
+    method %in% c(.snva_char, .gva_char, .laplace_char),
     is.list(args_gva_opt))
   eval(bquote(stopifnot(
     .(-.skew_boundary) < skew_start && skew_start < .(.skew_boundary))))
@@ -129,6 +129,28 @@ make_pedigree_ADFun <- function(
                   NCOL(x$cor_mats[[j]]) == n_obs)
     }, list(x = bquote(c_data[[.(i)]])))
     eval(expr, environment())
+  }
+
+  #####
+  # check if Laplace
+  if(method == .laplace_char){
+    data_ad_func <- list(
+      app_type = "pedigree",
+      c_dat = c_data, eps = .MGSM_defaul_eps, kappa = kappa,
+      link = link)
+
+    n_rngs <- sum(vapply(c_data, function(x) length(x$event), 1L))
+    params <- list(omega = omega, beta = beta, log_sds = log(sds),
+                   rng_modes = numeric(n_rngs))
+
+    .tmb_set_n_threads(n = n_threads, is_laplace = TRUE)
+    adfunc_laplace <- MakeADFun(
+      data = data_ad_func, parameters = params, DLL = "survTMB",
+      silent = TRUE, random = "rng_modes")
+
+    # return
+    rm(list = setdiff(ls(), "adfunc_laplace"))
+    return(adfunc_laplace)
   }
 
   #####

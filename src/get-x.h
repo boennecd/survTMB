@@ -49,7 +49,13 @@ matrix<Type> get_mat(SEXP obj){
   std::string name = data["" #name ""]
 
 #define DATA_LOGICAL(name)                                     \
-  bool name = data["" #name ""]
+  bool name = data["" #name ""]                                \
+
+#ifdef DATA_SCALAR
+#undef DATA_SCALAR
+#endif
+#define DATA_SCALAR(name)                                      \
+  Type name = Type(static_cast<double>(data["" #name ""]))
 
 #ifdef DATA_VECTOR
 #undef DATA_VECTOR

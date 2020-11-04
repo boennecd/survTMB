@@ -32,7 +32,6 @@
 #ifndef SETUP_DATA
 #define SETUP_DATA                                             \
   /* common data objects and parameters */                     \
-  DATA_STRING(app_type);                                       \
   DATA_VECTOR(tobs);                                           \
                                                                \
   DATA_VECTOR(event);                                          \

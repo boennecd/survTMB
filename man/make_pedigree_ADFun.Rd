@@ -21,7 +21,7 @@ make_pedigree_ADFun(
   trace = FALSE,
   kappa = .MGSM_default_kappa,
   dtformula = NULL,
-  method = c("SNVA", "GVA"),
+  method = c("SNVA", "GVA", "Laplace"),
   args_gva_opt = list()
 )
 }

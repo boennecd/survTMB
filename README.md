@@ -1432,24 +1432,95 @@ system.time(
 #> 4523.884    0.147  754.298
 ```
 
+We estimate the parameters with a Laplace approximation before we
+compare with the true values:
+
+``` r
+c_data_use <- c_data
+system.time(
+  lap_func <- make_pedigree_ADFun(
+    formula = Surv(y, event) ~ Z.1 + Z.2 - 1, kappa = 10000,
+    tformula  = ~  sbase_haz(y) - 1, trace = TRUE,
+    dtformula = ~ dsbase_haz(y) - 1, method = "Laplace",
+    c_data = c_data_use, link = "probit", n_threads = 6L))
+#> Finding starting values for the fixed effects...
+#> Maximum log-likelihood without random effects is: -3166.694
+#>    user  system elapsed 
+#>   1.858   0.004   1.719
+
+# check the lower bound at the previous solution
+lap_func$fn(head(psqn_res$par, 6))
+#> [1] 3116
+#> attr(,"logarithm")
+#> [1] TRUE
+
+# optimize
+lap_func$fn(lap_func$par)
+#> [1] 3169
+#> attr(,"logarithm")
+#> [1] TRUE
+system.time(lap_opt <- with(
+  lap_func, optim(par, fn, gr, method = "BFGS")))
+#>    user  system elapsed 
+#> 175.252   0.075  29.345
+
+# look at the estimates
+head(lap_opt$par, 6) # quite wrong
+#>   omega   omega   omega    beta    beta log_sds 
+#>   0.190   0.136   6.404 -35.305   3.332   3.528
+
+# we can create an approximate profile likelihood curve
+sds <- seq(.1, 5, length.out = 20)
+mll <- sapply(sds, function(s){
+  # define functions to optimize
+  fn <- function(x)
+    lap_func$fn(c(x, log(s)))
+  gr <- function(x)
+    head(lap_func$gr(c(x, log(s))), -1)
+
+  # reset modes
+  ev <- environment(lap_func$fn)
+  ev$last.par.best[-(1:6)] <- 0
+
+  # optimize
+  opt <- optim(head(lap_func$par, -1), fn, gr, method = "BFGS")
+  message(sprintf("%6.2f %10.2f", s, opt$value))
+  if(opt$convergence != 0)
+    warning("Failed to converge")
+  opt$value
+})
+
+par(mar = c(5, 4, 1, 1))
+plot(sds, -mll, xlab = expression(sigma), main = "", bty = "l",
+     ylab = "Profile likelihood (Laplace)", pch = 16)
+lines(smooth.spline(sds, -mll))
+```
+
+<img src="man/figures/README-laplace_pedigree-1.png" width="100%" />
+
 We show the estimates below and compare them with the true values.
 
 ``` r
 -opt_out$value # lower bound on the marginal log-likelihood in the end
 #> [1] -3138
+-lap_opt$value # approx. maximum marginal likelihood from a Laplace approx.
+#> [1] -2326
 
 rbind(
   `Starting values` = head(func$par, 6), 
+  Laplace           = lap_opt$par,
   `Estimates lbfgs` = head(opt_out$par, 6),
   `Estimates psqn ` = head(psqn_res$par, 6),
   `True values` = c(dat$omega, dat$beta, log(dat$sds)))
 #>                 omega:sbase_haz(y)cubed omega:sbase_haz(y)squared
 #> Starting values                 0.00911                    0.0245
+#> Laplace                         0.18984                    0.1360
 #> Estimates lbfgs                 0.00929                    0.0250
 #> Estimates psqn                  0.00930                    0.0250
 #> True values                     0.01000                    0.0200
 #>                 omega:sbase_haz(y)x beta:Z.1 beta:Z.2 log_sds1
 #> Starting values               0.323    -2.26    0.237   -0.207
+#> Laplace                       6.404   -35.31    3.332    3.528
 #> Estimates lbfgs               0.330    -2.31    0.242   -0.156
 #> Estimates psqn                0.330    -2.31    0.242   -0.156
 #> True values                   0.333    -2.50    0.250    0.000

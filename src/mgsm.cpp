@@ -31,6 +31,7 @@ class VA_worker {
   Rcpp::List data, parameters;
 
   SETUP_DATA;
+  DATA_STRING(app_type);
   PARAMETER_VECTOR(theta_VA);
   DATA_INTEGER(n_nodes);
   DATA_STRING(param_type);

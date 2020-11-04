@@ -1,56 +1,10 @@
 #include "laplace.h"
 #include "dmvnorm_log.h"
 #include "utils.h"
-#include "pnorm-log.h"
 #include "utils.h"
+#include "laplace-util.h"
 
 namespace survTMB {
-
-template<class Type>
-Type laplace_PH_terms
-  (Type const &eta, Type const &etaD, Type const &event,
-   Type const &eps, Type const &eps_log, Type const &kappa){
-  Type const H = exp(eta),
-             h = etaD         * H,
-            hp = (etaD - eps) * H,
-        if_low = event * (eps_log + eta) - H - hp * hp * kappa,
-        if_ok  = event * log(h)          - H;
-  return CppAD::CondExpGe(etaD, eps, if_ok, if_low);
-}
-
-template<class Type>
-Type laplace_PO_terms
-  (Type const &eta, Type const &etaD, Type const &event,
-   Type const &eps, Type const &eps_log, Type const &kappa){
-  Type const too_large(30.),
-                   one(1.);
-
-  Type const H = CppAD::CondExpGe(
-    eta, too_large, eta, log(one + exp(eta))),
-            he = exp(eta - H),
-             h = etaD         * he,
-            hp = (etaD - eps) * he,
-        if_low = event * (eps_log + eta - H) - H - hp * hp * kappa,
-        if_ok  = event * log(h)              - H;
-  return CppAD::CondExpGe(etaD, eps, if_ok, if_low);
-}
-
-template<class Type>
-Type laplace_probit_terms
-  (Type const &eta, Type const &etaD, Type const &event,
-   Type const &eps, Type const &eps_log, Type const &kappa){
-  Type const tiny(std::numeric_limits<double>::epsilon()),
-             zero(0.),
-              one(1.);
-
-  Type const H = -pnorm_log(-eta),
-            hf = dnorm(-eta, zero, one) / (pnorm(-eta) + tiny),
-             h = etaD         * hf,
-            hp = (etaD - eps) * hf,
-        if_low = event * (eps_log + log(hf)) - H - hp * hp * kappa,
-        if_ok  = event * log(h)              - H;
-  return CppAD::CondExpGe(etaD, eps, if_ok, if_low);
-}
 
 template<class Type>
 void laplace(COMMON_ARGS(Type, parallel_accumulator),

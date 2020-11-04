@@ -29,7 +29,7 @@ test_that("SNVA gives previous results", {
     args_gva_opt = list(max_cg = 100L, c2 = .01, rel_eps = sqrt(rel_eps)))
 
   expect_known_value(func$par, update = FALSE,
-                     file.path("local-tests", "pedigree-SNVA-start.RDS"),
+                     file.path(test_res_dir, "pedigree-SNVA-start.RDS"),
                      tolerance = rel_eps^(1/4))
 
   opt <- optim_pedigree_psqn(
@@ -37,6 +37,6 @@ test_that("SNVA gives previous results", {
     c2 = .01, cg_tol = .1)
 
   expect_known_value(opt[c("par", "params", "va_params")],
-                     file.path("local-tests", "pedigree-SNVA-opt.RDS"),
+                     file.path(test_res_dir, "pedigree-SNVA-opt.RDS"),
                      tolerance = sqrt(rel_eps))
 })

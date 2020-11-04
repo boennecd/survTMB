@@ -2,6 +2,7 @@
 #include "gva.h"
 #include "snva.h"
 #include "utils.h"
+#include "pedigree-Laplace.h"
 
 #include <cmath>
 #include <algorithm>
@@ -17,6 +18,17 @@ using namespace survTMB;
 template<class Type>
 Type objective_function<Type>::operator() ()
 {
+  DATA_STRING(app_type);
+  if(app_type == "pedigree"){
+    parallel_accumulator<Type> result(this);
+    PARAMETER_VECTOR(omega);
+    PARAMETER_VECTOR(beta);
+    PARAMETER_VECTOR(log_sds);
+    PARAMETER_VECTOR(rng_modes);
+    pedigree_laplace<Type>(result, data, omega, beta, log_sds, rng_modes);
+    return result;
+  }
+
   SETUP_DATA;
   SETUP_DATA_CHECK;
 

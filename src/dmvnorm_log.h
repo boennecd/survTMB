@@ -22,7 +22,7 @@ Type mult_var_dens(vector<Type> const &theta, matrix<Type> const &rngs){
   }
 
   matrix<Type> const vcov = get_vcov_from_trian(theta);
-  density::MVNORM_t<Type> norm_dist(vcov);
+  density::MVNORM_t<Type> norm_dist(vcov, true);
   Type out(0);
   for(unsigned g = 0; g < rngs.cols(); ++g)
     out -= norm_dist(rngs.col(g));
