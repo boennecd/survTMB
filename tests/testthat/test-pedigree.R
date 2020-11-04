@@ -34,9 +34,9 @@ test_that("SNVA gives previous results", {
 
   opt <- optim_pedigree_psqn(
     func, max_cg = 100L, rel_eps = rel_eps,
-    c2 = .01, cg_tol = .1)
+    c2 = .01, cg_tol = .1, max_it = 100L)
 
-  expect_known_value(opt[c("par", "params", "va_params")],
+  expect_known_value(opt$params,
                      file.path(test_res_dir, "pedigree-SNVA-opt.RDS"),
-                     tolerance = sqrt(rel_eps))
+                     tolerance = sqrt(rel_eps), update = TRUE)
 })

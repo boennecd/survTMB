@@ -1385,14 +1385,14 @@ system.time(
 #> Finding starting values for the variational parameters in the SNVA...
 #> The lower bound at the starting values for the SNVA is: -3138.159
 #>    user  system elapsed 
-#>  88.743   0.056  16.824
+#>  70.805   0.039  13.673
 
 # optimize with the method in the package
 system.time(psqn_res <- optim_pedigree_psqn(
   func, max_cg = 200L, rel_eps = .Machine$double.eps^(4/7), 
   c2 = .01, cg_tol = .1))
-#>     user   system  elapsed 
-#> 1127.768    0.248  188.013
+#>    user  system elapsed 
+#> 1141.61    0.24  190.31
 -psqn_res$value # maximum lower bound 
 #> [1] -3138
 psqn_res$params # model parameters. See the true values later
@@ -1400,6 +1400,57 @@ psqn_res$params # model parameters. See the true values later
 #>                    0.0093                    0.0250                    0.3301 
 #>                  beta:Z.1                  beta:Z.2                  log_sds1 
 #>                   -2.3077                    0.2420                   -0.1558
+
+# as an alternative, we can try to optimize the variational parameters and 
+# model parameters separately and repeat this process. This function 
+# optimizes the variational parameters
+opt_priv <- function(x){
+  ev <- environment(func$fn)
+  out <- survTMB:::psqn_optim_pedigree_private(
+    x, ptr = ev$adfun, rel_eps = .Machine$double.eps^(3/5), max_it = 100L,
+    n_threads = ev$n_threads, c1 = 1e-4, c2 = .9, method = ev$method)
+  out
+}
+
+# this function optimizes the global parameters
+library(psqn)
+opt_glob <- function(x){
+  is_global <- 1:6
+  fn <- function(z, ...){
+    x[is_global] <- z
+    func$fn(x)
+  }
+  gr <- function(z, ...){
+    x[is_global] <- z
+    gr_val <- func$gr(x)
+    structure(gr_val[is_global], value = attr(gr_val, "value"))
+  }
+  
+  opt_out <- psqn_bfgs(
+    x[is_global], fn, gr, rel_eps = .Machine$double.eps^(3/5), 
+    max_it = 100L, c1 = 1e-4, c2 = .9, env = environment())
+  x[is_global] <- opt_out$par
+  structure(x, value = opt_out$value)
+}
+
+# then we can perform the optimization like this
+req_par <- func$par
+for(i in 1:1000){
+  req_par <- opt_priv(req_par)
+  req_par <- opt_glob(req_par)
+  val <- attr(req_par, "value")
+}
+
+# the estimated global parameters are
+head(req_par, 6)
+#>   omega:sbase_haz(y)cubed omega:sbase_haz(y)squared       omega:sbase_haz(y)x 
+#>                   0.00928                   0.02496                   0.32945 
+#>                  beta:Z.1                  beta:Z.2                  log_sds1 
+#>                  -2.30315                   0.24154                  -0.16030
+
+# the lower bound is 
+-val
+#> [1] -3138
 ```
 
 ``` r
@@ -1493,10 +1544,15 @@ mll <- sapply(sds, function(s){
 par(mar = c(5, 4, 1, 1))
 plot(sds, -mll, xlab = expression(sigma), main = "", bty = "l",
      ylab = "Profile likelihood (Laplace)", pch = 16)
-lines(smooth.spline(sds, -mll))
 ```
 
 <img src="man/figures/README-laplace_pedigree-1.png" width="100%" />
+
+``` r
+lines(smooth.spline(sds, -mll))
+```
+
+<img src="man/figures/README-laplace_pedigree-2.png" width="100%" />
 
 We show the estimates below and compare them with the true values.
 
